@@ -1,0 +1,13 @@
+# Phase 1 - Data Pipeline
+duckdb>=0.10.0
+pandas>=2.2.0
+tqdm>=4.66.0
+orjson>=3.9.0
+
+# Phase 2 - Backend API
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-dotenv>=1.0.0
+
+# Dev / tooling
+ruff>=0.4.0

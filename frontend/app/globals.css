@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/* ─── Design tokens ─────────────────────────────────────────────────────── */
+@theme inline {
+  /* Backgrounds */
+  --color-bg-base:    #07080a;
+  --color-bg-surface: #0f1014;
+  --color-bg-card:    #13151a;
+  --color-bg-raised:  #1a1d24;
+  --color-bg-hover:   #21252e;
+
+  /* Borders */
+  --color-border:      #1e2128;
+  --color-border-subtle: #2a2f3a;
+
+  /* Brand */
+  --color-brand:       #f97316;   /* IPL orange */
+  --color-brand-dim:   #c2410c;
+  --color-brand-glow:  rgba(249,115,22,0.15);
+
+  /* Accent (data-vis highlight) */
+  --color-accent:      #3b82f6;   /* blue */
+  --color-accent-dim:  #1d4ed8;
+
+  /* Text */
+  --color-text-primary:   #f0f2f5;
+  --color-text-secondary: #8b92a0;
+  --color-text-muted:     #555d6b;
+
+  /* Status */
+  --color-success: #22c55e;
+  --color-warn:    #eab308;
+  --color-danger:  #ef4444;
+
+  /* Font stack */
+  --font-sans: "Inter", "SF Pro Display", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Chart colours (used in Recharts) */
+  --chart-1: #f97316;
+  --chart-2: #3b82f6;
+  --chart-3: #a855f7;
+  --chart-4: #22c55e;
+  --chart-5: #eab308;
+  --chart-6: #ec4899;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--color-border-subtle); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ─── Typography helpers ─────────────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fdba74 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Card / surface ────────────────────────────────────────────────────── */
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.card-raised {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+}
+
+/* ─── Glow effects ───────────────────────────────────────────────────────── */
+.glow-brand {
+  box-shadow: 0 0 24px var(--color-brand-glow);
+}
+
+/* ─── Stat number ────────────────────────────────────────────────────────── */
+.stat-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ─── Sidebar nav item active state ─────────────────────────────────────── */
+.nav-item-active {
+  background: var(--color-brand-glow);
+  border-left: 2px solid var(--color-brand);
+  color: var(--color-brand);
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────── */
+.data-table th {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+
+.data-table tbody tr:hover {
+  background: var(--color-bg-hover);
+  cursor: pointer;
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Skeleton loader ────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-raised) 25%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-raised) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite;
+  border-radius: 6px;
+}
+
+/* ─── Chart container ─────────────────────────────────────────────────────── */
+.recharts-cartesian-axis-tick text {
+  fill: var(--color-text-muted) !important;
+  font-size: 11px;
+}
+.recharts-legend-item-text { color: var(--color-text-secondary) !important; }
+.recharts-tooltip-wrapper { outline: none; }
