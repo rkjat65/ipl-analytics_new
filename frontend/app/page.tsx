@@ -138,7 +138,7 @@ async function KPIs() {
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { href: "/matches",   label: "Browse Matches",   sub: "1,169 games", color: "var(--color-brand)" },
           { href: "/players",   label: "Player Profiles",  sub: "Career stats, head-to-head", color: "var(--color-accent)" },
@@ -152,6 +152,40 @@ async function KPIs() {
             <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{sub}</p>
           </Link>
         ))}
+      </div>
+
+      {/* Comparison Tools */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--color-text-primary)" }}>
+          Compare & Analyze
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Link href="/teams/compare"
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 transition"
+            style={{ borderLeft: "3px solid var(--color-brand)" }}>
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+                Team Comparison
+              </p>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                Head-to-head records & stats
+              </p>
+            </div>
+          </Link>
+
+          <Link href="/analytics/seasons/compare"
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition"
+            style={{ borderLeft: "3px solid var(--color-success)" }}>
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+                Season Comparison
+              </p>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                Compare performance across seasons
+              </p>
+            </div>
+          </Link>
+        </div>
       </div>
     </>
   );
