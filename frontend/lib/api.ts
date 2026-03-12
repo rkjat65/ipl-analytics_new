@@ -336,6 +336,15 @@ export const api = {
   kpis:            (season?: string) => get<KPIs[]>("/analytics/kpis", { season }),
   phase:           (season?: string) => get<PhaseStats[]>("/analytics/phase", { season }),
   seasonTrends:    ()                => get<SeasonTrend[]>("/analytics/seasons"),
+  seasonComparison: (season1: string, season2: string) =>
+    get<{
+      season1: string;
+      season2: string;
+      kpis_s1: Record<string, unknown>;
+      kpis_s2: Record<string, unknown>;
+      top_batsmen_s1: Array<{ name: string; runs: number; innings: number; strike_rate: number }>;
+      top_batsmen_s2: Array<{ name: string; runs: number; innings: number; strike_rate: number }>;
+    }>(`/analytics/${encodeURIComponent(season1)}/vs/${encodeURIComponent(season2)}`),
   venues:          (season?: string) => get<VenueStats[]>("/analytics/venues", { season }),
   teamStats:       (season?: string) => get<TeamStats[]>("/analytics/teams", { season }),
   dismissalTypes:  (season?: string) => get<DismissalType[]>("/analytics/dismissal-types", { season }),

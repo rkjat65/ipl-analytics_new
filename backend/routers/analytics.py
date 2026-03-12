@@ -363,3 +363,108 @@ def powerplay_kings(
             """,
             base_params + [limit],
         )
+
+
+@router.get("/{season1}/vs/{season2}")
+def season_comparison(
+    season1: str,
+    season2: str,
+    con: Con,
+):
+    """
+    Detailed comparison between two seasons.
+    Returns KPIs, phase analysis, and top performers for both seasons.
+    """
+    # Season 1 KPIs
+    season1_kpis = query(
+        con,
+        """
+        SELECT
+            COUNT(DISTINCT m.match_id) AS total_matches,
+            SUM(d.runs_batter) AS total_runs,
+            SUM(d.is_wicket::INT) AS total_wickets,
+            ROUND(AVG(i.total_runs) FILTER (WHERE i.innings_number = 1), 1) AS avg_first_innings_score,
+            MAX(i.total_runs) AS highest_team_total,
+            SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS total_sixes,
+            SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS total_fours,
+            ROUND(SUM(d.runs_batter) * 6.0 / 
+                  NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS overall_run_rate
+        FROM matches m
+        JOIN deliveries d ON m.match_id = d.match_id
+        JOIN innings i ON m.match_id = i.match_id AND d.innings_number = i.innings_number
+        WHERE m.season = ? AND NOT d.is_super_over
+        """,
+        [season1],
+    )
+
+    # Season 2 KPIs
+    season2_kpis = query(
+        con,
+        """
+        SELECT
+            COUNT(DISTINCT m.match_id) AS total_matches,
+            SUM(d.runs_batter) AS total_runs,
+            SUM(d.is_wicket::INT) AS total_wickets,
+            ROUND(AVG(i.total_runs) FILTER (WHERE i.innings_number = 1), 1) AS avg_first_innings_score,
+            MAX(i.total_runs) AS highest_team_total,
+            SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS total_sixes,
+            SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS total_fours,
+            ROUND(SUM(d.runs_batter) * 6.0 / 
+                  NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS overall_run_rate
+        FROM matches m
+        JOIN deliveries d ON m.match_id = d.match_id
+        JOIN innings i ON m.match_id = i.match_id AND d.innings_number = i.innings_number
+        WHERE m.season = ? AND NOT d.is_super_over
+        """,
+        [season2],
+    )
+
+    # Top batsmen in season 1
+    season1_batsmen = query(
+        con,
+        """
+        SELECT
+            d.batter AS name,
+            SUM(d.runs_batter) AS runs,
+            COUNT(DISTINCT d.match_id) AS innings,
+            ROUND(SUM(d.runs_batter) * 100.0 / NULLIF(COUNT(*), 0), 2) AS strike_rate
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE m.season = ? AND NOT d.is_super_over
+        GROUP BY d.batter
+        HAVING COUNT(DISTINCT d.match_id) >= 5
+        ORDER BY runs DESC
+        LIMIT 5
+        """,
+        [season1],
+    )
+
+    # Top batsmen in season 2
+    season2_batsmen = query(
+        con,
+        """
+        SELECT
+            d.batter AS name,
+            SUM(d.runs_batter) AS runs,
+            COUNT(DISTINCT d.match_id) AS innings,
+            ROUND(SUM(d.runs_batter) * 100.0 / NULLIF(COUNT(*), 0), 2) AS strike_rate
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE m.season = ? AND NOT d.is_super_over
+        GROUP BY d.batter
+        HAVING COUNT(DISTINCT d.match_id) >= 5
+        ORDER BY runs DESC
+        LIMIT 5
+        """,
+        [season2],
+    )
+
+    return {
+        "season1": season1,
+        "season2": season2,
+        "kpis_s1": season1_kpis[0] if season1_kpis else {},
+        "kpis_s2": season2_kpis[0] if season2_kpis else {},
+        "top_batsmen_s1": season1_batsmen,
+        "top_batsmen_s2": season2_batsmen,
+    }
+
