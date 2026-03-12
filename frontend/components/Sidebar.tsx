@@ -20,6 +20,11 @@ const NAV = [
   { href: "/analytics", label: "Deep Analytics",  icon: BarChart3 },
 ];
 
+const COMPARISONS = [
+  { href: "/teams/compare",              label: "Team Comparison" },
+  { href: "/analytics/seasons/compare",  label: "Season Comparison" },
+];
+
 export default function Sidebar() {
   const path = usePathname();
 
@@ -70,6 +75,32 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Comparison Section */}
+        <div className="mt-6">
+          <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-widest"
+            style={{ color: "var(--color-text-muted)" }}>
+            Comparisons
+          </p>
+          {COMPARISONS.map(({ href, label }) => {
+            const active = path.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={clsx(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  active ? "nav-item-active" : "hover:bg-[var(--color-bg-hover)]"
+                )}
+                style={{
+                  color: active ? "var(--color-brand)" : "var(--color-text-secondary)",
+                }}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Footer */}

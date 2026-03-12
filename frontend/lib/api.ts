@@ -302,6 +302,20 @@ export interface HeadToHead {
   average: number | null;
 }
 
+export interface TeamHeadToHeadRecord {
+  team1: string;
+  team2: string;
+  record: {
+    total_matches?: number;
+    team1_wins?: number;
+    team2_wins?: number;
+    ties?: number;
+    team1_win_pct?: number;
+  };
+  recent_matches?: Match[];
+  season_filter?: string | null;
+}
+
 // ─── API functions ────────────────────────────────────────────────────────
 
 export const api = {
@@ -314,6 +328,8 @@ export const api = {
   matches: (params?: { season?: string; team?: string; limit?: number; offset?: number }) =>
     get<MatchListResponse>("/matches", params),
   matchSeasons: () => get<{ season: string; matches: number }[]>("/matches/seasons"),
+  teamHeadToHead: (team1: string, team2: string, season?: string) =>
+    get<TeamHeadToHeadRecord>(`/matches/${encodeURIComponent(team1)}/vs/${encodeURIComponent(team2)}`, { season }),
   matchDetail: (id: string) => get<MatchDetail>(`/matches/${id}`),
 
   // Analytics

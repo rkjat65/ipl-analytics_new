@@ -89,6 +89,72 @@ def list_seasons(con: Con):
     )
 
 
+@router.get("/{team1}/vs/{team2}")
+def team_head_to_head(
+    team1: str,
+    team2: str,
+    con: Con,
+    season: str | None = Query(None, description="Optional: filter by season"),
+):
+    """
+    Head-to-head match statistics between two teams.
+    Returns overall record, performance metrics, and recent matches.
+    """
+    season_filter = "AND season = ?" if season else ""
+    season_param = [season] if season else []
+
+    # Total head-to-head record
+    record = query(
+        con,
+        f"""
+        SELECT
+            COUNT(*) AS total_matches,
+            SUM(CASE WHEN winner = ? THEN 1 ELSE 0 END) AS team1_wins,
+            SUM(CASE WHEN winner = ? THEN 1 ELSE 0 END) AS team2_wins,
+            SUM(CASE WHEN winner IS NULL OR winner NOT IN (?, ?) THEN 1 ELSE 0 END) AS ties
+        FROM matches
+        WHERE (team1 = ? AND team2 = ?) OR (team1 = ? AND team2 = ?)
+        {season_filter}
+        """,
+        [team1, team2, team1, team2, team1, team2, team2, team1] + season_param,
+    )
+
+    record_data = record[0] if record else {}
+    
+    # Calculate win percentage
+    total = record_data.get("total_matches") or 0
+    team1_wins = record_data.get("team1_wins") or 0
+    if total > 0:
+        record_data["team1_win_pct"] = round((team1_wins / total) * 100, 2)
+    else:
+        record_data["team1_win_pct"] = 0
+
+    # Last 5 matches between them
+    recent_matches = query(
+        con,
+        f"""
+        SELECT
+            match_id, season, date, venue,
+            team1, team2, winner, result,
+            toss_winner, toss_decision
+        FROM matches
+        WHERE (team1 = ? AND team2 = ?) OR (team1 = ? AND team2 = ?)
+        {season_filter}
+        ORDER BY date DESC
+        LIMIT 5
+        """,
+        [team1, team2, team2, team1] + season_param,
+    )
+
+    return {
+        "team1": team1,
+        "team2": team2,
+        "record": record_data,
+        "recent_matches": recent_matches,
+        "season_filter": season,
+    }
+
+
 @router.get("/{match_id}")
 def match_detail(match_id: str, con: Con):
     """Full match detail including per-innings scorecard."""
