@@ -1,4 +1,4 @@
-"""Authentication router — register, login, logout, Google OAuth."""
+"""Authentication router — register, login, logout, Google OAuth, password reset."""
 
 import hashlib
 import json
@@ -18,7 +18,9 @@ from ..auth_db import get_auth_db
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "rkdevanda65@gmail.com").lower()
 SESSION_EXPIRY_DAYS = 7
+RESET_TOKEN_EXPIRY_HOURS = 1
 
 
 # ── Pydantic models ─────────────────────────────────────────────────
@@ -36,6 +38,29 @@ class LoginRequest(BaseModel):
 
 class GoogleLoginRequest(BaseModel):
     credential: str
+
+
+class SetPasswordRequest(BaseModel):
+    password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class AdminResetPasswordRequest(BaseModel):
+    user_id: str
+    new_password: str
 
 
 class UserResponse(BaseModel):
@@ -68,13 +93,19 @@ def verify_password(password: str, stored: str) -> bool:
     return new_hash.hex() == hash_val
 
 
+# ── Admin check ─────────────────────────────────────────────────────
+
+def _is_admin(user: dict) -> bool:
+    """Check if the user is the platform admin by email."""
+    return user.get("email", "").lower() == ADMIN_EMAIL
+
+
 # ── Session helpers ──────────────────────────────────────────────────
 
 def _create_session(user_id: str) -> str:
     """Create a session token, clean expired sessions, return the token."""
     db = get_auth_db()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    # Clean up expired sessions
     db.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
     token = secrets.token_urlsafe(32)
     expires = (
@@ -102,15 +133,19 @@ def _validate_email(email: str):
         raise HTTPException(status_code=400, detail="Invalid email address")
 
 
+def _validate_password(password: str):
+    if len(password) < 6:
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 6 characters"
+        )
+
+
 # ── Dependency: get current user (optional) ──────────────────────────
 
 def get_current_user(
     authorization: Optional[str] = Header(None),
 ) -> Optional[dict]:
-    """Extract and validate session token from Authorization header.
-
-    Returns user dict or None if not authenticated.
-    """
+    """Extract and validate session token from Authorization header."""
     if not authorization:
         return None
     parts = authorization.split()
@@ -137,10 +172,7 @@ def get_current_user(
 @router.post("/register", response_model=AuthResponse)
 def register(body: RegisterRequest):
     _validate_email(body.email)
-    if len(body.password) < 6:
-        raise HTTPException(
-            status_code=400, detail="Password must be at least 6 characters"
-        )
+    _validate_password(body.password)
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
 
@@ -182,11 +214,14 @@ def login(body: LoginRequest):
     ).fetchone()
     if not row:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # If this is a Google-only account with no password set
     if not row["password_hash"]:
         raise HTTPException(
             status_code=401,
-            detail="This account uses Google sign-in. Please log in with Google.",
+            detail="This account uses Google sign-in. Please use 'Sign in with Google' or set a password first.",
         )
+
     if not verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -216,27 +251,147 @@ def me(authorization: Optional[str] = Header(None)):
     return user
 
 
+# ── Set password (for Google users who want email login too) ─────────
+
+@router.post("/set-password")
+def set_password(body: SetPasswordRequest, authorization: Optional[str] = Header(None)):
+    """Allow a logged-in Google user to set a password for email login."""
+    user = get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    _validate_password(body.password)
+
+    db = get_auth_db()
+    row = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    if row["password_hash"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Password already set. Use 'Change Password' instead.",
+        )
+
+    pw_hash = hash_password(body.password)
+    db.execute(
+        "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
+        (pw_hash, user["id"]),
+    )
+    db.commit()
+    return {"detail": "Password set successfully. You can now sign in with email and password."}
+
+
+# ── Change password (for logged-in users) ────────────────────────────
+
+@router.post("/change-password")
+def change_password(body: ChangePasswordRequest, authorization: Optional[str] = Header(None)):
+    """Change password for a logged-in user."""
+    user = get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    _validate_password(body.new_password)
+
+    db = get_auth_db()
+    row = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+
+    # If user has an existing password, verify it
+    if row["password_hash"]:
+        if not verify_password(body.current_password, row["password_hash"]):
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    pw_hash = hash_password(body.new_password)
+    db.execute(
+        "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
+        (pw_hash, user["id"]),
+    )
+    db.commit()
+    return {"detail": "Password changed successfully"}
+
+
+# ── Forgot password (generates reset token) ──────────────────────────
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest):
+    """Generate a password reset token. Returns the token directly
+    (in production, this would be emailed)."""
+    db = get_auth_db()
+    row = db.execute(
+        "SELECT id, auth_provider FROM users WHERE email = ?",
+        (body.email.lower(),),
+    ).fetchone()
+
+    # Always return success to prevent email enumeration
+    if not row:
+        return {"detail": "If an account with that email exists, a reset link has been generated."}
+
+    # Create reset token
+    reset_token = secrets.token_urlsafe(32)
+    expires = (
+        datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRY_HOURS)
+    ).strftime("%Y-%m-%d %H:%M:%S")
+
+    # Store reset token in a simple way — reuse sessions table with a prefix
+    db.execute(
+        "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
+        (f"reset:{reset_token}", row["id"], expires),
+    )
+    db.commit()
+
+    return {
+        "detail": "If an account with that email exists, a reset link has been generated.",
+        "reset_token": reset_token,  # In production, email this instead
+    }
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordRequest):
+    """Reset password using a reset token."""
+    _validate_password(body.password)
+
+    db = get_auth_db()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    row = db.execute(
+        "SELECT user_id FROM sessions WHERE token = ? AND expires_at > ?",
+        (f"reset:{body.token}", now),
+    ).fetchone()
+
+    if not row:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset token. Please request a new one.",
+        )
+
+    pw_hash = hash_password(body.password)
+    db.execute(
+        "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
+        (pw_hash, row["user_id"]),
+    )
+    # Delete the used reset token
+    db.execute("DELETE FROM sessions WHERE token = ?", (f"reset:{body.token}",))
+    db.commit()
+
+    return {"detail": "Password reset successfully. You can now sign in with your new password."}
+
+
+# ── Admin endpoints ──────────────────────────────────────────────────
+
 @router.get("/admin/users")
 def admin_list_users(authorization: Optional[str] = Header(None)):
-    """List all registered users. Only accessible to the first registered user (admin)."""
+    """List all registered users. Admin only (rkdevanda65@gmail.com)."""
     current = get_current_user(authorization)
     if not current:
         raise HTTPException(status_code=401, detail="Not authenticated")
-
-    db = get_auth_db()
-    # The first user (earliest created_at) is the admin
-    first_user = db.execute(
-        "SELECT id FROM users ORDER BY created_at ASC LIMIT 1"
-    ).fetchone()
-    if not first_user or first_user["id"] != current["id"]:
+    if not _is_admin(current):
         raise HTTPException(status_code=403, detail="Admin access only")
 
+    db = get_auth_db()
     rows = db.execute(
         """
         SELECT id, email, name, auth_provider, avatar_url, is_verified,
                created_at, updated_at,
                (SELECT COUNT(*) FROM sessions s WHERE s.user_id = users.id
-                AND s.expires_at > datetime('now')) as active_sessions
+                AND s.expires_at > datetime('now')
+                AND s.token NOT LIKE 'reset:%') as active_sessions
         FROM users ORDER BY created_at DESC
         """
     ).fetchall()
@@ -263,14 +418,10 @@ def admin_stats(authorization: Optional[str] = Header(None)):
     current = get_current_user(authorization)
     if not current:
         raise HTTPException(status_code=401, detail="Not authenticated")
-
-    db = get_auth_db()
-    first_user = db.execute(
-        "SELECT id FROM users ORDER BY created_at ASC LIMIT 1"
-    ).fetchone()
-    if not first_user or first_user["id"] != current["id"]:
+    if not _is_admin(current):
         raise HTTPException(status_code=403, detail="Admin access only")
 
+    db = get_auth_db()
     total = db.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
     google_users = db.execute(
         "SELECT COUNT(*) as c FROM users WHERE auth_provider = 'google'"
@@ -280,7 +431,8 @@ def admin_stats(authorization: Optional[str] = Header(None)):
     ).fetchone()["c"]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     active_sessions = db.execute(
-        "SELECT COUNT(*) as c FROM sessions WHERE expires_at > ?", (now,)
+        "SELECT COUNT(*) as c FROM sessions WHERE expires_at > ? AND token NOT LIKE 'reset:%'",
+        (now,),
     ).fetchone()["c"]
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     today_signups = db.execute(
@@ -296,10 +448,39 @@ def admin_stats(authorization: Optional[str] = Header(None)):
     }
 
 
+@router.post("/admin/reset-password")
+def admin_reset_password(
+    body: AdminResetPasswordRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Admin can reset any user's password."""
+    current = get_current_user(authorization)
+    if not current:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not _is_admin(current):
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    _validate_password(body.new_password)
+
+    db = get_auth_db()
+    user = db.execute("SELECT id, email FROM users WHERE id = ?", (body.user_id,)).fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    pw_hash = hash_password(body.new_password)
+    db.execute(
+        "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
+        (pw_hash, body.user_id),
+    )
+    db.commit()
+    return {"detail": f"Password reset for {user['email']}"}
+
+
+# ── Google OAuth ─────────────────────────────────────────────────────
+
 @router.post("/google", response_model=AuthResponse)
 def google_login(body: GoogleLoginRequest):
     """Verify a Google ID token and create/login the user."""
-    # Call Google's tokeninfo endpoint to verify the token
     url = (
         f"https://oauth2.googleapis.com/tokeninfo?id_token={body.credential}"
     )
@@ -312,7 +493,6 @@ def google_login(body: GoogleLoginRequest):
             status_code=401, detail="Invalid Google credential"
         )
 
-    # Verify audience matches our client ID (if configured)
     if GOOGLE_CLIENT_ID and data.get("aud") != GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=401, detail="Google token audience mismatch"
@@ -330,14 +510,12 @@ def google_login(body: GoogleLoginRequest):
 
     db = get_auth_db()
 
-    # Check if user exists by google_id or email
     row = db.execute(
         "SELECT * FROM users WHERE google_id = ? OR email = ?",
         (google_id, email),
     ).fetchone()
 
     if row:
-        # Update google_id / avatar if needed
         user_id = row["id"]
         db.execute(
             """
@@ -350,7 +528,6 @@ def google_login(body: GoogleLoginRequest):
         )
         db.commit()
     else:
-        # Create new user
         user_id = str(uuid4())
         db.execute(
             """
@@ -362,7 +539,6 @@ def google_login(body: GoogleLoginRequest):
         )
         db.commit()
 
-    # Fetch fresh user data
     user_row = db.execute(
         "SELECT * FROM users WHERE id = ?", (user_id,)
     ).fetchone()

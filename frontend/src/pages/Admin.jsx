@@ -9,17 +9,39 @@ export default function Admin() {
   const [stats, setStats] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [resetModal, setResetModal] = useState(null) // { userId, email, name }
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetMsg, setResetMsg] = useState('')
 
-  useEffect(() => {
+  const loadData = () => {
     if (!token) { setError('Not authenticated'); setLoading(false); return }
-    Promise.all([
-      getAdminUsers(token),
-      getAdminStats(token),
-    ])
+    Promise.all([getAdminUsers(token), getAdminStats(token)])
       .then(([u, s]) => { setUsers(u); setStats(s) })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
-  }, [token])
+  }
+
+  useEffect(() => { loadData() }, [token])
+
+  const handleResetPassword = async () => {
+    if (!resetPassword || resetPassword.length < 6) {
+      setResetMsg('Password must be at least 6 characters')
+      return
+    }
+    try {
+      const res = await fetch('/api/auth/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ user_id: resetModal.userId, new_password: resetPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Failed')
+      setResetMsg(data.detail)
+      setTimeout(() => { setResetModal(null); setResetPassword(''); setResetMsg('') }, 2000)
+    } catch (err) {
+      setResetMsg(err.message)
+    }
+  }
 
   if (loading) {
     return (
@@ -36,7 +58,7 @@ export default function Admin() {
           <div className="text-4xl mb-4">🔒</div>
           <h2 className="text-xl font-heading font-bold text-text-primary mb-2">Access Denied</h2>
           <p className="text-red-400 text-sm">{error}</p>
-          <p className="text-text-muted text-xs mt-2">Only the platform owner (first registered account) can access this page.</p>
+          <p className="text-text-muted text-xs mt-2">Only the platform admin can access this page.</p>
         </div>
       </div>
     )
@@ -97,6 +119,7 @@ export default function Admin() {
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Verified</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Sessions</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Joined</th>
+                <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -151,6 +174,15 @@ export default function Admin() {
                       hour: '2-digit', minute: '2-digit',
                     }) : '-'}
                   </td>
+                  <td className="py-3 px-4">
+                    <button
+                      onClick={() => { setResetModal({ userId: u.id, email: u.email, name: u.name }); setResetPassword(''); setResetMsg('') }}
+                      className="text-xs text-accent-amber hover:text-accent-amber/80 font-mono transition-colors"
+                      title="Reset password"
+                    >
+                      Reset PW
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -163,6 +195,50 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* Reset Password Modal */}
+      {resetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setResetModal(null)}>
+          <div className="bg-[#111118] border border-border-subtle rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <h3 className="font-heading font-bold text-text-primary text-lg mb-1">Reset Password</h3>
+            <p className="text-text-secondary text-sm mb-4">
+              Set a new password for <span className="text-accent-cyan font-mono">{resetModal.email}</span>
+            </p>
+
+            {resetMsg && (
+              <div className={`mb-4 p-2.5 rounded-lg text-sm text-center ${
+                resetMsg.includes('reset for') || resetMsg.includes('success')
+                  ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                  : 'bg-accent-magenta/10 border border-accent-magenta/30 text-accent-magenta'
+              }`}>
+                {resetMsg}
+              </div>
+            )}
+
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={e => { setResetPassword(e.target.value); setResetMsg('') }}
+              placeholder="New password (min 6 characters)"
+              className="w-full px-4 py-2.5 rounded-lg bg-[#0A0A0F] border border-[#1E1E2A] text-text-primary text-sm
+                placeholder-text-muted/50 focus:outline-none focus:ring-2 focus:ring-accent-cyan/40 mb-4"
+            />
+
+            <div className="flex gap-3">
+              <button onClick={() => setResetModal(null)}
+                className="flex-1 py-2 rounded-lg border border-border-subtle text-text-secondary text-sm hover:bg-bg-card-hover transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleResetPassword}
+                className="flex-1 py-2 rounded-lg bg-accent-amber text-black font-bold text-sm hover:brightness-110 transition-all">
+                Reset Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
