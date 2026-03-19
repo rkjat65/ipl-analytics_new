@@ -4,6 +4,7 @@ import {
   LineChart, Line, Legend, Cell
 } from 'recharts'
 import SEO from '../components/SEO'
+import AIImageModal from '../components/ui/AIImageModal'
 import { getAiStatus, askCricketQuery, getAiSuggestions, generateCommentary } from '../lib/api'
 import { exportAsImage, downloadImage } from '../utils/exportCard'
 import { CARD_DIMENSIONS } from '../components/cards/cardStyles'
@@ -277,6 +278,7 @@ export default function AskCricket() {
   const [aiStatus, setAiStatus] = useState(null)
   const [suggestions, setSuggestions] = useState([])
   const [imageCreatorIdx, setImageCreatorIdx] = useState(null)
+  const [aiImageModal, setAiImageModal] = useState(null)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -493,6 +495,17 @@ export default function AskCricket() {
                       >
                         📋 Copy Data
                       </button>
+                      <button
+                        onClick={() => setAiImageModal({
+                          question: msg.question || msg.insight || '',
+                          insight: msg.insight || '',
+                          data: msg.data || []
+                        })}
+                        className="text-xs font-mono px-3 py-1.5 rounded-lg bg-gradient-to-r from-accent-magenta/10 to-accent-cyan/10
+                          text-accent-lime border border-accent-lime/30 hover:from-accent-magenta/20 hover:to-accent-cyan/20 transition-all"
+                      >
+                        🎨 AI Infographic
+                      </button>
                     </div>
                   </div>
 
@@ -586,6 +599,16 @@ export default function AskCricket() {
           </p>
         </div>
       </div>
+
+      {/* AI Image Generation Modal */}
+      {aiImageModal && (
+        <AIImageModal
+          question={aiImageModal.question}
+          insight={aiImageModal.insight}
+          data={aiImageModal.data}
+          onClose={() => setAiImageModal(null)}
+        />
+      )}
     </div>
   )
 }
