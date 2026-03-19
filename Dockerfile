@@ -1,6 +1,11 @@
 # ── Stage 1: Build frontend ──────────────────────────────
 FROM node:20-slim AS frontend-build
 WORKDIR /app/frontend
+
+# Accept build-time env vars for Vite (baked into the JS bundle)
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
