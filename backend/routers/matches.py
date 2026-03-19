@@ -1,258 +1,302 @@
-"""
-/api/matches  – match listings, detail, and scorecards.
-"""
+"""Match endpoints: list, detail, scorecards, win probability."""
 
-from __future__ import annotations
+from fastapi import APIRouter, Query, HTTPException
+from ..database import query, normalize_team, team_variants
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Query
-
-from backend.database import get_db, query
-
-router = APIRouter(prefix="/api/matches", tags=["Matches"])
-
-Con = Annotated[object, Depends(get_db)]
+router = APIRouter(prefix="/api/matches", tags=["matches"])
 
 
 @router.get("")
 def list_matches(
-    con: Con,
-    season: str | None = Query(None, description="e.g. '2016' or '2007/08'"),
-    team: str | None = Query(None, description="Filter by team name (either side)"),
-    limit: int = Query(20, ge=1, le=200),
+    season: str | None = None,
+    team: str | None = None,
+    venue: str | None = None,
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """
-    Paginated match list, newest first.
-    Optional filters: season, team.
-    """
-    filters = ["1=1"]
-    params: list = []
-
+    conditions = []
+    params = []
     if season:
-        filters.append("season = ?")
-        params.append(season)
+        parts = [s.strip() for s in season.split(",") if s.strip()]
+        if len(parts) == 1:
+            conditions.append("m.season = ?")
+            params.append(parts[0])
+        else:
+            ph = ", ".join(["?"] * len(parts))
+            conditions.append(f"m.season IN ({ph})")
+            params.extend(parts)
     if team:
-        filters.append("(team1 = ? OR team2 = ?)")
-        params.extend([team, team])
+        variants = team_variants(team)
+        placeholders = ", ".join(["?"] * len(variants))
+        conditions.append(f"(m.team1 IN ({placeholders}) OR m.team2 IN ({placeholders}))")
+        params.extend(variants + variants)
+    if venue:
+        conditions.append("m.venue = ?")
+        params.append(venue)
 
-    where = " AND ".join(filters)
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
     params.extend([limit, offset])
 
-    rows = query(
-        con,
-        f"""
-        SELECT
-            match_id,
-            season,
-            date,
-            venue,
-            city,
-            team1,
-            team2,
-            toss_winner,
-            toss_decision,
-            winner,
-            win_by_runs,
-            win_by_wickets,
-            result,
-            player_of_match
-        FROM matches
-        WHERE {where}
-        ORDER BY date DESC
+    rows = query(f"""
+        SELECT m.match_id, m.season, m.date, m.city, m.venue,
+               m.team1, m.team2, m.toss_winner, m.toss_decision,
+               m.winner, m.win_by_runs, m.win_by_wickets, m.result,
+               m.player_of_match
+        FROM matches m
+        {where}
+        ORDER BY m.date DESC
         LIMIT ? OFFSET ?
-        """,
-        params,
-    )
+    """, params)
 
-    total = query(
-        con,
-        f"SELECT COUNT(*) AS n FROM matches WHERE {where}",
-        params[:-2],
-    )[0]["n"]
+    total = query(f"SELECT COUNT(*) AS cnt FROM matches m {where}", params[:-2])
 
-    return {"total": total, "limit": limit, "offset": offset, "data": rows}
+    # Normalize team names in output
+    for row in rows:
+        for key in ("team1", "team2", "winner", "toss_winner"):
+            if row.get(key):
+                row[key] = normalize_team(row[key])
 
-
-@router.get("/seasons")
-def list_seasons(con: Con):
-    """All distinct seasons in the database, newest first."""
-    return query(
-        con,
-        """
-        SELECT season, COUNT(*) AS matches
-        FROM matches
-        GROUP BY season
-        ORDER BY MIN(date) DESC
-        """,
-    )
-
-
-@router.get("/{team1}/vs/{team2}")
-def team_head_to_head(
-    team1: str,
-    team2: str,
-    con: Con,
-    season: str | None = Query(None, description="Optional: filter by season"),
-):
-    """
-    Head-to-head match statistics between two teams.
-    Returns overall record, performance metrics, and recent matches.
-    """
-    season_filter = "AND season = ?" if season else ""
-    season_param = [season] if season else []
-
-    # Total head-to-head record
-    record = query(
-        con,
-        f"""
-        SELECT
-            COUNT(*) AS total_matches,
-            SUM(CASE WHEN winner = ? THEN 1 ELSE 0 END) AS team1_wins,
-            SUM(CASE WHEN winner = ? THEN 1 ELSE 0 END) AS team2_wins,
-            SUM(CASE WHEN winner IS NULL OR winner NOT IN (?, ?) THEN 1 ELSE 0 END) AS ties
-        FROM matches
-        WHERE (team1 = ? AND team2 = ?) OR (team1 = ? AND team2 = ?)
-        {season_filter}
-        """,
-        [team1, team2, team1, team2, team1, team2, team2, team1] + season_param,
-    )
-
-    record_data = record[0] if record else {}
-    
-    # Calculate win percentage
-    total = record_data.get("total_matches") or 0
-    team1_wins = record_data.get("team1_wins") or 0
-    if total > 0:
-        record_data["team1_win_pct"] = round((team1_wins / total) * 100, 2)
-    else:
-        record_data["team1_win_pct"] = 0
-
-    # Last 5 matches between them
-    recent_matches = query(
-        con,
-        f"""
-        SELECT
-            match_id, season, date, venue,
-            team1, team2, winner, result,
-            toss_winner, toss_decision
-        FROM matches
-        WHERE (team1 = ? AND team2 = ?) OR (team1 = ? AND team2 = ?)
-        {season_filter}
-        ORDER BY date DESC
-        LIMIT 5
-        """,
-        [team1, team2, team2, team1] + season_param,
-    )
-
-    return {
-        "team1": team1,
-        "team2": team2,
-        "record": record_data,
-        "recent_matches": recent_matches,
-        "season_filter": season,
-    }
+    return {"total": total[0]["cnt"], "matches": rows}
 
 
 @router.get("/{match_id}")
-def match_detail(match_id: str, con: Con):
-    """Full match detail including per-innings scorecard."""
-    match = query(
-        con,
-        "SELECT * FROM matches WHERE match_id = ?",
-        [match_id],
-    )
-    if not match:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Match not found")
+def match_detail(match_id: str):
+    # Match info
+    info = query("SELECT * FROM matches WHERE match_id = ?", [match_id])
+    if not info:
+        raise HTTPException(404, "Match not found")
+    info = info[0]
+    for key in ("team1", "team2", "winner", "toss_winner"):
+        if info.get(key):
+            info[key] = normalize_team(info[key])
 
-    innings = query(
-        con,
-        """
-        SELECT
-            i.innings_number, i.is_super_over, i.batting_team, i.bowling_team,
-            i.total_runs, i.total_wickets, i.total_balls,
-            COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS legal_balls
-        FROM innings i
-        JOIN deliveries d ON i.match_id = d.match_id AND i.innings_number = d.innings_number
-        WHERE i.match_id = ?
-        GROUP BY i.innings_number, i.is_super_over, i.batting_team, i.bowling_team,
-                 i.total_runs, i.total_wickets, i.total_balls
-        ORDER BY i.innings_number
-        """,
-        [match_id],
-    )
+    # Innings summary
+    innings_summary = query("""
+        SELECT innings_number, batting_team, bowling_team,
+               total_runs, total_wickets, total_balls
+        FROM innings
+        WHERE match_id = ? AND is_super_over = false
+        ORDER BY innings_number
+    """, [match_id])
 
-    # Top scorers per innings
-    batting = query(
-        con,
-        """
-        SELECT
-            innings_number,
-            batter,
-            SUM(runs_batter)  AS runs,
-            COUNT(*)           AS balls,
-            SUM(CASE WHEN runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-            SUM(CASE WHEN runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
-            ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(*), 0), 2) AS strike_rate,
-            MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN dismissal_kind END) AS dismissed_by
+    # Batting scorecards
+    batting = query("""
+        SELECT innings_number, batter,
+               SUM(runs_batter) AS runs,
+               COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
+               SUM(CASE WHEN runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
+               SUM(CASE WHEN runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
+               ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS strike_rate,
+               MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN dismissal_kind END) AS dismissal,
+               MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN bowler END) AS dismissed_by,
+               MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN fielder1 END) AS fielder
         FROM deliveries
-        WHERE match_id = ?
+        WHERE match_id = ? AND is_super_over = false
         GROUP BY innings_number, batter
-        ORDER BY innings_number, runs DESC
-        """,
-        [match_id],
-    )
+        ORDER BY innings_number, MIN(over_number * 10 + ball_number)
+    """, [match_id])
 
-    # Bowling figures per innings
-    bowling = query(
-        con,
-        """
-        SELECT
-            innings_number,
-            bowler,
-            COUNT(CASE WHEN NOT is_super_over THEN 1 END)                   AS balls,
-            SUM(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS legal_balls,
-            SUM(runs_total)                                                  AS runs_conceded,
-            SUM(CASE WHEN is_wicket
-                      AND dismissal_kind NOT IN ('run out','obstructing the field','retired hurt','retired out')
-                      THEN 1 ELSE 0 END)                                    AS wickets,
-            ROUND(SUM(runs_total) * 6.0 /
-                  NULLIF(SUM(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END), 0), 2) AS economy
-        FROM deliveries
-        WHERE match_id = ?
-        GROUP BY innings_number, bowler
-        ORDER BY innings_number, wickets DESC, runs_conceded
-        """,
-        [match_id],
-    )
+    # Bowling scorecards
+    bowling = query("""
+        WITH bowling_data AS (
+            SELECT innings_number, bowler,
+                   SUM(runs_batter + extras_wides + extras_noballs) AS runs_conceded,
+                   SUM(CASE WHEN is_wicket AND dismissal_kind NOT IN ('run out', 'retired hurt', 'retired out', 'obstructing the field') THEN 1 ELSE 0 END) AS wickets,
+                   COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS legal_balls,
+                   COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 AND runs_batter = 0 AND runs_extras = 0 THEN 1 END) AS dots
+            FROM deliveries
+            WHERE match_id = ? AND is_super_over = false
+            GROUP BY innings_number, bowler
+        ),
+        maiden_overs AS (
+            SELECT innings_number, bowler, over_number,
+                   SUM(runs_batter + extras_wides + extras_noballs) AS over_runs
+            FROM deliveries
+            WHERE match_id = ? AND is_super_over = false
+            GROUP BY innings_number, bowler, over_number
+            HAVING SUM(runs_batter + extras_wides + extras_noballs) = 0
+        ),
+        maiden_counts AS (
+            SELECT innings_number, bowler, COUNT(*) AS maidens
+            FROM maiden_overs
+            GROUP BY innings_number, bowler
+        )
+        SELECT b.innings_number, b.bowler,
+               CONCAT(CAST(b.legal_balls AS INTEGER) // 6, '.', CAST(b.legal_balls AS INTEGER) % 6) AS overs,
+               COALESCE(mc.maidens, 0) AS maidens,
+               b.runs_conceded,
+               b.wickets,
+               ROUND(b.runs_conceded * 6.0 / NULLIF(b.legal_balls, 0), 2) AS economy
+        FROM bowling_data b
+        LEFT JOIN maiden_counts mc ON b.innings_number = mc.innings_number AND b.bowler = mc.bowler
+        ORDER BY b.innings_number, MIN(b.legal_balls) OVER (PARTITION BY b.innings_number ORDER BY b.bowler)
+    """, [match_id, match_id])
 
-    # Over-by-over run progression
-    over_progression = query(
-        con,
-        """
-        SELECT
-            innings_number,
-            over_number,
-            SUM(runs_total)   AS runs_in_over,
-            SUM(is_wicket::INT) AS wickets_in_over,
-            SUM(SUM(runs_total)) OVER (
-                PARTITION BY innings_number
-                ORDER BY over_number
-            ) AS cumulative_runs
+    # Partnerships
+    partnerships = query("""
+        WITH numbered AS (
+            SELECT innings_number, over_number, ball_number, batter, non_striker,
+                   runs_total, is_wicket, player_dismissed,
+                   extras_wides, extras_noballs,
+                   COALESCE(SUM(CASE WHEN is_wicket THEN 1 ELSE 0 END)
+                       OVER (PARTITION BY innings_number ORDER BY over_number, ball_number
+                             ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS wicket_num
+            FROM deliveries
+            WHERE match_id = ? AND is_super_over = false
+        ),
+        partnership_players AS (
+            SELECT innings_number, wicket_num,
+                   SUM(runs_total) AS runs,
+                   COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
+                   MIN(batter) AS batter1,
+                   MAX(batter) AS batter2_candidate,
+                   MIN(non_striker) AS ns1,
+                   MAX(non_striker) AS ns2
+            FROM numbered
+            GROUP BY innings_number, wicket_num
+        )
+        SELECT innings_number,
+               wicket_num AS partnership_number,
+               batter1 || ' & ' || CASE WHEN batter2_candidate != batter1 THEN batter2_candidate
+                                        WHEN ns1 != batter1 THEN ns1
+                                        ELSE ns2 END AS pair,
+               runs, balls
+        FROM partnership_players
+        ORDER BY innings_number, partnership_number
+    """, [match_id])
+
+    # Over-by-over data for manhattan/worm
+    overs_data = query("""
+        SELECT innings_number, over_number,
+               SUM(runs_total) AS runs,
+               SUM(CASE WHEN is_wicket THEN 1 ELSE 0 END) AS wickets,
+               SUM(SUM(runs_total)) OVER (PARTITION BY innings_number ORDER BY over_number) AS cumulative_runs
         FROM deliveries
-        WHERE match_id = ? AND NOT is_super_over
+        WHERE match_id = ? AND is_super_over = false
         GROUP BY innings_number, over_number
         ORDER BY innings_number, over_number
-        """,
-        [match_id],
-    )
+    """, [match_id])
+
+    # Fall of wickets
+    fow = query("""
+        WITH ball_scores AS (
+            SELECT innings_number, over_number, ball_number,
+                   player_dismissed, bowler, dismissal_kind,
+                   SUM(runs_total) OVER (PARTITION BY innings_number
+                       ORDER BY over_number, ball_number
+                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS total_at_dismissal,
+                   SUM(CASE WHEN is_wicket THEN 1 ELSE 0 END) OVER (PARTITION BY innings_number
+                       ORDER BY over_number, ball_number
+                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS wicket_number
+            FROM deliveries
+            WHERE match_id = ? AND is_super_over = false
+        )
+        SELECT innings_number, wicket_number, player_dismissed, dismissal_kind,
+               total_at_dismissal AS score,
+               CONCAT(over_number, '.', ball_number) AS over_ball
+        FROM ball_scores
+        WHERE player_dismissed IS NOT NULL
+        ORDER BY innings_number, wicket_number
+    """, [match_id])
+
+    # Normalize team names in innings
+    for inn in innings_summary:
+        for key in ("batting_team", "bowling_team"):
+            if inn.get(key):
+                inn[key] = normalize_team(inn[key])
+
+    # Organize by innings
+    scorecards = []
+    for inn in innings_summary:
+        inn_num = inn["innings_number"]
+        scorecards.append({
+            "innings_number": inn_num,
+            "batting_team": inn["batting_team"],
+            "bowling_team": inn["bowling_team"],
+            "total_runs": inn["total_runs"],
+            "total_wickets": inn["total_wickets"],
+            "total_balls": inn["total_balls"],
+            "batting": [b for b in batting if b["innings_number"] == inn_num],
+            "bowling": [b for b in bowling if b["innings_number"] == inn_num],
+            "partnerships": [p for p in partnerships if p["innings_number"] == inn_num],
+            "fall_of_wickets": [f for f in fow if f["innings_number"] == inn_num],
+        })
 
     return {
-        "match": match[0],
-        "innings": innings,
-        "batting": batting,
-        "bowling": bowling,
-        "over_progression": over_progression,
+        "info": info,
+        "scorecards": scorecards,
+        "overs_data": overs_data,
     }
+
+
+@router.get("/{match_id}/win-probability")
+def win_probability(match_id: str):
+    """Ball-by-ball win probability for 2nd innings using a simple model."""
+    # Get target (1st innings total)
+    innings_info = query("""
+        SELECT innings_number, total_runs
+        FROM innings
+        WHERE match_id = ? AND is_super_over = false
+        ORDER BY innings_number
+    """, [match_id])
+
+    if len(innings_info) < 2:
+        raise HTTPException(400, "Match does not have two innings")
+
+    target = innings_info[0]["total_runs"] + 1  # runs needed to win
+
+    # Get 2nd innings ball-by-ball
+    balls = query("""
+        SELECT over_number, ball_number, runs_total, is_wicket,
+               extras_wides, extras_noballs
+        FROM deliveries
+        WHERE match_id = ? AND innings_number = 2 AND is_super_over = false
+        ORDER BY over_number, ball_number
+    """, [match_id])
+
+    if not balls:
+        return {"target": target, "probabilities": []}
+
+    cumulative_runs = 0
+    wickets_fallen = 0
+    legal_balls = 0
+    probabilities = []
+
+    for ball in balls:
+        cumulative_runs += ball["runs_total"]
+        if ball["is_wicket"]:
+            wickets_fallen += 1
+        if ball["extras_wides"] == 0 and ball["extras_noballs"] == 0:
+            legal_balls += 1
+
+        runs_needed = target - cumulative_runs
+        balls_remaining = 120 - legal_balls
+        wickets_in_hand = 10 - wickets_fallen
+
+        if runs_needed <= 0:
+            win_prob = 1.0
+        elif balls_remaining <= 0 or wickets_in_hand <= 0:
+            win_prob = 0.0
+        else:
+            # Simple model: probability based on required run rate vs resources
+            required_rr = runs_needed * 6.0 / balls_remaining
+            # Resource factor: wickets in hand matter
+            resource_factor = wickets_in_hand / 10.0
+            # Expected run rate ~8.0 in T20s
+            expected_rr = 8.0 * resource_factor
+            # Sigmoid-like probability
+            ratio = expected_rr / max(required_rr, 0.1)
+            win_prob = min(max(ratio / (1 + ratio), 0.01), 0.99)
+
+        probabilities.append({
+            "over_number": ball["over_number"],
+            "ball_number": ball["ball_number"],
+            "legal_ball": legal_balls,
+            "runs_scored": cumulative_runs,
+            "runs_needed": max(runs_needed, 0),
+            "balls_remaining": max(balls_remaining, 0),
+            "wickets_in_hand": wickets_in_hand,
+            "win_probability": round(win_prob, 4),
+        })
+
+    return {"target": target, "probabilities": probabilities}

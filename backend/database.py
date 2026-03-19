@@ -1,68 +1,51 @@
-"""
-DuckDB connection management.
-
-DuckDB connections are NOT thread-safe, but FastAPI runs synchronous handlers
-in a thread pool. We use thread-local storage so each OS thread gets its own
-connection — safe, efficient, and no contention between concurrent requests.
-"""
-
-from __future__ import annotations
+"""DuckDB connection manager with thread-local connections."""
 
 import os
 import threading
-from pathlib import Path
-
 import duckdb
-from fastapi import HTTPException
 
-# Resolve DB path relative to the project root (one level above this file)
-_PROJECT_ROOT = Path(__file__).parent.parent
-DB_PATH = os.environ.get("IPL_DB_PATH", str(_PROJECT_ROOT / "ipl.duckdb"))
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "ipl.duckdb")
 
-# One connection per thread — eliminates all race conditions
+# ── Team name normalisation ──────────────────────────────────────────
+TEAM_NAME_MAP = {
+    "Delhi Daredevils": "Delhi Capitals",
+    "Kings XI Punjab": "Punjab Kings",
+    "Royal Challengers Bangalore": "Royal Challengers Bengaluru",
+    "Rising Pune Supergiant": "Rising Pune Supergiants",
+}
+
+
+def normalize_team(name):
+    """Map historical team names to current names."""
+    return TEAM_NAME_MAP.get(name, name)
+
+
+def team_variants(name):
+    """Return all historical names for a team."""
+    canonical = normalize_team(name)
+    variants = [canonical]
+    for old, new in TEAM_NAME_MAP.items():
+        if new == canonical:
+            variants.append(old)
+    return list(set(variants))
+
 _local = threading.local()
 
 
-def get_connection() -> duckdb.DuckDBPyConnection:
-    """Return (or lazily create) a per-thread read-only DuckDB connection."""
-    if not hasattr(_local, "connection") or _local.connection is None:
-        if not Path(DB_PATH).exists():
-            raise RuntimeError(
-                f"Database not found at {DB_PATH}. "
-                "Run `python ingest.py` first to build the database."
-            )
-        _local.connection = duckdb.connect(DB_PATH, read_only=True)
-    return _local.connection
-
-
-def close_connection() -> None:
-    """Close the current thread's connection (called on app shutdown)."""
-    if hasattr(_local, "connection") and _local.connection is not None:
-        try:
-            _local.connection.close()
-        except Exception:
-            pass
-        _local.connection = None
-
-
-# ---------------------------------------------------------------------------
-# FastAPI dependency
-# ---------------------------------------------------------------------------
-
 def get_db() -> duckdb.DuckDBPyConnection:
-    """FastAPI dependency that yields a per-thread DB connection."""
-    try:
-        yield get_connection()
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    """Return a thread-local read-only DuckDB connection."""
+    if not hasattr(_local, "conn") or _local.conn is None:
+        _local.conn = duckdb.connect(DB_PATH, read_only=True)
+    return _local.conn
 
 
-# ---------------------------------------------------------------------------
-# Tiny query helper
-# ---------------------------------------------------------------------------
-
-def query(con: duckdb.DuckDBPyConnection, sql: str, params: list | None = None):
-    """Execute *sql* and return a list of dicts (JSON-serialisable)."""
-    result = con.execute(sql, params or [])
-    cols = [d[0] for d in result.description]
-    return [dict(zip(cols, row)) for row in result.fetchall()]
+def query(sql: str, params: list | None = None) -> list[dict]:
+    """Execute a SQL query and return results as a list of dicts."""
+    conn = get_db()
+    if params:
+        result = conn.execute(sql, params)
+    else:
+        result = conn.execute(sql)
+    columns = [desc[0] for desc in result.description]
+    rows = result.fetchall()
+    return [dict(zip(columns, row)) for row in rows]

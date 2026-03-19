@@ -1,119 +1,66 @@
-"""
-IPL Analytics – FastAPI Backend
-================================
-Run with:
-  uvicorn backend.main:app --reload --port 8000
-
-Interactive API docs at:
-  http://localhost:8000/docs      (Swagger UI)
-  http://localhost:8000/redoc     (ReDoc)
-"""
-
-from __future__ import annotations
+"""FastAPI application for IPL Analytics Dashboard."""
 
 import os
-from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-from backend.database import close_connection, get_connection
-from backend.routers import analytics, matches, players
+from .auth_db import init_auth_db
+from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth
 
+app = FastAPI(title="IPL Analytics API", version="1.0.0")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: warm up the DB connection
-    get_connection()
-    yield
-    # Shutdown: close gracefully
-    close_connection()
+# Initialise the SQLite auth database tables on startup
+init_auth_db()
 
-
-app = FastAPI(
-    title="IPL Analytics API",
-    description=(
-        "Production-grade REST API serving ball-by-ball IPL data "
-        "from a local DuckDB analytical database."
-    ),
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-# ---------------------------------------------------------------------------
-# CORS — allow the Next.js dev server (port 3000) and any production origin
-# ---------------------------------------------------------------------------
-def get_allowed_origins() -> list[str]:
-    """Get CORS allowed origins from environment or use defaults."""
-    env_origins = os.environ.get("ALLOWED_ORIGINS", "")
-    if env_origins:
-        return [origin.strip() for origin in env_origins.split(",")]
-    return [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-
-
+# CORS — allow frontend origins
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_allowed_origins(),
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Routers
-# ---------------------------------------------------------------------------
+# API Routers
+app.include_router(meta.router)
 app.include_router(matches.router)
 app.include_router(players.router)
+app.include_router(teams.router)
 app.include_router(analytics.router)
+app.include_router(venues.router)
+app.include_router(seasons.router)
+app.include_router(ai.router)
+app.include_router(images.router)
+app.include_router(social.router)
+app.include_router(advanced.router)
+app.include_router(pulse.router)
+app.include_router(auth.router)
 
 
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
-@app.get("/api/health", tags=["Meta"])
-def health():
-    """Quick liveness check — also verifies the DB connection."""
-    from backend.database import get_connection, query
-    con = get_connection()
-    counts = query(
-        con,
-        """
-        SELECT
-            (SELECT COUNT(*) FROM matches)    AS matches,
-            (SELECT COUNT(*) FROM innings)    AS innings,
-            (SELECT COUNT(*) FROM deliveries) AS deliveries,
-            (SELECT COUNT(*) FROM players)    AS players
-        """,
-    )
-    return {"status": "ok", "database": counts[0]}
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
 
 
-@app.get("/api/meta/seasons", tags=["Meta"])
-def all_seasons():
-    """List of all IPL seasons available in the database."""
-    from backend.database import get_connection, query
-    con = get_connection()
-    return query(
-        con,
-        "SELECT season FROM matches GROUP BY season ORDER BY MIN(date)",
-    )
+# ── Serve frontend static build in production ──────────────────────
+# In production, the React build (frontend/dist) is served by FastAPI itself.
+# This avoids needing a separate frontend server.
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
+if FRONTEND_DIST.is_dir():
+    # Serve static assets (JS, CSS, images)
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="static-assets")
 
-@app.get("/api/meta/teams", tags=["Meta"])
-def all_teams():
-    """List of all franchise names that appear in the database."""
-    from backend.database import get_connection, query
-    con = get_connection()
-    return query(
-        con,
-        """
-        SELECT DISTINCT team FROM (
-            SELECT team1 AS team FROM matches
-            UNION
-            SELECT team2 AS team FROM matches
-        ) ORDER BY team
-        """,
-    )
+    # Serve other static files at root level (favicon, etc.)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve React SPA — all non-API routes return index.html."""
+        file_path = FRONTEND_DIST / full_path
+        if full_path and file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(FRONTEND_DIST / "index.html"))

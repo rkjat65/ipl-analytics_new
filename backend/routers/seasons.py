@@ -1,0 +1,211 @@
+"""Season endpoints: summary, points table, cap races."""
+
+from fastapi import APIRouter, HTTPException
+from ..database import query, normalize_team
+
+router = APIRouter(prefix="/api/seasons", tags=["seasons"])
+
+
+@router.get("/{season}/summary")
+def season_summary(season: str):
+    summary = query("""
+        SELECT
+            COUNT(*) AS total_matches,
+            COUNT(DISTINCT city) AS cities,
+            COUNT(DISTINCT venue) AS venues,
+            MIN(date) AS start_date,
+            MAX(date) AS end_date
+        FROM matches
+        WHERE season = ?
+    """, [season])
+
+    if not summary or summary[0]["total_matches"] == 0:
+        raise HTTPException(404, f"Season {season} not found")
+
+    # Top run scorer
+    top_batter = query("""
+        SELECT d.batter AS player, SUM(d.runs_batter) AS runs
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE m.season = ? AND d.is_super_over = false
+        GROUP BY d.batter
+        ORDER BY runs DESC
+        LIMIT 1
+    """, [season])
+
+    # Top wicket taker
+    top_bowler = query("""
+        SELECT d.bowler AS player,
+               SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out','retired hurt','retired out','obstructing the field') THEN 1 ELSE 0 END) AS wickets
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE m.season = ? AND d.is_super_over = false
+        GROUP BY d.bowler
+        ORDER BY wickets DESC
+        LIMIT 1
+    """, [season])
+
+    # Most player of match awards
+    top_pom = query("""
+        SELECT player_of_match AS player, COUNT(*) AS awards
+        FROM matches
+        WHERE season = ? AND player_of_match IS NOT NULL
+        GROUP BY player_of_match
+        ORDER BY awards DESC
+        LIMIT 1
+    """, [season])
+
+    # Winner (last match of season)
+    winner = query("""
+        SELECT winner
+        FROM matches
+        WHERE season = ?
+        ORDER BY date DESC
+        LIMIT 1
+    """, [season])
+
+    result = summary[0]
+    result["orange_cap"] = top_batter[0] if top_batter else None
+    result["purple_cap"] = top_bowler[0] if top_bowler else None
+    result["most_pom"] = top_pom[0] if top_pom else None
+    result["winner"] = normalize_team(winner[0]["winner"]) if winner and winner[0]["winner"] else None
+    return result
+
+
+@router.get("/{season}/points-table")
+def points_table(season: str):
+    """Calculate points table with NRR."""
+    rows = query("""
+        WITH team_matches AS (
+            SELECT m.match_id, m.winner, m.result,
+                   CASE WHEN m.team1 = t.team THEN m.team1 ELSE m.team2 END AS team,
+                   CASE WHEN m.team1 = t.team THEN m.team2 ELSE m.team1 END AS opponent
+            FROM matches m
+            CROSS JOIN (
+                SELECT DISTINCT team FROM (
+                    SELECT team1 AS team FROM matches WHERE season = ?
+                    UNION
+                    SELECT team2 AS team FROM matches WHERE season = ?
+                ) sub
+            ) t
+            WHERE m.season = ? AND (m.team1 = t.team OR m.team2 = t.team)
+        ),
+        standings AS (
+            SELECT team,
+                   COUNT(*) AS played,
+                   SUM(CASE WHEN winner = team THEN 1 ELSE 0 END) AS won,
+                   SUM(CASE WHEN winner IS NOT NULL AND winner != team AND result = 'win' THEN 1 ELSE 0 END) AS lost,
+                   SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_result,
+                   SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS tied,
+                   SUM(CASE WHEN winner = team THEN 1 ELSE 0 END) * 2
+                       + SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END)
+                       + SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS points
+            FROM team_matches
+            GROUP BY team
+        ),
+        nrr_data AS (
+            SELECT
+                i.batting_team AS team,
+                SUM(i.total_runs) AS runs_scored,
+                SUM(CASE WHEN i.total_wickets = 10 THEN 120
+                         ELSE i.total_balls END) AS balls_faced,
+                0 AS runs_conceded,
+                0 AS balls_bowled
+            FROM innings i
+            JOIN matches m ON i.match_id = m.match_id
+            WHERE m.season = ? AND i.is_super_over = false AND m.result = 'win'
+            GROUP BY i.batting_team
+
+            UNION ALL
+
+            SELECT
+                i.bowling_team AS team,
+                0 AS runs_scored,
+                0 AS balls_faced,
+                SUM(i.total_runs) AS runs_conceded,
+                SUM(CASE WHEN i.total_wickets = 10 THEN 120
+                         ELSE i.total_balls END) AS balls_bowled
+            FROM innings i
+            JOIN matches m ON i.match_id = m.match_id
+            WHERE m.season = ? AND i.is_super_over = false AND m.result = 'win'
+            GROUP BY i.bowling_team
+        ),
+        nrr_agg AS (
+            SELECT team,
+                   SUM(runs_scored) AS total_runs_scored,
+                   SUM(balls_faced) AS total_balls_faced,
+                   SUM(runs_conceded) AS total_runs_conceded,
+                   SUM(balls_bowled) AS total_balls_bowled
+            FROM nrr_data
+            GROUP BY team
+        )
+        SELECT s.*,
+               ROUND(
+                   (n.total_runs_scored * 6.0 / NULLIF(n.total_balls_faced, 0))
+                   - (n.total_runs_conceded * 6.0 / NULLIF(n.total_balls_bowled, 0)),
+               3) AS nrr
+        FROM standings s
+        LEFT JOIN nrr_agg n ON s.team = n.team
+        ORDER BY s.points DESC, nrr DESC
+    """, [season, season, season, season, season])
+
+    # Normalize team names
+    for row in rows:
+        if row.get("team"):
+            row["team"] = normalize_team(row["team"])
+
+    return rows
+
+
+@router.get("/{season}/cap-race")
+def cap_race(season: str):
+    """Orange cap (runs) and purple cap (wickets) race - cumulative match by match for top 5."""
+    # Orange cap race
+    orange = query("""
+        WITH match_runs AS (
+            SELECT d.batter AS player, m.match_id, m.date,
+                   SUM(d.runs_batter) AS runs
+            FROM deliveries d
+            JOIN matches m ON d.match_id = m.match_id
+            WHERE m.season = ? AND d.is_super_over = false
+            GROUP BY d.batter, m.match_id, m.date
+        ),
+        top_players AS (
+            SELECT player FROM match_runs GROUP BY player ORDER BY SUM(runs) DESC LIMIT 5
+        ),
+        cumulative AS (
+            SELECT mr.player, mr.match_id, mr.date, mr.runs,
+                   SUM(mr.runs) OVER (PARTITION BY mr.player ORDER BY mr.date, mr.match_id) AS cumulative_runs
+            FROM match_runs mr
+            WHERE mr.player IN (SELECT player FROM top_players)
+        )
+        SELECT player, match_id, date, runs, cumulative_runs
+        FROM cumulative
+        ORDER BY player, date, match_id
+    """, [season])
+
+    # Purple cap race
+    purple = query("""
+        WITH match_wickets AS (
+            SELECT d.bowler AS player, m.match_id, m.date,
+                   SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out','retired hurt','retired out','obstructing the field') THEN 1 ELSE 0 END) AS wickets
+            FROM deliveries d
+            JOIN matches m ON d.match_id = m.match_id
+            WHERE m.season = ? AND d.is_super_over = false
+            GROUP BY d.bowler, m.match_id, m.date
+        ),
+        top_players AS (
+            SELECT player FROM match_wickets GROUP BY player ORDER BY SUM(wickets) DESC LIMIT 5
+        ),
+        cumulative AS (
+            SELECT mw.player, mw.match_id, mw.date, mw.wickets,
+                   SUM(mw.wickets) OVER (PARTITION BY mw.player ORDER BY mw.date, mw.match_id) AS cumulative_wickets
+            FROM match_wickets mw
+            WHERE mw.player IN (SELECT player FROM top_players)
+        )
+        SELECT player, match_id, date, wickets, cumulative_wickets
+        FROM cumulative
+        ORDER BY player, date, match_id
+    """, [season])
+
+    return {"orange_cap_race": orange, "purple_cap_race": purple}
