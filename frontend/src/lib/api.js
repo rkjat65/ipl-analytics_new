@@ -138,3 +138,22 @@ export const generateInsightCard = (cardConfig, dimensions) => {
     return res.json()
   })
 }
+
+// Admin
+export const getAdminUsers = (token) => {
+  return fetch(`${window.location.origin}/api/auth/admin/users`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
+    return res.json()
+  })
+}
+
+export const getAdminStats = (token) => {
+  return fetch(`${window.location.origin}/api/auth/admin/stats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
+    return res.json()
+  })
+}

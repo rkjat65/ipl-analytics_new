@@ -216,6 +216,86 @@ def me(authorization: Optional[str] = Header(None)):
     return user
 
 
+@router.get("/admin/users")
+def admin_list_users(authorization: Optional[str] = Header(None)):
+    """List all registered users. Only accessible to the first registered user (admin)."""
+    current = get_current_user(authorization)
+    if not current:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    db = get_auth_db()
+    # The first user (earliest created_at) is the admin
+    first_user = db.execute(
+        "SELECT id FROM users ORDER BY created_at ASC LIMIT 1"
+    ).fetchone()
+    if not first_user or first_user["id"] != current["id"]:
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    rows = db.execute(
+        """
+        SELECT id, email, name, auth_provider, avatar_url, is_verified,
+               created_at, updated_at,
+               (SELECT COUNT(*) FROM sessions s WHERE s.user_id = users.id
+                AND s.expires_at > datetime('now')) as active_sessions
+        FROM users ORDER BY created_at DESC
+        """
+    ).fetchall()
+
+    return [
+        {
+            "id": r["id"],
+            "email": r["email"],
+            "name": r["name"],
+            "auth_provider": r["auth_provider"],
+            "avatar_url": r["avatar_url"],
+            "is_verified": bool(r["is_verified"]),
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"],
+            "active_sessions": r["active_sessions"],
+        }
+        for r in rows
+    ]
+
+
+@router.get("/admin/stats")
+def admin_stats(authorization: Optional[str] = Header(None)):
+    """Quick platform stats. Admin only."""
+    current = get_current_user(authorization)
+    if not current:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    db = get_auth_db()
+    first_user = db.execute(
+        "SELECT id FROM users ORDER BY created_at ASC LIMIT 1"
+    ).fetchone()
+    if not first_user or first_user["id"] != current["id"]:
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    total = db.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
+    google_users = db.execute(
+        "SELECT COUNT(*) as c FROM users WHERE auth_provider = 'google'"
+    ).fetchone()["c"]
+    email_users = db.execute(
+        "SELECT COUNT(*) as c FROM users WHERE auth_provider = 'email'"
+    ).fetchone()["c"]
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    active_sessions = db.execute(
+        "SELECT COUNT(*) as c FROM sessions WHERE expires_at > ?", (now,)
+    ).fetchone()["c"]
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_signups = db.execute(
+        "SELECT COUNT(*) as c FROM users WHERE created_at >= ?", (today,)
+    ).fetchone()["c"]
+
+    return {
+        "total_users": total,
+        "google_users": google_users,
+        "email_users": email_users,
+        "active_sessions": active_sessions,
+        "today_signups": today_signups,
+    }
+
+
 @router.post("/google", response_model=AuthResponse)
 def google_login(body: GoogleLoginRequest):
     """Verify a Google ID token and create/login the user."""
