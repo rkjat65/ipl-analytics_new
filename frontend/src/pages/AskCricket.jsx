@@ -10,8 +10,6 @@ import { exportAsImage, downloadImage } from '../utils/exportCard'
 import { CARD_DIMENSIONS } from '../components/cards/cardStyles'
 import QueryResultCard from '../components/cards/QueryResultCard'
 import { useAuth } from '../contexts/AuthContext'
-import { UsageBadge } from '../components/ui/PaywallGate'
-import UpgradeModal from '../components/ui/UpgradeModal'
 
 const CHAT_HISTORY_KEY = 'rkjat65_chat_history'
 
@@ -281,7 +279,6 @@ export default function AskCricket() {
   const [suggestions, setSuggestions] = useState([])
   const [imageCreatorIdx, setImageCreatorIdx] = useState(null)
   const [aiImageModal, setAiImageModal] = useState(null)
-  const [upgradeFeature, setUpgradeFeature] = useState(null)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -324,9 +321,6 @@ export default function AskCricket() {
       }])
     } catch (err) {
       const msg = err.message || 'Something went wrong. Try rephrasing your question.'
-      if (msg.includes('Daily limit') || msg.includes('Upgrade your plan') || msg.includes('not available on')) {
-        setUpgradeFeature('ai_query')
-      }
       setMessages(prev => [...prev, { type: 'error', text: msg }])
     } finally {
       setLoading(false)
@@ -644,7 +638,6 @@ export default function AskCricket() {
             <p className="text-[10px] text-text-muted font-mono text-center">
               AI can make mistakes. Verify important data. • Powered by Gemini 3.1 Flash
             </p>
-            <UsageBadge feature="ai_query" />
           </div>
         </div>
       </div>
@@ -666,10 +659,6 @@ export default function AskCricket() {
         />
       )}
 
-      {/* Upgrade Modal */}
-      {upgradeFeature && (
-        <UpgradeModal feature={upgradeFeature} onClose={() => setUpgradeFeature(null)} />
-      )}
     </div>
   )
 }

@@ -23,7 +23,6 @@ import AdvancedAnalytics from './pages/AdvancedAnalytics'
 import CricketPulse from './pages/CricketPulse'
 import PlayerImpact from './pages/PlayerImpact'
 import Admin from './pages/Admin'
-import Pricing from './pages/Pricing'
 
 export default function App() {
   return (
@@ -56,7 +55,6 @@ export default function App() {
         <Route path="/pulse" element={<ProtectedRoute><CricketPulse /></ProtectedRoute>} />
         <Route path="/advanced" element={<ProtectedRoute><AdvancedAnalytics /></ProtectedRoute>} />
         <Route path="/player-impact" element={<ProtectedRoute><PlayerImpact /></ProtectedRoute>} />
-        <Route path="/pricing" element={<Pricing />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       </Route>
     </Routes>

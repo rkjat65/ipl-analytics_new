@@ -11,8 +11,6 @@ import SeasonRecapCard from '../components/cards/SeasonRecapCard'
 import MatchupCard from '../components/cards/MatchupCard'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { UsageBadge } from '../components/ui/PaywallGate'
-import UpgradeModal from '../components/ui/UpgradeModal'
 
 const TEMPLATES = [
   { id: 'player', label: 'Player Stats', color: '#00E5FF' },
@@ -136,8 +134,6 @@ export default function ContentStudio() {
   // AI Caption state
   const [aiCaption, setAiCaption] = useState('')
   const [aiCaptionLoading, setAiCaptionLoading] = useState(false)
-  const [upgradeFeature, setUpgradeFeature] = useState(null)
-
   // Load initial data
   useEffect(() => {
     getSeasons().then(setSeasons).catch(() => {})
@@ -401,9 +397,6 @@ export default function ContentStudio() {
       setAiCaption(res.commentaries?.join('\n\n---\n\n') || 'No caption generated.')
     } catch (err) {
       const msg = err.message || ''
-      if (msg.includes('Daily limit') || msg.includes('Upgrade your plan') || msg.includes('not available on')) {
-        setUpgradeFeature('ai_caption')
-      }
       setAiCaption('Caption generation failed. ' + (msg || 'Make sure AI is configured.'))
       console.error(err)
     } finally {
@@ -808,7 +801,7 @@ export default function ContentStudio() {
                     <path d="M2 17l10 5 10-5" />
                     <path d="M2 12l10 5 10-5" />
                   </svg>
-                  AI Caption <UsageBadge feature="ai_caption" />
+                  AI Caption
                 </>
               )}
             </button>
@@ -853,10 +846,6 @@ export default function ContentStudio() {
         </div>
       </div>
 
-      {/* Upgrade Modal */}
-      {upgradeFeature && (
-        <UpgradeModal feature={upgradeFeature} onClose={() => setUpgradeFeature(null)} />
-      )}
     </div>
   )
 }

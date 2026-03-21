@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
-import UsageToast from '../ui/UsageToast'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -18,7 +17,6 @@ export default function Layout({ children }) {
           </div>
         </main>
       </div>
-      <UsageToast />
     </div>
   )
 }
