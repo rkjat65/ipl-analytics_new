@@ -11,7 +11,14 @@ from pydantic import BaseModel
 
 from ..database import query
 from .auth import get_current_user
-from .billing import check_quota, record_usage
+
+
+# Billing stubs (payment module not yet deployed)
+def check_quota(user_id, feature):
+    return {"allowed": True}
+
+def record_usage(user_id, feature):
+    pass
 
 # ── Gemini Setup ──────────────────────────────────────────────────────────────
 try:
