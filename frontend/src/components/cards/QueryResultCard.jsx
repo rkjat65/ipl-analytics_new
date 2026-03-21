@@ -121,7 +121,7 @@ export default function QueryResultCard({
         </div>
       </div>
 
-      <div style={watermarkStyle()}>@Rkjat65 &bull; Data doesn&apos;t lie.</div>
+      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
     </div>
   )
 }

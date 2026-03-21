@@ -104,8 +104,8 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-white overflow-x-hidden">
       <SEO
-        title="IPL Analytics by RKJAT65 | AI-Powered Cricket Intelligence"
-        description="Deep-dive into 17+ years of IPL data with AI-powered analytics, real-time insights, and stunning visualizations. Built by @Rkjat65."
+        title="Crickrida | AI-Powered Cricket Intelligence"
+        description="Deep-dive into 17+ years of IPL data with AI-powered analytics, real-time insights, and stunning visualizations. Cricket via Stats."
       />
 
       {/* ── Inject keyframe animation ── */}
@@ -149,8 +149,8 @@ export default function Landing() {
               </svg>
             </div>
             <div>
-              <span className="font-heading font-bold text-lg text-white tracking-tight">IPL Analytics</span>
-              <span className="hidden sm:inline text-[10px] text-text-muted font-mono ml-2 uppercase tracking-widest">by RKJAT65</span>
+              <span className="font-heading font-bold text-lg text-white tracking-tight">Crickrida</span>
+              <span className="hidden sm:inline text-[10px] text-text-muted font-mono ml-2 uppercase tracking-widest">Cricket via Stats</span>
             </div>
           </Link>
 
@@ -422,7 +422,7 @@ export default function Landing() {
             of IPL data?
           </h2>
           <p className="text-text-secondary text-lg mb-10 max-w-xl mx-auto">
-            Join cricket enthusiasts, analysts, and content creators who use IPL Analytics every day.
+            Join cricket enthusiasts, analysts, and content creators who use Crickrida every day.
           </p>
           <Link to="/login"
             className="inline-flex items-center gap-2 px-10 py-4 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#00E5FF] text-black font-bold text-lg hover:brightness-110 transition-all shadow-[0_0_40px_rgba(0,229,255,0.25)]">
@@ -446,8 +446,8 @@ export default function Landing() {
                 <path d="M2 12H22" stroke="currentColor" strokeWidth="1.5" />
               </svg>
             </div>
-            <span className="font-heading font-bold text-sm text-text-primary">IPL Analytics</span>
-            <span className="text-text-muted text-xs font-mono">by @Rkjat65</span>
+            <span className="font-heading font-bold text-sm text-text-primary">Crickrida</span>
+            <span className="text-text-muted text-xs font-mono">Cricket via Stats</span>
           </div>
 
           <div className="flex items-center gap-6">
@@ -466,7 +466,7 @@ export default function Landing() {
           </div>
 
           <p className="text-text-muted text-xs font-mono">
-            &copy; {new Date().getFullYear()} IPL Analytics. All data from public sources.
+            &copy; {new Date().getFullYear()} Crickrida. All data from public sources.
           </p>
         </div>
       </footer>

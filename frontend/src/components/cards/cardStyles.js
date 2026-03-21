@@ -12,6 +12,7 @@ export const NEON_COLORS = {
   magenta: '#FF2D78',
   lime: '#B8FF00',
   amber: '#FFB800',
+  purple: '#8B5CF6',
   bg: '#0A0A0F',
   bgCard: '#12121A',
   bgElevated: '#1A1A25',
@@ -21,10 +22,47 @@ export const NEON_COLORS = {
   border: '#2A2A3A',
 }
 
+// Subtle distinct box colors for stat grid cards
+export const BOX_COLORS = [
+  { bg: '#0D1B2A', border: '#00E5FF25', accent: '#00E5FF' },   // Deep blue / cyan
+  { bg: '#1A0D1F', border: '#FF2D7825', accent: '#FF2D78' },   // Deep purple / magenta
+  { bg: '#0D1A12', border: '#B8FF0025', accent: '#B8FF00' },   // Deep green / lime
+  { bg: '#1A1508', border: '#FFB80025', accent: '#FFB800' },    // Deep amber / gold
+  { bg: '#120D1F', border: '#8B5CF625', accent: '#8B5CF6' },   // Deep indigo / purple
+  { bg: '#0D1A1A', border: '#22D3EE25', accent: '#22D3EE' },   // Teal
+  { bg: '#1A0D0D', border: '#EF444425', accent: '#EF4444' },   // Deep red
+  { bg: '#0D1A0D', border: '#22C55E25', accent: '#22C55E' },   // Deep green
+  { bg: '#1A170D', border: '#FBBF2425', accent: '#FBBF24' },   // Warm amber
+]
+
 export const FONTS = {
   heading: "'Space Grotesk', 'Segoe UI', sans-serif",
   mono: "'JetBrains Mono', 'Consolas', monospace",
   body: "'Inter', 'Segoe UI', sans-serif",
+}
+
+// Font scale factor based on canvas size relative to Twitter (base)
+export function fontScale(dimensions = CARD_DIMENSIONS.twitter) {
+  const baseArea = CARD_DIMENSIONS.twitter.width * CARD_DIMENSIONS.twitter.height
+  const area = dimensions.width * dimensions.height
+  const ratio = area / baseArea
+
+  // Portrait (1080x1920) is ~2.56x Twitter area → scale up ~1.35x
+  // Instagram (1080x1080) is ~1.44x Twitter area → scale up ~1.15x
+  // LinkedIn is roughly same as Twitter → ~1.0x
+  if (ratio > 2) return 1.35
+  if (ratio > 1.2) return 1.15
+  return 1.0
+}
+
+// Get scaled font size
+export function scaledFont(basePx, dimensions) {
+  return `${Math.round(basePx * fontScale(dimensions))}px`
+}
+
+// Get scaled pixel size (for avatars, spacing etc) — returns number not string
+export function scaledSize(basePx, dimensions) {
+  return Math.round(basePx * fontScale(dimensions))
 }
 
 export function cardContainerStyle(dimensions = CARD_DIMENSIONS.twitter) {

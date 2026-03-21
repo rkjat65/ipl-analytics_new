@@ -55,30 +55,36 @@ export const getCapRace = (season) => fetchAPI(`/seasons/${encodeURIComponent(se
 
 // AI
 export const getAiStatus = () => fetchAPI('/ai/status')
-export const askCricketQuery = (question, season) => {
+export const askCricketQuery = (question, season, token) => {
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
   return fetch(`${window.location.origin}/api/ai/query`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ question, season }),
   }).then(res => {
     if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Query failed') })
     return res.json()
   })
 }
-export const generateCommentary = (data) => {
+export const generateCommentary = (data, token) => {
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
   return fetch(`${window.location.origin}/api/ai/commentary`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(data),
   }).then(res => {
     if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Commentary failed') })
     return res.json()
   })
 }
-export const generateThread = (topic, data) => {
+export const generateThread = (topic, data, token) => {
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
   return fetch(`${window.location.origin}/api/ai/thread`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ topic, data }),
   }).then(res => {
     if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Thread failed') })
@@ -86,10 +92,12 @@ export const generateThread = (topic, data) => {
   })
 }
 export const getAiSuggestions = () => fetchAPI('/ai/suggestions')
-export const generateAIImage = (data) => {
+export const generateAIImage = (data, token) => {
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
   return fetch(`${window.location.origin}/api/ai/generate-image`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(data),
   }).then(res => {
     if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'AI image generation failed') })
@@ -126,7 +134,8 @@ export const getTitleWinners = () => fetchAPI('/analytics/title-winners')
 
 // Pulse — Social Growth Engine
 export const getPulseFeed = (params) => fetchAPI('/pulse/feed', params)
-export const getPulseOnThisDay = () => fetchAPI('/pulse/on-this-day')
+export const getPulseOnThisDay = (params) => fetchAPI('/pulse/on-this-day', params)
+export const getPulseCalendarMonth = (month) => fetchAPI('/pulse/calendar-month', { month })
 export const getPulseTrending = (limit) => fetchAPI('/pulse/trending', { limit })
 export const generateInsightCard = (cardConfig, dimensions) => {
   return fetch(`${window.location.origin}/api/pulse/insight-card`, {
@@ -135,6 +144,47 @@ export const generateInsightCard = (cardConfig, dimensions) => {
     body: JSON.stringify({ card_config: cardConfig, dimensions }),
   }).then(res => {
     if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Card gen failed') })
+    return res.json()
+  })
+}
+
+// Billing
+export const getBillingPlans = () => fetchAPI('/billing/plans')
+export const getBillingUsage = (token) => {
+  return fetch(`${window.location.origin}/api/billing/usage`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed to get usage') })
+    return res.json()
+  })
+}
+export const checkFeatureQuota = (feature, token) => {
+  return fetch(`${window.location.origin}/api/billing/check/${feature}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Quota check failed') })
+    return res.json()
+  })
+}
+
+export const getPaymentStatus = () => fetchAPI('/billing/payment-status')
+export const createSubscription = (plan, token) => {
+  return fetch(`${window.location.origin}/api/billing/create-subscription`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ plan }),
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Subscription creation failed') })
+    return res.json()
+  })
+}
+export const verifyPayment = (data, token) => {
+  return fetch(`${window.location.origin}/api/billing/verify-payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Verification failed') })
     return res.json()
   })
 }

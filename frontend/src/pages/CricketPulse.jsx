@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import SEO from '../components/SEO'
 import AIImageModal from '../components/ui/AIImageModal'
-import { getPulseFeed, getPulseOnThisDay, askCricketQuery, generateCommentary, generateInsightCard } from '../lib/api'
+import { getPulseFeed, getPulseOnThisDay, getPulseCalendarMonth, askCricketQuery, generateCommentary, generateInsightCard } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 
 /* ── LocalStorage Helpers ─────────────────────────────────── */
 const SAVED_KEY = 'rkjat65_saved_queries'
@@ -133,10 +134,10 @@ function InsightCard({ insight, onCreateImage }) {
         <div className="px-5 pb-5 border-t border-border-subtle bg-bg-elevated/20 animate-fade-in">
           <div className="mt-3 bg-bg-card rounded-xl border border-border-subtle p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full bg-accent-cyan/20 flex items-center justify-center text-accent-cyan font-heading font-bold text-xs">R</div>
+              <div className="w-8 h-8 rounded-full bg-accent-cyan/20 flex items-center justify-center text-accent-cyan font-heading font-bold text-xs">C</div>
               <div>
-                <span className="text-sm font-heading font-bold text-text-primary">RKJAT65</span>
-                <span className="text-xs text-text-muted ml-1.5">@Rkjat65</span>
+                <span className="text-sm font-heading font-bold text-text-primary">Crickrida</span>
+                <span className="text-xs text-text-muted ml-1.5">@Crickrida</span>
               </div>
             </div>
             <pre className="text-sm text-text-primary whitespace-pre-wrap font-body leading-relaxed">{insight.tweet_text}</pre>
@@ -369,7 +370,7 @@ function AskCricketInline({ onSaveCountChange }) {
     setCopiedIdx(null)
     setSaved(false)
     try {
-      const res = await askCricketQuery(query)
+      const res = await askCricketQuery(query, null, token)
 
       let quickTweet = `📊 ${query}\n\n`
       if (res.data && res.data.length > 0) {
@@ -379,7 +380,7 @@ function AskCricketInline({ onSaveCountChange }) {
         })
       }
       if (res.insight) quickTweet += `\n${res.insight}`
-      quickTweet += `\n\n#IPL #CricketStats #RKJAT65`
+      quickTweet += `\n\n#IPL #CricketStats #Crickrida`
 
       setResult({ ...res, drafts: [quickTweet], draftsReady: false })
 
@@ -387,7 +388,7 @@ function AskCricketInline({ onSaveCountChange }) {
       generateCommentary({
         stats: res.data && res.data.length > 0 ? res.data[0] : {},
         context: `Question: ${query}. Data summary: ${res.insight || ''}`
-      }).then(commentaryRes => {
+      }, token).then(commentaryRes => {
         setResult(prev => prev ? {
           ...prev,
           drafts: commentaryRes.commentaries || [quickTweet],
@@ -629,11 +630,11 @@ function AskCricketInline({ onSaveCountChange }) {
                   </div>
 
                   <div className="flex gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-accent-cyan/15 flex items-center justify-center text-accent-cyan font-heading font-bold text-xs shrink-0">R</div>
+                    <div className="w-8 h-8 rounded-full bg-accent-cyan/15 flex items-center justify-center text-accent-cyan font-heading font-bold text-xs shrink-0">C</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-xs font-heading font-bold text-text-primary">RKJAT65</span>
-                        <span className="text-[10px] text-text-muted">@Rkjat65</span>
+                        <span className="text-xs font-heading font-bold text-text-primary">Crickrida</span>
+                        <span className="text-[10px] text-text-muted">@Crickrida</span>
                       </div>
                       <pre className="text-sm text-text-primary whitespace-pre-wrap font-body leading-relaxed break-words">{draft}</pre>
                     </div>
@@ -679,6 +680,7 @@ function AskCricketInline({ onSaveCountChange }) {
 
 /* ── Main Page ──────────────────────────────────────────────── */
 export default function CricketPulse() {
+  const { token } = useAuth()
   const [activeTab, setActiveTab] = useState('feed')
   const [category, setCategory] = useState('all')
   const [insights, setInsights] = useState([])
@@ -689,6 +691,20 @@ export default function CricketPulse() {
   const [otdDate, setOtdDate] = useState('')
   const [savedQueries, setSavedQueries] = useState(() => getSavedQueries())
   const [savedCount, setSavedCount] = useState(() => getSavedQueries().length)
+
+  // Calendar state for On This Day
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth()) // 0-indexed
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear())
+  const [calSelectedDay, setCalSelectedDay] = useState(null)
+  const [calMatchDays, setCalMatchDays] = useState({}) // { day: count }
+
+  // Preload match counts for the calendar month
+  useEffect(() => {
+    if (activeTab !== 'on_this_day') return
+    getPulseCalendarMonth(calMonth + 1)
+      .then(data => setCalMatchDays(data.days || {}))
+      .catch(() => setCalMatchDays({}))
+  }, [activeTab, calMonth])
 
   useEffect(() => {
     setLoading(true)
@@ -702,12 +718,13 @@ export default function CricketPulse() {
   useEffect(() => {
     if (activeTab === 'on_this_day' || activeTab === 'feed') {
       setOtdLoading(true)
-      getPulseOnThisDay()
+      const params = calSelectedDay ? { month: calMonth + 1, day: calSelectedDay } : {}
+      getPulseOnThisDay(params)
         .then(data => { setOtdInsights(data.insights || []); setOtdDate(data.date || '') })
         .catch(() => setOtdInsights([]))
         .finally(() => setOtdLoading(false))
     }
-  }, [activeTab])
+  }, [activeTab, calSelectedDay, calMonth])
 
   useEffect(() => {
     if (activeTab === 'saved') {
@@ -730,9 +747,11 @@ export default function CricketPulse() {
   const TABS = [
     { key: 'feed', label: 'Pulse Feed', icon: '🔥', desc: 'Auto-discovered insights' },
     { key: 'on_this_day', label: 'On This Day', icon: '📅', desc: 'IPL history moments' },
-    { key: 'ask', label: 'Ask Cricket', icon: '🏏', desc: 'AI queries → content' },
     { key: 'saved', label: 'Saved', icon: '📌', count: savedCount, desc: 'Bookmarked queries' },
   ]
+
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -832,47 +851,129 @@ export default function CricketPulse() {
         </div>
       )}
 
-      {/* ON THIS DAY TAB */}
-      {activeTab === 'on_this_day' && (
-        <div className="space-y-6">
-          <div className="bg-bg-card border border-border-subtle rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-3xl">📅</span>
-              <div>
-                <h2 className="text-xl font-heading font-bold text-text-primary">On This Day in IPL</h2>
-                <p className="text-sm text-text-secondary font-mono">
-                  {otdDate ? new Date(otdDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' }) : 'Today'}
-                </p>
+      {/* ON THIS DAY TAB — Calendar View */}
+      {activeTab === 'on_this_day' && (() => {
+        const firstDay = new Date(calYear, calMonth, 1).getDay()
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate()
+        const today = new Date()
+        const isCurrentMonth = calMonth === today.getMonth() && calYear === today.getFullYear()
+        const calDays = []
+        for (let i = 0; i < firstDay; i++) calDays.push(null)
+        for (let d = 1; d <= daysInMonth; d++) calDays.push(d)
+
+        return (
+          <div className="space-y-6">
+            {/* Calendar */}
+            <div className="bg-bg-card border border-border-subtle rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else { setCalMonth(m => m - 1) }; setCalSelectedDay(null) }}
+                  className="p-2 rounded-lg bg-bg-elevated border border-border-subtle text-text-secondary hover:text-text-primary transition-colors">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div className="text-center">
+                  <h2 className="text-lg font-heading font-bold text-text-primary">{MONTH_NAMES[calMonth]}</h2>
+                  <p className="text-xs text-text-muted font-mono">IPL matches across all seasons</p>
+                </div>
+                <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else { setCalMonth(m => m + 1) }; setCalSelectedDay(null) }}
+                  className="p-2 rounded-lg bg-bg-elevated border border-border-subtle text-text-secondary hover:text-text-primary transition-colors">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {DAY_LABELS.map(d => (
+                  <div key={d} className="text-center text-[10px] font-mono text-text-muted py-1">{d}</div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {calDays.map((day, i) => {
+                  if (day === null) return <div key={`e-${i}`} />
+                  const matchCount = calMatchDays[day] || 0
+                  const isSelected = calSelectedDay === day
+                  const isToday = isCurrentMonth && day === today.getDate() && !calSelectedDay
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => setCalSelectedDay(isSelected ? null : day)}
+                      className={`relative aspect-square rounded-lg flex flex-col items-center justify-center text-sm font-mono transition-all duration-200
+                        ${isSelected ? 'bg-accent-cyan/20 border border-accent-cyan/50 text-accent-cyan shadow-lg shadow-accent-cyan/10' :
+                          isToday ? 'bg-accent-amber/15 border border-accent-amber/30 text-accent-amber' :
+                          matchCount > 0 ? 'bg-bg-elevated border border-border-subtle text-text-primary hover:border-accent-cyan/30 hover:bg-accent-cyan/5 cursor-pointer' :
+                          'text-text-muted/50 cursor-default'
+                        }`}
+                    >
+                      <span className={`text-sm ${matchCount > 0 ? 'font-bold' : ''}`}>{day}</span>
+                      {matchCount > 0 && (
+                        <span className={`text-[9px] mt-0.5 ${isSelected ? 'text-accent-cyan' : 'text-accent-lime'}`}>
+                          {matchCount} {matchCount === 1 ? 'match' : 'matches'}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Today button */}
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => { setCalMonth(today.getMonth()); setCalYear(today.getFullYear()); setCalSelectedDay(null) }}
+                  className="px-4 py-1.5 text-xs font-mono text-accent-amber border border-accent-amber/30 rounded-lg bg-accent-amber/10 hover:bg-accent-amber/20 transition-colors"
+                >
+                  Today
+                </button>
               </div>
             </div>
-          </div>
-          {otdLoading && (
-            <div className="flex items-center justify-center py-16 gap-3">
-              <div className="w-6 h-6 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted font-mono">Looking through IPL history...</span>
-            </div>
-          )}
-          {!otdLoading && otdInsights.length === 0 && (
-            <div className="text-center py-16 bg-bg-card border border-border-subtle rounded-2xl">
-              <span className="text-5xl block mb-4">📅</span>
-              <h3 className="text-lg font-heading font-bold text-text-primary mb-2">No IPL matches on this date</h3>
-              <p className="text-text-secondary text-sm">Check back tomorrow — there are 1000+ matches in our database!</p>
-            </div>
-          )}
-          {!otdLoading && otdInsights.length > 0 && (
-            <div className="space-y-4">
-              {otdInsights.map(insight => (
-                <InsightCard key={insight.id} insight={insight} onCreateImage={setImageCreator} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ASK CRICKET TAB */}
-      {activeTab === 'ask' && (
-        <AskCricketInline onSaveCountChange={setSavedCount} />
-      )}
+            {/* Selected day header */}
+            <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📅</span>
+                <div>
+                  <h2 className="text-lg font-heading font-bold text-text-primary">
+                    {calSelectedDay
+                      ? `${calSelectedDay} ${MONTH_NAMES[calMonth]} — IPL History`
+                      : 'On This Day in IPL'
+                    }
+                  </h2>
+                  <p className="text-xs text-text-muted font-mono">
+                    {calSelectedDay
+                      ? `Showing all IPL matches played on ${MONTH_NAMES[calMonth]} ${calSelectedDay}`
+                      : otdDate ? new Date(otdDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' }) : 'Today'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Insights list */}
+            {otdLoading && (
+              <div className="flex items-center justify-center py-16 gap-3">
+                <div className="w-6 h-6 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-text-muted font-mono">Looking through IPL history...</span>
+              </div>
+            )}
+            {!otdLoading && otdInsights.length === 0 && (
+              <div className="text-center py-16 bg-bg-card border border-border-subtle rounded-2xl">
+                <span className="text-5xl block mb-4">📅</span>
+                <h3 className="text-lg font-heading font-bold text-text-primary mb-2">
+                  {calSelectedDay ? `No IPL matches on ${MONTH_NAMES[calMonth]} ${calSelectedDay}` : 'No IPL matches on this date'}
+                </h3>
+                <p className="text-text-secondary text-sm">Pick a highlighted date from the calendar above</p>
+              </div>
+            )}
+            {!otdLoading && otdInsights.length > 0 && (
+              <div className="space-y-4">
+                {otdInsights.map(insight => (
+                  <InsightCard key={insight.id} insight={insight} onCreateImage={setImageCreator} />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* SAVED TAB */}
       {activeTab === 'saved' && (

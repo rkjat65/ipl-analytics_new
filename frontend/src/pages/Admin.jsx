@@ -66,7 +66,7 @@ export default function Admin() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <SEO title="Admin Panel - IPL Analytics" />
+      <SEO title="Admin Panel" />
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -117,6 +117,8 @@ export default function Admin() {
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Email</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Provider</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Verified</th>
+                <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Logins</th>
+                <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Last Login</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Sessions</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Joined</th>
                 <th className="text-left py-3 px-4 text-text-muted text-[11px] font-mono uppercase tracking-wider">Actions</th>
@@ -162,6 +164,15 @@ export default function Admin() {
                     ) : (
                       <span className="text-text-muted text-xs font-mono">No</span>
                     )}
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="font-mono text-xs text-accent-cyan">{u.login_count || 0}</span>
+                  </td>
+                  <td className="py-3 px-4 text-text-muted font-mono text-xs whitespace-nowrap">
+                    {u.last_login ? new Date(u.last_login + 'Z').toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    }) : 'Never'}
                   </td>
                   <td className="py-3 px-4">
                     <span className={`font-mono text-xs ${u.active_sessions > 0 ? 'text-accent-lime' : 'text-text-muted'}`}>

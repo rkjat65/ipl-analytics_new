@@ -1,7 +1,7 @@
-import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, formatNumber, formatDecimal, CARD_DIMENSIONS } from './cardStyles'
+import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, formatNumber, formatDecimal, CARD_DIMENSIONS, scaledSize, scaledFont } from './cardStyles'
 import PlayerAvatar from '../ui/PlayerAvatar'
 
-function StatBar({ label, val1, val2 }) {
+function StatBar({ label, val1, val2, sf }) {
   const n1 = parseFloat(val1) || 0
   const n2 = parseFloat(val2) || 0
   const max = Math.max(n1, n2, 1)
@@ -15,7 +15,7 @@ function StatBar({ label, val1, val2 }) {
       {/* P1 value */}
       <div style={{
         width: '100px', textAlign: 'right',
-        fontFamily: FONTS.mono, fontSize: '26px', fontWeight: 700,
+        fontFamily: FONTS.mono, fontSize: sf ? sf(26) : '26px', fontWeight: 700,
         color: w1 ? '#00E5FF' : '#F0F0F5',
         opacity: w1 ? 1 : 0.6,
       }}>
@@ -28,7 +28,7 @@ function StatBar({ label, val1, val2 }) {
       {/* Label */}
       <div style={{
         width: '120px', textAlign: 'center',
-        fontFamily: FONTS.mono, fontSize: '15px', color: '#F0F0F5',
+        fontFamily: FONTS.mono, fontSize: sf ? sf(15) : '15px', color: '#F0F0F5',
         letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, opacity: 0.7,
       }}>
         {label}
@@ -40,7 +40,7 @@ function StatBar({ label, val1, val2 }) {
       {/* P2 value */}
       <div style={{
         width: '100px', textAlign: 'left',
-        fontFamily: FONTS.mono, fontSize: '26px', fontWeight: 700,
+        fontFamily: FONTS.mono, fontSize: sf ? sf(26) : '26px', fontWeight: 700,
         color: w2 ? NEON_COLORS.magenta : '#F0F0F5',
         opacity: w2 ? 1 : 0.6,
       }}>
@@ -82,6 +82,8 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
   const s2 = player2.stats || {}
   const p1Type = metric
   const p2Type = metric2 || metric
+  const isPortrait = dimensions.height > dimensions.width
+  const sf = (px) => scaledFont(px, dimensions)
 
   // When both same type, use the classic bar comparison
   const sameType = p1Type === p2Type
@@ -120,32 +122,32 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
       {/* Top bar */}
       <div style={{ height: '5px', background: `linear-gradient(90deg, ${NEON_COLORS.cyan}, ${NEON_COLORS.magenta})`, zIndex: 2 }} />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: dimensions.height > dimensions.width ? '40px 36px 56px 36px' : '40px 56px 48px 56px', zIndex: 2, position: 'relative' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', flexDirection: dimensions.height > dimensions.width ? 'column' : 'row', justifyContent: dimensions.height > dimensions.width ? 'flex-start' : 'space-between', alignItems: 'center', marginBottom: dimensions.height > dimensions.width ? '36px' : '28px', gap: dimensions.height > dimensions.width ? '20px' : '0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <PlayerAvatar name={player1.name || 'Player 1'} imageUrl={player1.imageUrl} teamColor={NEON_COLORS.cyan} size={dimensions.height > dimensions.width ? 72 : 64} inline shape="circle" />
-            <div style={{ fontFamily: FONTS.heading, fontSize: dimensions.height > dimensions.width ? '32px' : '36px', fontWeight: 700, color: '#00E5FF' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: isPortrait ? '40px 36px 56px 36px' : '40px 56px 48px 56px', zIndex: 2, position: 'relative' }}>
+        {/* Header — always horizontal: avatar + name | VS | name + avatar */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: isPortrait ? '28px' : '28px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flex: 1 }}>
+            <PlayerAvatar name={player1.name || 'Player 1'} imageUrl={player1.imageUrl} teamColor={NEON_COLORS.cyan} size={isPortrait ? scaledSize(120, dimensions) : scaledSize(110, dimensions)} inline shape="circle" />
+            <div style={{ fontFamily: FONTS.heading, fontSize: sf(30), fontWeight: 700, color: '#00E5FF', textAlign: 'center', lineHeight: 1.2 }}>
               {player1.name || 'Player 1'}
             </div>
           </div>
           <div style={{
-            fontFamily: FONTS.heading, fontSize: '24px', fontWeight: 700,
-            color: '#F0F0F5', padding: '6px 24px', opacity: 0.5,
-            border: `2px solid ${NEON_COLORS.border}`, borderRadius: '24px',
+            fontFamily: FONTS.heading, fontSize: sf(22), fontWeight: 700,
+            color: '#F0F0F5', padding: '6px 20px', opacity: 0.5,
+            border: `2px solid ${NEON_COLORS.border}`, borderRadius: '24px', flexShrink: 0,
           }}>
             VS
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ fontFamily: FONTS.heading, fontSize: dimensions.height > dimensions.width ? '32px' : '36px', fontWeight: 700, color: NEON_COLORS.magenta }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flex: 1 }}>
+            <PlayerAvatar name={player2.name || 'Player 2'} imageUrl={player2.imageUrl} teamColor={NEON_COLORS.magenta} size={isPortrait ? scaledSize(120, dimensions) : scaledSize(110, dimensions)} inline shape="circle" />
+            <div style={{ fontFamily: FONTS.heading, fontSize: sf(30), fontWeight: 700, color: NEON_COLORS.magenta, textAlign: 'center', lineHeight: 1.2 }}>
               {player2.name || 'Player 2'}
             </div>
-            <PlayerAvatar name={player2.name || 'Player 2'} imageUrl={player2.imageUrl} teamColor={NEON_COLORS.magenta} size={dimensions.height > dimensions.width ? 72 : 64} inline shape="circle" />
           </div>
         </div>
 
         {/* Type label */}
-        <div style={{ textAlign: 'center', fontFamily: FONTS.mono, fontSize: '16px', color: '#F0F0F5', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '24px', fontWeight: 600, opacity: 0.7 }}>
+        <div style={{ textAlign: 'center', fontFamily: FONTS.mono, fontSize: sf(16), color: '#F0F0F5', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '24px', fontWeight: 600, opacity: 0.7 }}>
           {sameType
             ? (p1Type === 'batting' ? 'Batting Comparison' : 'Bowling Comparison')
             : `${p1Type === 'batting' ? 'Batting' : 'Bowling'} vs ${p2Type === 'batting' ? 'Batting' : 'Bowling'}`
@@ -156,7 +158,7 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {sameType ? (
             rows.map((r) => (
-              <StatBar key={r.label} label={r.label} val1={r.val1} val2={r.val2} />
+              <StatBar key={r.label} label={r.label} val1={r.val1} val2={r.val2} sf={sf} />
             ))
           ) : (
             /* Mixed type: side-by-side stat panels */
@@ -197,7 +199,7 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
         </div>
       </div>
 
-      <div style={watermarkStyle()}>@Rkjat65 &bull; Data doesn&apos;t lie.</div>
+      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
     </div>
   )
 }

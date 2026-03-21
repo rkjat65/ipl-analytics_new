@@ -63,7 +63,7 @@ export default function EmbedWidget({ statType = 'top-scorer' }) {
         <span className="font-semibold text-sm" style={{ color: config.color }}>
           {config.title}
         </span>
-        <span className="ml-auto text-[10px] text-[#8888A0]">RKJAT65 IPL Analytics</span>
+        <span className="ml-auto text-[10px] text-[#8888A0]">Crickrida</span>
       </div>
 
       {/* Body */}
@@ -109,7 +109,7 @@ export default function EmbedWidget({ statType = 'top-scorer' }) {
           rel="noopener noreferrer"
           className="text-[10px] text-[#8888A0] hover:text-[#00E5FF] transition-colors"
         >
-          Powered by RKJAT65
+          Powered by Crickrida
         </a>
         <button
           onClick={() => setShowEmbed(!showEmbed)}

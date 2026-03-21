@@ -308,10 +308,10 @@ export default function SocialCompose() {
               <h3 className="text-xs font-mono text-text-muted mb-3 uppercase tracking-wider">Tweet Preview</h3>
               <div className="bg-bg-elevated rounded-xl p-4 border border-border-subtle">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-accent-cyan/20 flex items-center justify-center text-xs font-bold text-accent-cyan">R</div>
+                  <div className="w-8 h-8 rounded-full bg-accent-cyan/20 flex items-center justify-center text-xs font-bold text-accent-cyan">C</div>
                   <div>
-                    <div className="text-sm font-bold text-text-primary">RKJAT65</div>
-                    <div className="text-[10px] text-text-muted font-mono">@Rkjat65</div>
+                    <div className="text-sm font-bold text-text-primary">Crickrida</div>
+                    <div className="text-[10px] text-text-muted font-mono">@Crickrida</div>
                   </div>
                 </div>
                 <p className="text-sm text-text-primary whitespace-pre-wrap">{preview.text}</p>

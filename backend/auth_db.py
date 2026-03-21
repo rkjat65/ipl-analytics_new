@@ -42,5 +42,35 @@ def init_auth_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
+    # Add last_login column if it doesn't exist (migration-safe)
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN last_login TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    # Add login_count column if it doesn't exist
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    # Billing columns
+    for col, defn in [
+        ("plan", "TEXT DEFAULT 'free'"),
+        ("plan_expires", "TEXT"),
+        ("stripe_customer_id", "TEXT"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
+        except sqlite3.OperationalError:
+            pass
+    # Usage tracking table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            feature TEXT NOT NULL,
+            used_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
     conn.commit()
     conn.close()

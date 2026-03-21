@@ -6,10 +6,12 @@ import time
 import json
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from ..database import query
+from .auth import get_current_user
+from .billing import check_quota, record_usage
 
 # ── Gemini Setup ──────────────────────────────────────────────────────────────
 try:
@@ -234,10 +236,17 @@ def ai_status():
 
 
 @router.post("/commentary", response_model=CommentaryResponse)
-async def generate_commentary(req: CommentaryRequest):
+async def generate_commentary(req: CommentaryRequest, authorization: Optional[str] = Header(None)):
     """Generate tweet-ready commentary for cricket stats."""
     if not GEMINI_AVAILABLE:
         raise HTTPException(503, "AI not configured. Set GEMINI_API_KEY in backend/.env")
+
+    # Quota check
+    user = get_current_user(authorization)
+    if user:
+        quota = check_quota(user["id"], "ai_caption")
+        if not quota["allowed"]:
+            raise HTTPException(429, f"Daily limit reached ({quota['limit']}/day). Upgrade your plan for more AI captions.")
 
     prompt = COMMENTARY_PROMPT.format(
         stats_json=json.dumps(req.stats, indent=2),
@@ -266,6 +275,10 @@ async def generate_commentary(req: CommentaryRequest):
         if not commentaries:
             commentaries = [text]
 
+        # Record usage after success
+        if user:
+            record_usage(user["id"], "ai_caption")
+
         return CommentaryResponse(commentaries=commentaries[:3], model_used=MODEL_NAME)
 
     except Exception as e:
@@ -273,10 +286,17 @@ async def generate_commentary(req: CommentaryRequest):
 
 
 @router.post("/query", response_model=NLQueryResponse)
-async def nl_query(req: NLQueryRequest):
+async def nl_query(req: NLQueryRequest, authorization: Optional[str] = Header(None)):
     """Convert natural language question to SQL, execute, and return insight."""
     if not GEMINI_AVAILABLE:
         raise HTTPException(503, "AI not configured. Set GEMINI_API_KEY in backend/.env")
+
+    # Quota check
+    user = get_current_user(authorization)
+    if user:
+        quota = check_quota(user["id"], "ai_query")
+        if not quota["allowed"]:
+            raise HTTPException(429, f"Daily limit reached ({quota['limit']}/day). Upgrade your plan for more AI queries.")
 
     question = req.question.strip()
     if not question:
@@ -356,6 +376,10 @@ Keep it analytical and data-driven. Under 200 characters. No hashtags."""
         insight_response = model.generate_content(insight_prompt)
         insight = insight_response.text.strip()
 
+        # Record usage after success
+        if user:
+            record_usage(user["id"], "ai_query")
+
         return NLQueryResponse(
             question=question,
             sql=raw_sql,
@@ -372,10 +396,17 @@ Keep it analytical and data-driven. Under 200 characters. No hashtags."""
 
 
 @router.post("/thread", response_model=ThreadResponse)
-async def generate_thread(req: ThreadRequest):
+async def generate_thread(req: ThreadRequest, authorization: Optional[str] = Header(None)):
     """Generate a Twitter thread from data analysis."""
     if not GEMINI_AVAILABLE:
         raise HTTPException(503, "AI not configured. Set GEMINI_API_KEY in backend/.env")
+
+    # Quota check
+    user = get_current_user(authorization)
+    if user:
+        quota = check_quota(user["id"], "ai_thread")
+        if not quota["allowed"]:
+            raise HTTPException(429, f"Daily limit reached ({quota['limit']}/day). Upgrade your plan for more AI threads.")
 
     prompt = THREAD_PROMPT.format(
         topic=req.topic,
@@ -405,6 +436,10 @@ async def generate_thread(req: ThreadRequest):
             tweets = [p.strip() for p in text.split("\n\n") if p.strip()]
         if not tweets:
             tweets = [text]
+
+        # Record usage after success
+        if user:
+            record_usage(user["id"], "ai_thread")
 
         return ThreadResponse(tweets=tweets[:6], model_used=MODEL_NAME)
 
@@ -457,12 +492,20 @@ Generate a single high-quality infographic image that would get high engagement 
 
 
 @router.post("/generate-image")
-async def generate_ai_image(req: AIImageRequest):
+async def generate_ai_image(req: AIImageRequest, authorization: Optional[str] = Header(None)):
     """Generate a vibrant AI image using Gemini image model via new google.genai SDK."""
     if not GEMINI_AVAILABLE:
         raise HTTPException(503, "AI not configured. Set GEMINI_API_KEY in backend/.env")
     if not genai_client:
         raise HTTPException(503, "Image generation requires google-genai package. pip install google-genai")
+
+    # Quota check
+    user = get_current_user(authorization)
+    if user:
+        quota = check_quota(user["id"], "ai_image")
+        if not quota["allowed"]:
+            limit_msg = "AI Infographics are not available on the Free plan." if quota["limit"] == 0 else f"Daily limit reached ({quota['limit']}/day)."
+            raise HTTPException(429, f"{limit_msg} Upgrade your plan for AI image generation.")
 
     import base64
     from google.genai import types as genai_types
@@ -501,6 +544,10 @@ async def generate_ai_image(req: AIImageRequest):
                         b64 = base64.b64encode(img_data).decode("utf-8")
                     else:
                         b64 = img_data
+                    # Record usage after success
+                    if user:
+                        record_usage(user["id"], "ai_image")
+
                     return {
                         "image": f"data:{mime};base64,{b64}",
                         "model_used": "gemini-3.1-flash-image-preview",

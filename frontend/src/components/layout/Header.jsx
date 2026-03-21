@@ -1,5 +1,7 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+
+const ADMIN_EMAIL = 'rkdevanda65@gmail.com'
 
 const pageTitles = {
   '/dashboard': 'Dashboard',
@@ -20,7 +22,7 @@ export default function Header({ onMenuClick }) {
   const navigate = useNavigate()
   const { user, isAuthenticated, logout } = useAuth()
 
-  const pageTitle = pageTitles[location.pathname] || 'IPL Analytics'
+  const pageTitle = pageTitles[location.pathname] || 'Crickrida'
 
   const handleLogout = async () => {
     await logout()
@@ -68,14 +70,14 @@ export default function Header({ onMenuClick }) {
             {pageTitle}
           </h1>
           <p className="text-[11px] text-text-muted font-mono">
-            IPL Analytics
+            Cricket via Stats
           </p>
         </div>
       </div>
 
       {/* Right: branding + user */}
       <div className="flex items-center gap-3">
-        <span className="text-xs font-mono text-text-muted tracking-wider hidden sm:inline">RKJAT65</span>
+        <span className="text-xs font-mono text-text-muted tracking-wider hidden sm:inline">Crickrida</span>
 
         {isAuthenticated ? (
           <div className="flex items-center gap-2.5">
@@ -101,6 +103,26 @@ export default function Header({ onMenuClick }) {
                 {user?.name || user?.email}
               </span>
             </div>
+
+            {/* Admin button (admin only) */}
+            {user?.email?.toLowerCase() === ADMIN_EMAIL && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
+                    isActive
+                      ? 'bg-accent-amber/15 text-accent-amber border border-accent-amber/30'
+                      : 'text-text-muted hover:text-accent-amber hover:bg-accent-amber/10 border border-transparent'
+                  }`
+                }
+                title="Admin Panel"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span className="hidden sm:inline">Admin</span>
+              </NavLink>
+            )}
 
             {/* Logout button */}
             <button

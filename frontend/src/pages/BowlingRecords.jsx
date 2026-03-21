@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getBowlingLeaderboard, getSeasons, getTeams } from '../lib/api'
@@ -9,9 +9,11 @@ import Loading from '../components/ui/Loading'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
 import { formatDecimal } from '../utils/format'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
+import { exportAsImage, downloadImage } from '../utils/exportCard'
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -38,6 +40,15 @@ const SORT_OPTIONS = [
   { value: 'avg', label: 'Average' },
   { value: 'economy', label: 'Economy' },
   { value: 'sr', label: 'Strike Rate' },
+  { value: 'five_wickets', label: '5W Hauls' },
+  { value: 'four_wickets', label: '4W Hauls' },
+  { value: 'matches', label: 'Matches' },
+]
+
+const BAR_COLORS = [
+  '#FF2D78', '#8B5CF6', '#00E5FF', '#FFB800', '#B8FF00',
+  '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399',
+  '#FB923C', '#FBBF24', '#60A5FA', '#E879F9', '#22C55E',
 ]
 
 const rankAccent = (rank) => {
@@ -48,9 +59,21 @@ const rankAccent = (rank) => {
 }
 
 export default function BowlingRecords() {
+  const chartRef = useRef(null)
   const [season, setSeason] = useState('')
   const [team, setTeam] = useState('')
   const [sortBy, setSortBy] = useState('wickets')
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownloadChart = useCallback(async () => {
+    if (!chartRef.current) return
+    setDownloading(true)
+    try {
+      const dataUrl = await exportAsImage(chartRef.current, 'crickrida-bowling-records', 'png')
+      downloadImage(dataUrl, 'crickrida-bowling-records.png')
+    } catch (err) { console.error(err) }
+    finally { setDownloading(false) }
+  }, [])
 
   const { data: seasons } = useFetch(() => getSeasons(), [])
   const { data: teams } = useFetch(() => getTeams(), [])
@@ -146,12 +169,27 @@ export default function BowlingRecords() {
       {/* Top 15 Bar Chart */}
       {!loading && dataWithRank.length > 0 && (
         <div className="card">
-          <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">
-            Top 15 — {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-heading font-semibold text-text-secondary">
+              Top 15 — {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
+            </h3>
+            <button
+              onClick={handleDownloadChart}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border-subtle text-text-secondary hover:text-accent-magenta hover:border-accent-magenta/40 transition-colors disabled:opacity-40"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {downloading ? 'Saving...' : 'Download'}
+            </button>
+          </div>
+          <div ref={chartRef} className="bg-bg-primary rounded-lg p-2">
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
-              data={dataWithRank.slice(0, 15).map((b) => ({ name: b.player, value: b[sortBy] ?? 0 }))}
+              data={dataWithRank.slice(0, 15).map((b) => ({ name: b.player, value: (sortBy === 'five_wickets' ? b.five_w : sortBy === 'four_wickets' ? b.four_w : b[sortBy]) ?? 0 })).sort((a, b) => b.value - a.value)}
               layout="vertical"
               margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
             >
@@ -173,21 +211,25 @@ export default function BowlingRecords() {
               <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
               <Bar
                 dataKey="value"
-                fill="#FF2D78"
                 name={SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
                 radius={[0, 4, 4, 0]}
                 barSize={18}
                 label={{
                   position: 'right',
-                  fill: '#FF2D78',
+                  fill: '#E8E8F0',
                   fontSize: 11,
                   fontWeight: 700,
                   fontFamily: 'monospace',
                   formatter: (v) => typeof v === 'number' ? v.toLocaleString('en-IN') : v,
                 }}
-              />
+              >
+                {dataWithRank.slice(0, 15).map((_, idx) => (
+                  <Cell key={idx} fill={BAR_COLORS[idx % BAR_COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </div>
       )}
 

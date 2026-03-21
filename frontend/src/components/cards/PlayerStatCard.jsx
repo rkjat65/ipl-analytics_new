@@ -1,10 +1,12 @@
-import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, formatNumber, formatDecimal, CARD_DIMENSIONS } from './cardStyles'
+import { NEON_COLORS, BOX_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, formatNumber, formatDecimal, CARD_DIMENSIONS, scaledFont, scaledSize } from './cardStyles'
 import { getTeamColor } from '../../constants/teams'
 import PlayerAvatar from '../ui/PlayerAvatar'
 
 export default function PlayerStatCard({ playerName, stats = {}, type = 'batting', teamName, imageUrl, dimensions = CARD_DIMENSIONS.twitter }) {
   const accentColor = type === 'batting' ? NEON_COLORS.cyan : NEON_COLORS.magenta
   const teamColor = teamName ? getTeamColor(teamName) : accentColor
+  const isPortrait = dimensions.height > dimensions.width
+  const sf = (px) => scaledFont(px, dimensions)
 
   const battingGrid = [
     { label: 'Runs', value: formatNumber(stats.runs) },
@@ -37,66 +39,68 @@ export default function PlayerStatCard({ playerName, stats = {}, type = 'batting
     <div style={cardContainerStyle(dimensions)}>
       <div style={dotGridBackground()} />
 
-      {/* Accent bar top */}
       <div style={{ height: '5px', background: `linear-gradient(90deg, ${accentColor}, ${teamColor})`, zIndex: 2 }} />
 
-      {/* Content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: dimensions.height > dimensions.width ? '48px 40px 56px 40px' : '44px 56px 48px 56px', zIndex: 2, position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: isPortrait ? '48px 40px 56px 40px' : '44px 56px 48px 56px', zIndex: 2, position: 'relative' }}>
         {/* Header */}
-        <div style={{ display: 'flex', flexDirection: dimensions.height > dimensions.width ? 'column' : 'row', justifyContent: dimensions.height > dimensions.width ? 'flex-start' : 'space-between', alignItems: dimensions.height > dimensions.width ? 'center' : 'flex-start', marginBottom: dimensions.height > dimensions.width ? '40px' : '32px', gap: dimensions.height > dimensions.width ? '24px' : '0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexDirection: dimensions.height > dimensions.width ? 'column' : 'row', textAlign: dimensions.height > dimensions.width ? 'center' : 'left' }}>
+        <div style={{ display: 'flex', flexDirection: isPortrait ? 'column' : 'row', justifyContent: isPortrait ? 'flex-start' : 'space-between', alignItems: isPortrait ? 'center' : 'flex-start', marginBottom: isPortrait ? '40px' : '32px', gap: isPortrait ? '28px' : '0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isPortrait ? '28px' : '28px', flexDirection: isPortrait ? 'column' : 'row', textAlign: isPortrait ? 'center' : 'left' }}>
             <PlayerAvatar
               name={playerName || 'Player Name'}
               imageUrl={imageUrl}
               teamColor={teamColor}
-              size={dimensions.height > dimensions.width ? 100 : 88}
+              size={isPortrait ? scaledSize(200, dimensions) : scaledSize(140, dimensions)}
               inline
               shape="rounded"
             />
             <div>
-              <div style={{ fontFamily: FONTS.mono, fontSize: '16px', color: accentColor, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 600 }}>
+              <div style={{ fontFamily: FONTS.mono, fontSize: sf(18), color: accentColor, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 700 }}>
                 {type === 'batting' ? 'Batting Stats' : 'Bowling Stats'}
               </div>
-              <div style={{ fontFamily: FONTS.heading, fontSize: dimensions.height > dimensions.width ? '42px' : '48px', fontWeight: 700, color: '#F0F0F5', lineHeight: 1.1, letterSpacing: '-0.02em', wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '550px' }}>
+              <div style={{ fontFamily: FONTS.heading, fontSize: sf(52), fontWeight: 700, color: '#F0F0F5', lineHeight: 1.1, letterSpacing: '-0.02em', wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '550px' }}>
                 {playerName || 'Player Name'}
               </div>
             </div>
           </div>
-          <div style={{ textAlign: dimensions.height > dimensions.width ? 'center' : 'right' }}>
-            <div style={{ fontFamily: FONTS.mono, fontSize: dimensions.height > dimensions.width ? '72px' : '64px', fontWeight: 700, color: '#00E5FF', lineHeight: 1 }}>
+          <div style={{ textAlign: isPortrait ? 'center' : 'right' }}>
+            <div style={{ fontFamily: FONTS.mono, fontSize: sf(76), fontWeight: 700, color: '#00E5FF', lineHeight: 1, textShadow: '0 0 30px rgba(0,229,255,0.2)' }}>
               {heroStat.value}
             </div>
-            <div style={{ fontFamily: FONTS.mono, fontSize: '16px', color: '#F0F0F5', letterSpacing: '0.1em', marginTop: '6px', fontWeight: 600, opacity: 0.8 }}>
+            <div style={{ fontFamily: FONTS.mono, fontSize: sf(18), color: '#F0F0F5', letterSpacing: '0.1em', marginTop: '6px', fontWeight: 700, opacity: 0.8 }}>
               {heroStat.label}
             </div>
           </div>
         </div>
 
-        {/* Accent divider */}
-        <div style={{ height: '2px', background: `linear-gradient(90deg, ${accentColor}66, transparent)`, marginBottom: '28px' }} />
+        <div style={{ height: '3px', background: `linear-gradient(90deg, ${accentColor}66, transparent)`, marginBottom: '28px' }} />
 
-        {/* Stats Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: dimensions.height > dimensions.width ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: dimensions.height > dimensions.width ? '14px' : '16px', flex: 1 }}>
-          {gridItems.slice(1).map((item) => (
-            <div key={item.label} style={{ background: NEON_COLORS.bgCard, borderRadius: '10px', padding: dimensions.height > dimensions.width ? '18px 16px' : '16px 20px', border: `1px solid ${NEON_COLORS.border}`, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONTS.mono, fontSize: '15px', color: '#F0F0F5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 600, opacity: 0.7 }}>
-                {item.label}
+        {/* Stats Grid - each box with distinct color */}
+        <div style={{ display: 'grid', gridTemplateColumns: isPortrait ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: isPortrait ? '14px' : '16px', flex: 1 }}>
+          {gridItems.slice(1).map((item, i) => {
+            const boxColor = BOX_COLORS[i % BOX_COLORS.length]
+            return (
+              <div key={item.label} style={{
+                background: boxColor.bg, borderRadius: '12px',
+                padding: isPortrait ? '20px 16px' : '18px 20px',
+                border: `1px solid ${boxColor.border}`, textAlign: 'center',
+              }}>
+                <div style={{ fontFamily: FONTS.mono, fontSize: sf(16), color: boxColor.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 700, opacity: 0.9 }}>
+                  {item.label}
+                </div>
+                <div style={{ fontFamily: FONTS.mono, fontSize: sf(36), fontWeight: 700, color: '#F0F0F5' }}>
+                  {item.value}
+                </div>
               </div>
-              <div style={{ fontFamily: FONTS.mono, fontSize: dimensions.height > dimensions.width ? '30px' : '32px', fontWeight: 700, color: '#F0F0F5' }}>
-                {item.value}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
-        {/* Team color bar at bottom */}
         {teamName && (
           <div style={{ position: 'absolute', left: 0, bottom: 0, width: '5px', height: '60%', background: teamColor, borderRadius: '0 4px 0 0' }} />
         )}
       </div>
 
-      {/* Watermark */}
-      <div style={watermarkStyle()}>@Rkjat65 &bull; Data doesn&apos;t lie.</div>
+      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
     </div>
   )
 }

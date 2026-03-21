@@ -55,6 +55,32 @@ def season_summary(season: str):
         LIMIT 1
     """, [season])
 
+    # Most sixes
+    most_sixes = query("""
+        SELECT d.batter AS player,
+               SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE m.season = ? AND d.is_super_over = false
+        GROUP BY d.batter
+        ORDER BY sixes DESC
+        LIMIT 1
+    """, [season])
+
+    # Best economy (min 10 overs bowled)
+    best_economy = query("""
+        SELECT d.bowler AS player,
+               ROUND(SUM(d.runs_total - COALESCE(d.extras_byes, 0) - COALESCE(d.extras_legbyes, 0)) * 6.0
+                     / NULLIF(SUM(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END), 0), 2) AS economy
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE m.season = ? AND d.is_super_over = false
+        GROUP BY d.bowler
+        HAVING SUM(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) >= 60
+        ORDER BY economy ASC
+        LIMIT 1
+    """, [season])
+
     # Winner (last match of season)
     winner = query("""
         SELECT winner
@@ -68,6 +94,8 @@ def season_summary(season: str):
     result["orange_cap"] = top_batter[0] if top_batter else None
     result["purple_cap"] = top_bowler[0] if top_bowler else None
     result["most_pom"] = top_pom[0] if top_pom else None
+    result["most_sixes"] = most_sixes[0] if most_sixes else None
+    result["best_economy"] = best_economy[0] if best_economy else None
     result["winner"] = normalize_team(winner[0]["winner"]) if winner and winner[0]["winner"] else None
     return result
 

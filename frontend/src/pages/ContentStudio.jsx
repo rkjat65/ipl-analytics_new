@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getSeasons, getTeams, searchPlayers, getPlayerBatting, getPlayerBowling, getMatches, getMatch, getSeasonSummary, generateCardImage } from '../lib/api'
+import { getSeasons, getTeams, searchPlayers, getPlayerBatting, getPlayerBowling, getPlayerBattingMatchups, getPlayerBowlingMatchups, getMatches, getMatch, getSeasonSummary, generateCommentary } from '../lib/api'
 import SEO from '../components/SEO'
 import { exportAsImage, downloadImage, copyToClipboard } from '../utils/exportCard'
 import { CARD_DIMENSIONS } from '../components/cards/cardStyles'
@@ -8,15 +8,20 @@ import MatchSummaryCard from '../components/cards/MatchSummaryCard'
 import ComparisonCard from '../components/cards/ComparisonCard'
 import RecordCard from '../components/cards/RecordCard'
 import SeasonRecapCard from '../components/cards/SeasonRecapCard'
+import MatchupCard from '../components/cards/MatchupCard'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
+import { useAuth } from '../contexts/AuthContext'
+import { UsageBadge } from '../components/ui/PaywallGate'
+import UpgradeModal from '../components/ui/UpgradeModal'
 
 const TEMPLATES = [
   { id: 'player', label: 'Player Stats', color: '#00E5FF' },
   { id: 'match', label: 'Match Summary', color: '#FF2D78' },
   { id: 'comparison', label: 'Comparison', color: '#B8FF00' },
+  { id: 'bat_v_ball', label: 'Bat v Ball', color: '#FFB800' },
+  { id: 'ball_v_bat', label: 'Ball v Bat', color: '#8B5CF6' },
   { id: 'record', label: 'Record Card', color: '#FFB800' },
   { id: 'season', label: 'Season Recap', color: '#00E5FF' },
-  { id: 'ai-image', label: 'AI Image', color: '#A78BFA' },
 ]
 
 const FORMAT_OPTIONS = [
@@ -64,6 +69,7 @@ function PlayerSearchInput({ query, setQuery, results, setResults, onSelect, sel
 }
 
 export default function ContentStudio() {
+  const { token } = useAuth()
   const cardRef = useRef(null)
   const [template, setTemplate] = useState('player')
   const [format, setFormat] = useState('twitter')
@@ -85,6 +91,8 @@ export default function ContentStudio() {
   // Match summary state
   const [matchId, setMatchId] = useState('')
   const [matchData, setMatchData] = useState({})
+  const [matchSeason, setMatchSeason] = useState('')
+  const [matchTeam, setMatchTeam] = useState('')
 
   // Comparison state
   const [p1Query, setP1Query] = useState('')
@@ -109,23 +117,40 @@ export default function ContentStudio() {
   const [selectedSeason, setSelectedSeason] = useState('')
   const [seasonData, setSeasonData] = useState({})
 
-  // AI Image state
-  const [aiStyle, setAiStyle] = useState('neon')
-  const [aiTitle, setAiTitle] = useState('')
-  const [aiSubtitle, setAiSubtitle] = useState('')
-  const [aiHeroStat, setAiHeroStat] = useState('')
-  const [aiHeroLabel, setAiHeroLabel] = useState('')
-  const [aiStats, setAiStats] = useState('')
-  const [aiTeamColor, setAiTeamColor] = useState('')
-  const [aiGeneratedImage, setAiGeneratedImage] = useState(null)
-  const [aiGenerating, setAiGenerating] = useState(false)
+  // Bat v Ball state
+  const [bvbPlayerQuery, setBvbPlayerQuery] = useState('')
+  const [bvbPlayerResults, setBvbPlayerResults] = useState([])
+  const [bvbPlayerName, setBvbPlayerName] = useState('')
+  const [bvbMatchups, setBvbMatchups] = useState([])
+  const [bvbOpponent, setBvbOpponent] = useState('')
+  const [bvbStats, setBvbStats] = useState({})
+
+  // Ball v Bat state
+  const [blvbPlayerQuery, setBlvbPlayerQuery] = useState('')
+  const [blvbPlayerResults, setBlvbPlayerResults] = useState([])
+  const [blvbPlayerName, setBlvbPlayerName] = useState('')
+  const [blvbMatchups, setBlvbMatchups] = useState([])
+  const [blvbOpponent, setBlvbOpponent] = useState('')
+  const [blvbStats, setBlvbStats] = useState({})
+
+  // AI Caption state
+  const [aiCaption, setAiCaption] = useState('')
+  const [aiCaptionLoading, setAiCaptionLoading] = useState(false)
+  const [upgradeFeature, setUpgradeFeature] = useState(null)
 
   // Load initial data
   useEffect(() => {
     getSeasons().then(setSeasons).catch(() => {})
     getTeams().then(setTeams).catch(() => {})
-    getMatches({ limit: 50 }).then(r => setMatchList(r.matches || r || [])).catch(() => {})
   }, [])
+
+  // Load matches when filters change
+  useEffect(() => {
+    const params = { limit: 500 }
+    if (matchSeason) params.season = matchSeason
+    if (matchTeam) params.team = matchTeam
+    getMatches(params).then(r => setMatchList(r.matches || r || [])).catch(() => {})
+  }, [matchSeason, matchTeam])
 
   // Player search
   useEffect(() => {
@@ -244,30 +269,75 @@ export default function ContentStudio() {
     if (!selectedSeason) return
     getSeasonSummary(selectedSeason)
       .then(data => {
-        // Normalize nested objects to strings for card rendering
         const oc = data.orange_cap
         const pc = data.purple_cap
         const mp = data.most_pom
+        const ms = data.most_sixes
+        const be = data.best_economy
         setSeasonData({
           ...data,
           champion: data.champion || data.winner || '',
           orange_cap: typeof oc === 'object' ? `${oc.player} (${oc.runs} runs)` : oc,
           purple_cap: typeof pc === 'object' ? `${pc.player} (${pc.wickets} wkts)` : pc,
-          top_scorer: typeof oc === 'object' ? `${oc.player} (${oc.runs} runs)` : data.top_scorer,
-          top_wicket_taker: typeof pc === 'object' ? `${pc.player} (${pc.wickets} wkts)` : data.top_wicket_taker,
           most_pom: typeof mp === 'object' ? `${mp.player} (${mp.awards ?? mp.count})` : mp,
+          most_sixes: typeof ms === 'object' ? `${ms.player} (${ms.sixes} sixes)` : ms || '-',
+          best_economy: typeof be === 'object' ? `${be.player} (${be.economy})` : be || '-',
         })
       })
       .catch(() => setSeasonData({}))
   }, [selectedSeason])
+
+  // Bat v Ball player search
+  useEffect(() => {
+    if (bvbPlayerQuery.length < 2) { setBvbPlayerResults([]); return }
+    const t = setTimeout(() => searchPlayers(bvbPlayerQuery).then(setBvbPlayerResults).catch(() => {}), 300)
+    return () => clearTimeout(t)
+  }, [bvbPlayerQuery])
+
+  // Load bat v ball matchups when player selected
+  useEffect(() => {
+    if (!bvbPlayerName) return
+    getPlayerBattingMatchups(bvbPlayerName)
+      .then(data => { setBvbMatchups(data || []); setBvbOpponent(''); setBvbStats({}) })
+      .catch(() => setBvbMatchups([]))
+  }, [bvbPlayerName])
+
+  // Set stats when opponent selected for bat v ball
+  useEffect(() => {
+    if (!bvbOpponent || bvbMatchups.length === 0) return
+    const m = bvbMatchups.find(r => r.bowler === bvbOpponent)
+    if (m) setBvbStats({ runs: m.runs, balls: m.balls, dots: m.dots, fours: m.fours, sixes: m.sixes, dismissals: m.dismissals, sr: m.sr })
+  }, [bvbOpponent, bvbMatchups])
+
+  // Ball v Bat player search
+  useEffect(() => {
+    if (blvbPlayerQuery.length < 2) { setBlvbPlayerResults([]); return }
+    const t = setTimeout(() => searchPlayers(blvbPlayerQuery).then(setBlvbPlayerResults).catch(() => {}), 300)
+    return () => clearTimeout(t)
+  }, [blvbPlayerQuery])
+
+  // Load ball v bat matchups when player selected
+  useEffect(() => {
+    if (!blvbPlayerName) return
+    getPlayerBowlingMatchups(blvbPlayerName)
+      .then(data => { setBlvbMatchups(data || []); setBlvbOpponent(''); setBlvbStats({}) })
+      .catch(() => setBlvbMatchups([]))
+  }, [blvbPlayerName])
+
+  // Set stats when opponent selected for ball v bat
+  useEffect(() => {
+    if (!blvbOpponent || blvbMatchups.length === 0) return
+    const m = blvbMatchups.find(r => r.batter === blvbOpponent)
+    if (m) setBlvbStats({ runs: m.runs, balls: m.balls, dots: m.dots, wickets: m.wickets, economy: m.economy })
+  }, [blvbOpponent, blvbMatchups])
 
   const currentDims = FORMAT_OPTIONS.find(f => f.id === format)?.dims || CARD_DIMENSIONS.twitter
 
   const handleDownload = useCallback(async () => {
     try {
       setStatus('Exporting...')
-      const dataUrl = await exportAsImage(cardRef.current, `rkjat65-${template}`, 'png')
-      downloadImage(dataUrl, `rkjat65-${template}.png`)
+      const dataUrl = await exportAsImage(cardRef.current, `crickrida-${template}`, 'png')
+      downloadImage(dataUrl, `crickrida-${template}.png`)
       setStatus('Downloaded!')
       setTimeout(() => setStatus(null), 2000)
     } catch (err) {
@@ -290,39 +360,56 @@ export default function ContentStudio() {
     }
   }, [])
 
-  // AI Image generation
-  const handleGenerateAiImage = useCallback(async () => {
-    setAiGenerating(true)
+  // AI Caption generation — builds context from current card data
+  const handleGenerateCaption = useCallback(async () => {
+    setAiCaptionLoading(true)
+    setAiCaption('')
     try {
-      const dims = FORMAT_OPTIONS.find(f => f.id === format)?.dims || CARD_DIMENSIONS.twitter
-      // Parse stats string into object
-      let statsObj = {}
-      if (aiStats.trim()) {
-        aiStats.split('\n').forEach(line => {
-          const [key, val] = line.split(':').map(s => s.trim())
-          if (key && val) statsObj[key] = val
-        })
+      let stats = {}
+      let context = 'IPL cricket statistics'
+      switch (template) {
+        case 'player':
+          stats = { player: playerName, type: playerType, ...playerStats }
+          context = `${playerName} IPL ${playerType} career stats`
+          break
+        case 'match':
+          stats = matchData
+          context = `Match summary: ${matchData.team1 || ''} vs ${matchData.team2 || ''}`
+          break
+        case 'comparison':
+          stats = { player1: { name: p1Name, type: p1Type, ...p1Stats }, player2: { name: p2Name, type: p2Type, ...p2Stats } }
+          context = `IPL comparison: ${p1Name} vs ${p2Name}`
+          break
+        case 'record':
+          stats = { title: recordTitle, value: recordValue, description: recordDesc }
+          context = `IPL record: ${recordTitle}`
+          break
+        case 'bat_v_ball':
+          stats = { batsman: bvbPlayerName, bowler: bvbOpponent, ...bvbStats }
+          context = `IPL head-to-head: ${bvbPlayerName} batting vs ${bvbOpponent}`
+          break
+        case 'ball_v_bat':
+          stats = { bowler: blvbPlayerName, batsman: blvbOpponent, ...blvbStats }
+          context = `IPL head-to-head: ${blvbPlayerName} bowling vs ${blvbOpponent}`
+          break
+        case 'season':
+          stats = seasonData
+          context = `IPL ${selectedSeason} season recap`
+          break
       }
-      const result = await generateCardImage({
-        style: aiStyle,
-        width: dims.width,
-        height: dims.height,
-        title: aiTitle || undefined,
-        subtitle: aiSubtitle || undefined,
-        hero_stat: aiHeroStat || undefined,
-        hero_label: aiHeroLabel || undefined,
-        stats: Object.keys(statsObj).length > 0 ? statsObj : undefined,
-        team_color: aiTeamColor || undefined,
-      })
-      setAiGeneratedImage(result.image)
+      const res = await generateCommentary({ stats, context }, token)
+      setAiCaption(res.commentaries?.join('\n\n---\n\n') || 'No caption generated.')
     } catch (err) {
-      console.error('AI image gen failed:', err)
-      setStatus('Image generation failed')
-      setTimeout(() => setStatus(null), 2000)
+      const msg = err.message || ''
+      if (msg.includes('Daily limit') || msg.includes('Upgrade your plan') || msg.includes('not available on')) {
+        setUpgradeFeature('ai_caption')
+      }
+      setAiCaption('Caption generation failed. ' + (msg || 'Make sure AI is configured.'))
+      console.error(err)
     } finally {
-      setAiGenerating(false)
+      setAiCaptionLoading(false)
     }
-  }, [aiStyle, aiTitle, aiSubtitle, aiHeroStat, aiHeroLabel, aiStats, aiTeamColor, format])
+  }, [template, playerName, playerType, playerStats, matchData, p1Name, p1Type, p1Stats, p2Name, p2Type, p2Stats, recordTitle, recordValue, recordDesc, seasonData, selectedSeason, bvbPlayerName, bvbOpponent, bvbStats, blvbPlayerName, blvbOpponent, blvbStats])
 
   function renderDataInputs() {
     switch (template) {
@@ -355,7 +442,33 @@ export default function ContentStudio() {
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-mono text-text-muted mb-1">Select Match</label>
+              <label className="block text-xs font-mono text-text-muted mb-1">Filter by Season</label>
+              <select
+                value={matchSeason}
+                onChange={e => { setMatchSeason(e.target.value); setMatchId('') }}
+                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
+              >
+                <option value="">All Seasons</option>
+                {seasons.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Filter by Team</label>
+              <select
+                value={matchTeam}
+                onChange={e => { setMatchTeam(e.target.value); setMatchId('') }}
+                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
+              >
+                <option value="">All Teams</option>
+                {teams.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Select Match ({matchList.length} found)</label>
               <select
                 value={matchId}
                 onChange={e => setMatchId(e.target.value)}
@@ -415,6 +528,70 @@ export default function ContentStudio() {
           </div>
         )
 
+      case 'bat_v_ball':
+        return (
+          <div className="space-y-4">
+            <PlayerSearchInput
+              query={bvbPlayerQuery} setQuery={setBvbPlayerQuery}
+              results={bvbPlayerResults} setResults={setBvbPlayerResults}
+              onSelect={setBvbPlayerName} selectedName={bvbPlayerName}
+              label="Batsman Name"
+            />
+            {bvbMatchups.length > 0 && (
+              <div>
+                <label className="block text-xs font-mono text-text-muted mb-1">Select Bowler ({bvbMatchups.length} matchups)</label>
+                <select
+                  value={bvbOpponent}
+                  onChange={e => setBvbOpponent(e.target.value)}
+                  className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
+                >
+                  <option value="">Choose bowler...</option>
+                  {bvbMatchups.map(m => (
+                    <option key={m.bowler} value={m.bowler}>
+                      {m.bowler} ({m.balls} balls, {m.runs} runs)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {bvbPlayerName && bvbMatchups.length === 0 && (
+              <p className="text-xs text-text-muted font-mono">Loading matchups...</p>
+            )}
+          </div>
+        )
+
+      case 'ball_v_bat':
+        return (
+          <div className="space-y-4">
+            <PlayerSearchInput
+              query={blvbPlayerQuery} setQuery={setBlvbPlayerQuery}
+              results={blvbPlayerResults} setResults={setBlvbPlayerResults}
+              onSelect={setBlvbPlayerName} selectedName={blvbPlayerName}
+              label="Bowler Name"
+            />
+            {blvbMatchups.length > 0 && (
+              <div>
+                <label className="block text-xs font-mono text-text-muted mb-1">Select Batsman ({blvbMatchups.length} matchups)</label>
+                <select
+                  value={blvbOpponent}
+                  onChange={e => setBlvbOpponent(e.target.value)}
+                  className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
+                >
+                  <option value="">Choose batsman...</option>
+                  {blvbMatchups.map(m => (
+                    <option key={m.batter} value={m.batter}>
+                      {m.batter} ({m.balls} balls, {m.runs} runs)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {blvbPlayerName && blvbMatchups.length === 0 && (
+              <p className="text-xs text-text-muted font-mono">Loading matchups...</p>
+            )}
+          </div>
+        )
+
       case 'record':
         return (
           <div className="space-y-4">
@@ -469,83 +646,6 @@ export default function ContentStudio() {
           </div>
         )
 
-      case 'ai-image':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-mono text-text-muted mb-1">Style</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'neon', label: 'Neon Noir', color: '#00E5FF' },
-                  { id: 'minimal', label: 'Minimal', color: '#B0B0C8' },
-                  { id: 'vintage', label: 'Vintage Gold', color: '#FFB800' },
-                  { id: 'electric', label: 'Electric', color: '#B8FF00' },
-                ].map(s => (
-                  <button key={s.id} onClick={() => setAiStyle(s.id)}
-                    className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
-                      aiStyle === s.id ? 'border-accent-cyan/40 text-accent-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary'
-                    }`}
-                    style={aiStyle === s.id ? { borderColor: `${s.color}66`, color: s.color } : {}}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-mono text-text-muted mb-1">Title</label>
-              <input type="text" value={aiTitle} onChange={e => setAiTitle(e.target.value)}
-                placeholder="e.g. Virat Kohli" className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-cyan/50" />
-            </div>
-            <div>
-              <label className="block text-xs font-mono text-text-muted mb-1">Subtitle</label>
-              <input type="text" value={aiSubtitle} onChange={e => setAiSubtitle(e.target.value)}
-                placeholder="e.g. Batting Stats" className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-cyan/50" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-mono text-text-muted mb-1">Hero Stat</label>
-                <input type="text" value={aiHeroStat} onChange={e => setAiHeroStat(e.target.value)}
-                  placeholder="e.g. 8,004" className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-cyan/50" />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-text-muted mb-1">Hero Label</label>
-                <input type="text" value={aiHeroLabel} onChange={e => setAiHeroLabel(e.target.value)}
-                  placeholder="e.g. RUNS" className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-cyan/50" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-mono text-text-muted mb-1">Stats (key: value, one per line)</label>
-              <textarea value={aiStats} onChange={e => setAiStats(e.target.value)}
-                placeholder={"Matches: 237\nInnings: 226\nAverage: 37.25\nStrike Rate: 131.6\n50s: 50\n100s: 8"}
-                rows={5}
-                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-cyan/50 resize-none font-mono" />
-            </div>
-            <div>
-              <label className="block text-xs font-mono text-text-muted mb-1">Team Color (hex)</label>
-              <div className="flex gap-2">
-                <input type="text" value={aiTeamColor} onChange={e => setAiTeamColor(e.target.value)}
-                  placeholder="#EC1C24" className="flex-1 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-cyan/50 font-mono" />
-                {aiTeamColor && <div className="w-10 h-10 rounded-lg border border-border-subtle" style={{ background: aiTeamColor }} />}
-              </div>
-            </div>
-            <button
-              onClick={handleGenerateAiImage}
-              disabled={aiGenerating}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg text-sm font-medium hover:bg-purple-500/30 transition-colors disabled:opacity-40"
-            >
-              {aiGenerating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>✨ Generate Image</>
-              )}
-            </button>
-          </div>
-        )
-
       default:
         return null
     }
@@ -576,6 +676,26 @@ export default function ContentStudio() {
             dimensions={currentDims}
           />
         )
+      case 'bat_v_ball':
+        return (
+          <MatchupCard
+            playerName={bvbPlayerName || 'Select Batsman'}
+            opponentName={bvbOpponent || 'Select Bowler'}
+            stats={bvbStats}
+            mode="bat_v_ball"
+            dimensions={currentDims}
+          />
+        )
+      case 'ball_v_bat':
+        return (
+          <MatchupCard
+            playerName={blvbPlayerName || 'Select Bowler'}
+            opponentName={blvbOpponent || 'Select Batsman'}
+            stats={blvbStats}
+            mode="ball_v_bat"
+            dimensions={currentDims}
+          />
+        )
       case 'record':
         return <RecordCard title={recordTitle} value={recordValue} subtitle={recordSubtitle} description={recordDesc} dimensions={currentDims} />
       case 'season':
@@ -583,30 +703,13 @@ export default function ContentStudio() {
           <SeasonRecapCard
             season={selectedSeason || '20XX'}
             champion={seasonData.champion || seasonData.winner}
-            topScorer={seasonData.top_scorer || seasonData.orange_cap}
-            topWicketTaker={seasonData.top_wicket_taker || seasonData.purple_cap}
-            orangeCap={seasonData.orange_cap || seasonData.top_scorer}
-            purpleCap={seasonData.purple_cap || seasonData.top_wicket_taker}
+            orangeCap={seasonData.orange_cap}
+            purpleCap={seasonData.purple_cap}
+            mostSixes={seasonData.most_sixes}
+            bestEconomy={seasonData.best_economy}
             dimensions={currentDims}
           />
         )
-      case 'ai-image':
-        if (aiGeneratedImage) {
-          return (
-            <div style={{ width: currentDims.width, height: currentDims.height }}>
-              <img src={aiGeneratedImage} alt="Generated card" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            </div>
-          )
-        }
-        return (
-          <div style={{ width: currentDims.width, height: currentDims.height, background: '#0A0A0F', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '1px solid #2A2A3C' }}>
-            <div style={{ textAlign: 'center', color: '#8888A0', fontFamily: 'monospace' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>✨</div>
-              <div style={{ fontSize: '16px' }}>Configure settings and click Generate Image</div>
-            </div>
-          </div>
-        )
-
       default:
         return null
     }
@@ -625,7 +728,7 @@ export default function ContentStudio() {
           {TEMPLATES.map(t => (
             <button
               key={t.id}
-              onClick={() => setTemplate(t.id)}
+              onClick={() => { setTemplate(t.id); setAiCaption('') }}
               className={`shrink-0 px-5 py-3 rounded-xl border text-sm font-medium transition-all duration-200 ${
                 template === t.id
                   ? 'border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan shadow-lg shadow-accent-cyan/5'
@@ -686,7 +789,46 @@ export default function ContentStudio() {
               </svg>
               Copy to Clipboard
             </button>
+
+            {/* AI Caption Generator */}
+            <button
+              onClick={handleGenerateCaption}
+              disabled={aiCaptionLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-500/15 text-purple-400 border border-purple-500/30 rounded-lg text-sm font-medium hover:bg-purple-500/25 transition-colors disabled:opacity-40"
+            >
+              {aiCaptionLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                  Generating Caption...
+                </>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                  AI Caption <UsageBadge feature="ai_caption" />
+                </>
+              )}
+            </button>
           </div>
+
+          {/* AI Caption output */}
+          {aiCaption && (
+            <div className="space-y-2">
+              <label className="block text-xs font-mono text-purple-400">AI Generated Captions</label>
+              <div className="bg-bg-elevated border border-purple-500/20 rounded-lg p-3 text-sm text-text-secondary whitespace-pre-wrap max-h-60 overflow-y-auto leading-relaxed">
+                {aiCaption}
+              </div>
+              <button
+                onClick={() => { navigator.clipboard.writeText(aiCaption); setStatus('Caption copied!'); setTimeout(() => setStatus(null), 2000) }}
+                className="w-full px-3 py-1.5 text-xs text-purple-400 border border-purple-500/20 rounded-lg hover:bg-purple-500/10 transition-colors"
+              >
+                Copy Caption
+              </button>
+            </div>
+          )}
 
           {status && (
             <div className="text-center text-xs font-mono text-accent-cyan py-1">{status}</div>
@@ -710,6 +852,11 @@ export default function ContentStudio() {
           </p>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      {upgradeFeature && (
+        <UpgradeModal feature={upgradeFeature} onClose={() => setUpgradeFeature(null)} />
+      )}
     </div>
   )
 }

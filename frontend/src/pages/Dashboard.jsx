@@ -17,7 +17,7 @@ import {
 } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import {
-  BarChart, Bar,
+  BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import StatCard from '../components/ui/StatCard'
@@ -49,6 +49,8 @@ export default function Dashboard() {
   const [showTopTotals, setShowTopTotals] = useState(false)
   const [showTopSixes, setShowTopSixes] = useState(false)
   const [showTopFours, setShowTopFours] = useState(false)
+  const [batSort, setBatSort] = useState('runs')
+  const [bowlSort, setBowlSort] = useState('wickets')
 
   const { data: seasons, loading: seasonsLoading } = useFetch(() => getSeasons(), [])
 
@@ -58,13 +60,13 @@ export default function Dashboard() {
   )
 
   const { data: batters, loading: battersLoading } = useFetch(
-    () => getBattingLeaderboard({ season, limit: 10, sort_by: 'runs', order: 'desc' }),
-    [season]
+    () => getBattingLeaderboard({ season, limit: 10, sort_by: batSort, order: 'desc' }),
+    [season, batSort]
   )
 
   const { data: bowlers, loading: bowlersLoading } = useFetch(
-    () => getBowlingLeaderboard({ season, limit: 10, sort_by: 'wickets', order: 'desc' }),
-    [season]
+    () => getBowlingLeaderboard({ season, limit: 10, sort_by: bowlSort, order: 'desc' }),
+    [season, bowlSort]
   )
 
   const { data: matchesData, loading: matchesLoading } = useFetch(
@@ -159,20 +161,48 @@ export default function Dashboard() {
   const recentMatches = matchesData?.matches || []
 
   /* ── Chart data transforms ─────────────────────────────── */
+  const BAT_SORT_OPTIONS = [
+    { key: 'runs', label: 'Runs' },
+    { key: 'avg', label: 'Average' },
+    { key: 'sr', label: 'Strike Rate' },
+    { key: 'fifties', label: '50s' },
+    { key: 'hundreds', label: '100s' },
+    { key: 'sixes', label: 'Sixes' },
+    { key: 'fours', label: 'Fours' },
+    { key: 'matches', label: 'Matches' },
+  ]
+  const BOWL_SORT_OPTIONS = [
+    { key: 'wickets', label: 'Wickets' },
+    { key: 'economy', label: 'Economy' },
+    { key: 'avg', label: 'Average' },
+    { key: 'sr', label: 'Strike Rate' },
+    { key: 'five_wickets', label: '5W Hauls' },
+    { key: 'four_wickets', label: '4W Hauls' },
+    { key: 'matches', label: 'Matches' },
+  ]
+
+  const BAT_BAR_COLORS = ['#00E5FF', '#B8FF00', '#FFB800', '#FF2D78', '#8B5CF6', '#22D3EE', '#22C55E', '#FBBF24', '#EF4444', '#A78BFA']
+  const BOWL_BAR_COLORS = ['#FF2D78', '#8B5CF6', '#00E5FF', '#FFB800', '#B8FF00', '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399']
+
+  const batSortLabel = BAT_SORT_OPTIONS.find(o => o.key === batSort)?.label || batSort
+  const bowlSortLabel = BOWL_SORT_OPTIONS.find(o => o.key === bowlSort)?.label || bowlSort
+
   const batterChartData = [...battersWithRank].map((b) => ({
     name: b.player?.length > 14 ? b.player.slice(0, 13) + '\u2026' : b.player,
     fullName: b.player,
+    value: b[batSort] ?? b.runs,
     runs: b.runs,
     avg: b.avg,
     sr: b.sr,
-  }))
+  })).sort((a, b) => b.value - a.value)
 
   const bowlerChartData = [...bowlersWithRank].map((b) => ({
     name: b.player?.length > 14 ? b.player.slice(0, 13) + '\u2026' : b.player,
     fullName: b.player,
+    value: (bowlSort === 'five_wickets' ? b.five_w : bowlSort === 'four_wickets' ? b.four_w : b[bowlSort]) ?? b.wickets,
     wickets: b.wickets,
     economy: b.economy,
-  }))
+  })).sort((a, b) => b.value - a.value)
 
   /* ── Most Wins chart data ──────────────────────────────── */
   const winsChartData = useMemo(() => {
@@ -223,8 +253,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <SEO
-        title="IPL Analytics Dashboard"
-        description="Comprehensive IPL cricket analytics dashboard with real-time stats, batting and bowling leaderboards, match results, and season trends. Powered by RKJAT65."
+        title="Dashboard"
+        description="Crickrida — Cricket analytics dashboard with real-time stats, batting and bowling leaderboards, match results, and season trends."
       />
       {/* Sign-in banner for unauthenticated users */}
       {!isAuthenticated && (
@@ -595,12 +625,21 @@ export default function Dashboard() {
       </div>
 
       {/* ═══════════════════════════════════════════════════
-          TOP RUN SCORERS: Chart + Table
+          TOP BATTERS: Chart + Table
           ═══════════════════════════════════════════════════ */}
       <section>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-1 h-6 bg-accent-lime rounded-full" />
-          <h2 className="text-xl font-heading font-bold text-text-primary">Top Run Scorers</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 bg-accent-lime rounded-full" />
+            <h2 className="text-xl font-heading font-bold text-text-primary">Top Batters</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-muted font-mono">Sort by</span>
+            <select value={batSort} onChange={e => setBatSort(e.target.value)}
+              className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary font-mono focus:outline-none focus:border-accent-lime/50">
+              {BAT_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
         </div>
         {battersLoading ? (
           <Loading message="Loading batting leaderboard..." />
@@ -638,7 +677,7 @@ export default function Dashboard() {
                             style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
                             <p className="text-text-primary font-semibold mb-0.5">{d.fullName}</p>
                             <p style={{ color: '#B8FF00' }}>
-                              Runs: <span className="font-mono font-bold">{formatNumber(d.runs)}</span>
+                              {batSortLabel}: <span className="font-mono font-bold">{['avg', 'sr', 'economy'].includes(batSort) ? formatDecimal(d.value) : formatNumber(d.value)}</span>
                             </p>
                             <p className="text-text-secondary">
                               Avg: <span className="font-mono">{formatDecimal(d.avg)}</span> | SR: <span className="font-mono">{formatDecimal(d.sr)}</span>
@@ -649,19 +688,22 @@ export default function Dashboard() {
                       cursor={{ fill: 'rgba(184,255,0,0.05)' }}
                     />
                     <Bar
-                      dataKey="runs"
-                      fill="#B8FF00"
-                      radius={[0, 4, 4, 0]}
-                      barSize={22}
+                      dataKey="value"
+                      radius={[0, 6, 6, 0]}
+                      barSize={24}
                       label={{
                         position: 'right',
-                        fill: '#B8FF00',
+                        fill: '#E8E8F0',
                         fontSize: 11,
                         fontWeight: 700,
                         fontFamily: 'monospace',
-                        formatter: (v) => formatNumber(v),
+                        formatter: (v) => ['avg', 'sr', 'economy'].includes(batSort) ? formatDecimal(v) : formatNumber(v),
                       }}
-                    />
+                    >
+                      {batterChartData.map((_, idx) => (
+                        <Cell key={idx} fill={BAT_BAR_COLORS[idx % BAT_BAR_COLORS.length]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -672,12 +714,21 @@ export default function Dashboard() {
       </section>
 
       {/* ═══════════════════════════════════════════════════
-          TOP WICKET TAKERS: Chart + Table
+          TOP BOWLERS: Chart + Table
           ═══════════════════════════════════════════════════ */}
       <section>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-1 h-6 bg-accent-magenta rounded-full" />
-          <h2 className="text-xl font-heading font-bold text-text-primary">Top Wicket Takers</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 bg-accent-magenta rounded-full" />
+            <h2 className="text-xl font-heading font-bold text-text-primary">Top Bowlers</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-muted font-mono">Sort by</span>
+            <select value={bowlSort} onChange={e => setBowlSort(e.target.value)}
+              className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary font-mono focus:outline-none focus:border-accent-magenta/50">
+              {BOWL_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
         </div>
         {bowlersLoading ? (
           <Loading message="Loading bowling leaderboard..." />
@@ -715,7 +766,7 @@ export default function Dashboard() {
                             style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
                             <p className="text-text-primary font-semibold mb-0.5">{d.fullName}</p>
                             <p style={{ color: '#FF2D78' }}>
-                              Wickets: <span className="font-mono font-bold">{d.wickets}</span>
+                              {bowlSortLabel}: <span className="font-mono font-bold">{['economy', 'avg', 'sr'].includes(bowlSort) ? formatDecimal(d.value) : d.value}</span>
                             </p>
                             <p className="text-text-secondary">
                               Econ: <span className="font-mono">{formatDecimal(d.economy)}</span>
@@ -726,18 +777,22 @@ export default function Dashboard() {
                       cursor={{ fill: 'rgba(255,45,120,0.05)' }}
                     />
                     <Bar
-                      dataKey="wickets"
-                      fill="#FF2D78"
-                      radius={[0, 4, 4, 0]}
-                      barSize={22}
+                      dataKey="value"
+                      radius={[0, 6, 6, 0]}
+                      barSize={24}
                       label={{
                         position: 'right',
-                        fill: '#FF2D78',
+                        fill: '#E8E8F0',
                         fontSize: 11,
                         fontWeight: 700,
                         fontFamily: 'monospace',
+                        formatter: (v) => ['economy', 'avg', 'sr'].includes(bowlSort) ? formatDecimal(v) : v,
                       }}
-                    />
+                    >
+                      {bowlerChartData.map((_, idx) => (
+                        <Cell key={idx} fill={BOWL_BAR_COLORS[idx % BOWL_BAR_COLORS.length]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

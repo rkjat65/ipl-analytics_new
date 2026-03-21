@@ -483,10 +483,10 @@ def discover_did_you_know() -> list[dict]:
     return insights
 
 
-def discover_on_this_day() -> list[dict]:
-    """Find IPL moments that happened on today's date in history."""
+def discover_on_this_day(target_date: date | None = None) -> list[dict]:
+    """Find IPL moments that happened on a given date (or today) in history."""
     insights = []
-    today = date.today()
+    today = target_date or date.today()
 
     matches_today = query("""
         SELECT m.match_id, m.season, m.date, m.team1, m.team2, m.winner,
@@ -655,14 +655,38 @@ def get_pulse_feed(category: Optional[str] = None, limit: int = 30):
 
 
 @router.get("/on-this-day")
-def get_on_this_day():
-    """Historical IPL moments on today's date."""
-    insights = discover_on_this_day()
+def get_on_this_day(month: int | None = None, day: int | None = None):
+    """Historical IPL moments on today's date (or a specific month/day)."""
+    from datetime import date as _date
+    target = None
+    if month and day:
+        try:
+            target = _date(2000, month, day)  # year doesn't matter, we only use month/day
+        except ValueError:
+            pass
+    insights = discover_on_this_day(target)
+    actual_date = target or _date.today()
     return {
-        "date": date.today().isoformat(),
+        "date": actual_date.isoformat(),
         "total": len(insights),
         "insights": insights,
     }
+
+
+@router.get("/calendar-month")
+def get_calendar_month(month: int):
+    """Return which days in a given month had IPL matches (across all years)."""
+    if month < 1 or month > 12:
+        raise HTTPException(400, "Month must be 1-12")
+    rows = query("""
+        SELECT EXTRACT(DAY FROM date)::INTEGER AS day, COUNT(*) AS match_count
+        FROM matches
+        WHERE EXTRACT(MONTH FROM date) = ?
+        GROUP BY day
+        ORDER BY day
+    """, [month])
+    days = {r["day"]: r["match_count"] for r in rows}
+    return {"month": month, "days": days}
 
 
 @router.get("/trending")

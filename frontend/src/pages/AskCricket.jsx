@@ -10,6 +10,8 @@ import { exportAsImage, downloadImage } from '../utils/exportCard'
 import { CARD_DIMENSIONS } from '../components/cards/cardStyles'
 import QueryResultCard from '../components/cards/QueryResultCard'
 import { useAuth } from '../contexts/AuthContext'
+import { UsageBadge } from '../components/ui/PaywallGate'
+import UpgradeModal from '../components/ui/UpgradeModal'
 
 const CHAT_HISTORY_KEY = 'rkjat65_chat_history'
 
@@ -270,7 +272,7 @@ function InlineImageCreator({ question, data, insight, onClose }) {
 }
 
 export default function AskCricket() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const userEmail = user?.email || 'anonymous'
   const [messages, setMessages] = useState(() => getChatHistory(userEmail))
   const [input, setInput] = useState('')
@@ -279,6 +281,7 @@ export default function AskCricket() {
   const [suggestions, setSuggestions] = useState([])
   const [imageCreatorIdx, setImageCreatorIdx] = useState(null)
   const [aiImageModal, setAiImageModal] = useState(null)
+  const [upgradeFeature, setUpgradeFeature] = useState(null)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -309,7 +312,7 @@ export default function AskCricket() {
     setLoading(true)
 
     try {
-      const result = await askCricketQuery(q)
+      const result = await askCricketQuery(q, null, token)
       setMessages(prev => [...prev, {
         type: 'ai',
         question: result.question,
@@ -320,10 +323,11 @@ export default function AskCricket() {
         chartConfig: result.chart_config,
       }])
     } catch (err) {
-      setMessages(prev => [...prev, {
-        type: 'error',
-        text: err.message || 'Something went wrong. Try rephrasing your question.'
-      }])
+      const msg = err.message || 'Something went wrong. Try rephrasing your question.'
+      if (msg.includes('Daily limit') || msg.includes('Upgrade your plan') || msg.includes('not available on')) {
+        setUpgradeFeature('ai_query')
+      }
+      setMessages(prev => [...prev, { type: 'error', text: msg }])
     } finally {
       setLoading(false)
     }
@@ -334,7 +338,7 @@ export default function AskCricket() {
       const result = await generateCommentary({
         stats: data.length > 0 ? data[0] : {},
         context: insight || 'IPL cricket statistics'
-      })
+      }, token)
       setMessages(prev => [...prev, {
         type: 'commentary',
         commentaries: result.commentaries
@@ -546,6 +550,48 @@ export default function AskCricket() {
                 </div>
               )}
 
+              {msg.type === 'ai_image' && (
+                <div className="bg-bg-card border border-accent-lime/30 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🎨</span>
+                    <span className="text-xs font-mono text-accent-lime uppercase tracking-wider">AI Generated Infographic</span>
+                  </div>
+                  {msg.question && (
+                    <p className="text-xs text-text-muted font-mono truncate">{"💬 \""}{msg.question}{"\""}</p>
+                  )}
+                  <div className="rounded-xl overflow-hidden border border-border-subtle bg-bg-elevated">
+                    <img src={msg.image} alt="AI Generated" className="w-full h-auto max-w-lg" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const link = document.createElement('a')
+                        link.download = `rkjat65-ai-${Date.now()}.png`
+                        link.href = msg.image
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                      }}
+                      className="text-xs font-mono px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 transition-colors"
+                    >
+                      Download
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(msg.image)
+                          const blob = await res.blob()
+                          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
+                        } catch {}
+                      }}
+                      className="text-xs font-mono px-3 py-1.5 rounded-lg bg-bg-elevated text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      Copy Image
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {msg.type === 'error' && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-2xl rounded-tl-sm px-4 py-3">
                   <p className="text-red-400 text-sm">⚠️ {msg.text}</p>
@@ -594,9 +640,12 @@ export default function AskCricket() {
               Ask →
             </button>
           </form>
-          <p className="text-[10px] text-text-muted font-mono mt-2 text-center">
-            AI can make mistakes. Verify important data. • Powered by Gemini 3.1 Flash
-          </p>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <p className="text-[10px] text-text-muted font-mono text-center">
+              AI can make mistakes. Verify important data. • Powered by Gemini 3.1 Flash
+            </p>
+            <UsageBadge feature="ai_query" />
+          </div>
         </div>
       </div>
 
@@ -607,7 +656,19 @@ export default function AskCricket() {
           insight={aiImageModal.insight}
           data={aiImageModal.data}
           onClose={() => setAiImageModal(null)}
+          onImageGenerated={(imageDataUrl) => {
+            setMessages(prev => [...prev, {
+              type: 'ai_image',
+              image: imageDataUrl,
+              question: aiImageModal.question,
+            }])
+          }}
         />
+      )}
+
+      {/* Upgrade Modal */}
+      {upgradeFeature && (
+        <UpgradeModal feature={upgradeFeature} onClose={() => setUpgradeFeature(null)} />
       )}
     </div>
   )

@@ -68,6 +68,7 @@ class UserResponse(BaseModel):
     name: str
     email: str
     avatar_url: Optional[str] = None
+    plan: Optional[str] = "free"
 
 
 class AuthResponse(BaseModel):
@@ -120,12 +121,17 @@ def _create_session(user_id: str) -> str:
 
 
 def _user_dict(row) -> dict:
-    return {
+    d = {
         "id": row["id"],
         "name": row["name"],
         "email": row["email"],
         "avatar_url": row["avatar_url"],
     }
+    try:
+        d["plan"] = row["plan"] or "free"
+    except (IndexError, KeyError):
+        d["plan"] = "free"
+    return d
 
 
 def _validate_email(email: str):
@@ -156,7 +162,7 @@ def get_current_user(
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     row = db.execute(
         """
-        SELECT u.id, u.name, u.email, u.avatar_url
+        SELECT u.id, u.name, u.email, u.avatar_url, u.plan
         FROM sessions s JOIN users u ON s.user_id = u.id
         WHERE s.token = ? AND s.expires_at > ?
         """,
@@ -187,8 +193,8 @@ def register(body: RegisterRequest):
     pw_hash = hash_password(body.password)
     db.execute(
         """
-        INSERT INTO users (id, email, name, password_hash, auth_provider, is_verified)
-        VALUES (?, ?, ?, ?, 'email', 0)
+        INSERT INTO users (id, email, name, password_hash, auth_provider, is_verified, last_login, login_count)
+        VALUES (?, ?, ?, ?, 'email', 0, datetime('now'), 1)
         """,
         (user_id, body.email.lower(), body.name.strip(), pw_hash),
     )
@@ -224,6 +230,13 @@ def login(body: LoginRequest):
 
     if not verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Track login
+    db.execute(
+        "UPDATE users SET last_login = datetime('now'), login_count = COALESCE(login_count, 0) + 1 WHERE id = ?",
+        (row["id"],),
+    )
+    db.commit()
 
     token = _create_session(row["id"])
     return {"token": token, "user": _user_dict(row)}
@@ -388,7 +401,7 @@ def admin_list_users(authorization: Optional[str] = Header(None)):
     rows = db.execute(
         """
         SELECT id, email, name, auth_provider, avatar_url, is_verified,
-               created_at, updated_at,
+               created_at, updated_at, last_login, COALESCE(login_count, 0) as login_count,
                (SELECT COUNT(*) FROM sessions s WHERE s.user_id = users.id
                 AND s.expires_at > datetime('now')
                 AND s.token NOT LIKE 'reset:%') as active_sessions
@@ -406,6 +419,8 @@ def admin_list_users(authorization: Optional[str] = Header(None)):
             "is_verified": bool(r["is_verified"]),
             "created_at": r["created_at"],
             "updated_at": r["updated_at"],
+            "last_login": r["last_login"],
+            "login_count": r["login_count"],
             "active_sessions": r["active_sessions"],
         }
         for r in rows
@@ -538,6 +553,13 @@ def google_login(body: GoogleLoginRequest):
             (user_id, email, name, google_id, picture),
         )
         db.commit()
+
+    # Track login
+    db.execute(
+        "UPDATE users SET last_login = datetime('now'), login_count = COALESCE(login_count, 0) + 1 WHERE id = ?",
+        (user_id,),
+    )
+    db.commit()
 
     user_row = db.execute(
         "SELECT * FROM users WHERE id = ?", (user_id,)

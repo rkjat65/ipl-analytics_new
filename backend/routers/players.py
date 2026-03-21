@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/players", tags=["players"])
 def batting_leaderboard(
     season: str | None = None,
     team: str | None = None,
-    sort_by: str = Query("runs", pattern="^(runs|avg|sr|fifties|hundreds)$"),
+    sort_by: str = Query("runs", pattern="^(runs|avg|sr|fifties|hundreds|sixes|fours|matches)$"),
     limit: int = Query(25, ge=1, le=100),
 ):
     season_filter = ""
@@ -35,7 +35,7 @@ def batting_leaderboard(
         season_filter += f" AND i.batting_team IN ({ph})"
         params.extend(variants)
 
-    sort_map = {"runs": "runs DESC", "avg": "avg DESC NULLS LAST", "sr": "sr DESC", "fifties": "fifties DESC", "hundreds": "hundreds DESC"}
+    sort_map = {"runs": "runs DESC", "avg": "avg DESC NULLS LAST", "sr": "sr DESC", "fifties": "fifties DESC", "hundreds": "hundreds DESC", "sixes": "sixes DESC", "fours": "fours DESC", "matches": "matches DESC"}
     order = sort_map.get(sort_by, "runs DESC")
     params.append(limit)
 
@@ -85,7 +85,7 @@ def batting_leaderboard(
 def bowling_leaderboard(
     season: str | None = None,
     team: str | None = None,
-    sort_by: str = Query("wickets", pattern="^(wickets|avg|economy|sr)$"),
+    sort_by: str = Query("wickets", pattern="^(wickets|avg|economy|sr|five_wickets|four_wickets|matches)$"),
     limit: int = Query(25, ge=1, le=100),
 ):
     season_filter = ""
@@ -110,6 +110,9 @@ def bowling_leaderboard(
         "avg": "avg ASC NULLS LAST",
         "economy": "economy ASC",
         "sr": "sr ASC NULLS LAST",
+        "five_wickets": "five_w DESC",
+        "four_wickets": "four_w DESC",
+        "matches": "matches DESC",
     }
     order = sort_map.get(sort_by, "wickets DESC")
     params.append(limit)

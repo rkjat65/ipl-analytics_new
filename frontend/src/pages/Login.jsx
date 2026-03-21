@@ -217,7 +217,7 @@ export default function LoginPage({ inline = false }) {
 
   const getSubtitle = () => {
     switch (mode) {
-      case 'register': return 'Join IPL Analytics for full access'
+      case 'register': return 'Join Crickrida for full access'
       case 'forgot': return 'Enter your email to reset your password'
       case 'reset': return 'Enter the reset token and your new password'
       default: return 'Access comprehensive IPL analytics'

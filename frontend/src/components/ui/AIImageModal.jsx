@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { generateAIImage } from '../../lib/api'
+import { useAuth } from '../../contexts/AuthContext'
 
-export default function AIImageModal({ question, insight, data, onClose }) {
+export default function AIImageModal({ question, insight, data, onClose, onImageGenerated }) {
+  const { token } = useAuth()
   const [generating, setGenerating] = useState(true)
   const [image, setImage] = useState(null)
   const [error, setError] = useState(null)
@@ -11,8 +13,13 @@ export default function AIImageModal({ question, insight, data, onClose }) {
     let cancelled = false
     setGenerating(true)
     setError(null)
-    generateAIImage({ question, insight, data, style: 'vibrant' })
-      .then(res => { if (!cancelled) setImage(res.image) })
+    generateAIImage({ question, insight, data, style: 'vibrant' }, token)
+      .then(res => {
+        if (!cancelled) {
+          setImage(res.image)
+          if (onImageGenerated) onImageGenerated(res.image)
+        }
+      })
       .catch(err => { if (!cancelled) setError(err.message || 'Image generation failed') })
       .finally(() => { if (!cancelled) setGenerating(false) })
     return () => { cancelled = true }
@@ -43,8 +50,11 @@ export default function AIImageModal({ question, insight, data, onClose }) {
     setGenerating(true)
     setError(null)
     setImage(null)
-    generateAIImage({ question, insight, data, style: 'vibrant' })
-      .then(res => setImage(res.image))
+    generateAIImage({ question, insight, data, style: 'vibrant' }, token)
+      .then(res => {
+        setImage(res.image)
+        if (onImageGenerated) onImageGenerated(res.image)
+      })
       .catch(err => setError(err.message || 'Image generation failed'))
       .finally(() => setGenerating(false))
   }

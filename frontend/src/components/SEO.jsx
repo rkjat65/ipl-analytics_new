@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async'
 
 const DEFAULT_OG_IMAGE = '/og-default.png'
-const SITE_NAME = 'RKJAT65 IPL Analytics'
+const SITE_NAME = 'Crickrida'
 const TWITTER_HANDLE = '@Rkjat65'
 
 export default function SEO({ title, description, image, url, type = 'website' }) {
