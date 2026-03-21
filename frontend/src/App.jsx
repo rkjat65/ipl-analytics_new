@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Matches from './pages/Matches'
@@ -25,10 +26,14 @@ import Admin from './pages/Admin'
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/login" element={<Login />} />
+    <Routes>
+      {/* Public: Landing page (no sidebar/header) */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+
+      {/* App routes (with sidebar/header layout) */}
+      <Route element={<Layout />}>
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/matches" element={<ProtectedRoute><Matches /></ProtectedRoute>} />
         <Route path="/matches/:matchId" element={<ProtectedRoute><MatchDetail /></ProtectedRoute>} />
         <Route path="/batting" element={<ProtectedRoute><BattingRecords /></ProtectedRoute>} />
@@ -51,7 +56,7 @@ export default function App() {
         <Route path="/advanced" element={<ProtectedRoute><AdvancedAnalytics /></ProtectedRoute>} />
         <Route path="/player-impact" element={<ProtectedRoute><PlayerImpact /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-      </Routes>
-    </Layout>
+      </Route>
+    </Routes>
   )
 }

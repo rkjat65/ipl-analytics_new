@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
 const pageTitles = {
-  '/': 'Dashboard',
+  '/dashboard': 'Dashboard',
   '/matches': 'Matches',
   '/batting': 'Batting',
   '/bowling': 'Bowling',
@@ -24,7 +24,7 @@ export default function Header({ onMenuClick }) {
 
   const handleLogout = async () => {
     await logout()
-    navigate('/')
+    navigate('/login')
   }
 
   // Get user initials for avatar

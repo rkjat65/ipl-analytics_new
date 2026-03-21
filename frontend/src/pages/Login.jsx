@@ -32,7 +32,7 @@ export default function LoginPage({ inline = false }) {
 
   useEffect(() => {
     if (!inline && isAuthenticated) {
-      navigate('/', { replace: true })
+      navigate('/dashboard', { replace: true })
     }
   }, [isAuthenticated, inline, navigate])
 
@@ -51,7 +51,7 @@ export default function LoginPage({ inline = false }) {
       }
       const data = await res.json()
       login(data.token, data.user)
-      if (!inline) navigate('/', { replace: true })
+      if (!inline) navigate('/dashboard', { replace: true })
     } catch (err) {
       setSubmitError(err.message || 'Google sign-in failed')
     } finally {
@@ -190,7 +190,7 @@ export default function LoginPage({ inline = false }) {
         }
         const data = await res.json()
         login(data.token, data.user)
-        if (!inline) navigate('/', { replace: true })
+        if (!inline) navigate('/dashboard', { replace: true })
       }
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong')
