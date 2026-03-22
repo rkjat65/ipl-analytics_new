@@ -1,157 +1,206 @@
-import { useLocation, useNavigate, NavLink } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { NavLink } from 'react-router-dom'
 
-const ADMIN_EMAIL = 'rkdevanda65@gmail.com'
+const navItems = [
+  {
+    to: '/dashboard',
+    label: 'Dashboard',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    to: '/ask',
+    label: 'Ask AI',
+    highlight: 'lime',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        <circle cx="12" cy="10" r="1" fill="currentColor" />
+        <circle cx="8" cy="10" r="1" fill="currentColor" />
+        <circle cx="16" cy="10" r="1" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    to: '/content-studio',
+    label: 'Studio',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+        <circle cx="12" cy="13" r="4" />
+      </svg>
+    ),
+  },
+  {
+    to: '/matches',
+    label: 'Matches',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    to: '/batting',
+    label: 'Batting',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+        <polyline points="17 6 23 6 23 12" />
+      </svg>
+    ),
+  },
+  {
+    to: '/bowling',
+    label: 'Bowling',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+      </svg>
+    ),
+  },
+  {
+    to: '/teams',
+    label: 'Teams',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    to: '/h2h',
+    label: 'H2H',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    ),
+  },
+  {
+    to: '/player-impact',
+    label: 'Impact',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+        <line x1="12" y1="2" x2="12" y2="6" />
+        <line x1="12" y1="18" x2="12" y2="22" />
+        <line x1="2" y1="12" x2="6" y2="12" />
+        <line x1="18" y1="12" x2="22" y2="12" />
+      </svg>
+    ),
+  },
+  {
+    to: '/venues',
+    label: 'Venues',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+    ),
+  },
+  {
+    to: '/seasons',
+    label: 'Seasons',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 7 12 7s5-3 7.5-3a2.5 2.5 0 0 1 0 5H18" />
+        <path d="M12 7v13" />
+        <path d="M8 21h8" />
+        <path d="M12 16l-4-4" />
+        <path d="M12 16l4-4" />
+      </svg>
+    ),
+  },
+  {
+    to: '/pulse',
+    label: 'Pulse',
+    highlight: 'magenta',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    ),
+  },
+]
 
-const pageTitles = {
-  '/dashboard': 'Dashboard',
-  '/matches': 'Matches',
-  '/batting': 'Batting',
-  '/bowling': 'Bowling',
-  '/teams': 'Teams',
-  '/h2h': 'Head to Head',
-  '/venues': 'Venues',
-  '/seasons': 'Seasons',
-  '/content-studio': 'Content Studio',
-  '/ask': 'Ask Cricket',
-  '/login': 'Sign In',
-}
-
-export default function Header({ onMenuClick }) {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { user, isAuthenticated, logout } = useAuth()
-
-  const pageTitle = pageTitles[location.pathname] || 'Crickrida'
-
-  const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
-
-  // Get user initials for avatar
-  const getInitials = (name) => {
-    if (!name) return '?'
-    return name
-      .split(' ')
-      .map(w => w[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase()
-  }
-
+export default function Header({ onSidebarToggle }) {
   return (
-    <header className="h-14 bg-bg-elevated border-b border-border-subtle flex items-center justify-between px-4 shrink-0">
-      {/* Left: hamburger + title */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="lg:hidden text-text-secondary hover:text-text-primary transition-colors p-1"
-          aria-label="Toggle menu"
+    <header className="h-12 bg-bg-elevated border-b border-border-subtle flex items-center shrink-0">
+      {/* Mobile sidebar toggle */}
+      <button
+        onClick={onSidebarToggle}
+        className="lg:hidden flex items-center justify-center w-12 h-12 text-text-secondary hover:text-text-primary transition-colors border-r border-border-subtle"
+        aria-label="Toggle sidebar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-5 h-5"
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-5 h-5"
-          >
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
 
-        <div>
-          <h1 className="text-sm font-heading font-semibold text-text-primary">
-            {pageTitle}
-          </h1>
-          <p className="text-[11px] text-text-muted font-mono">
-            Cricket via Stats
-          </p>
-        </div>
-      </div>
+      {/* Horizontal scrollable nav */}
+      <nav className="flex-1 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center h-12 px-1">
+          {navItems.map((item) => {
+            const highlightColor = item.highlight === 'lime'
+              ? { text: 'text-accent-lime', hoverText: 'hover:text-accent-lime', dot: 'bg-accent-lime' }
+              : item.highlight === 'magenta'
+                ? { text: 'text-accent-magenta', hoverText: 'hover:text-accent-magenta', dot: 'bg-accent-magenta' }
+                : null
 
-      {/* Right: branding + user */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-mono text-text-muted tracking-wider hidden sm:inline">Crickrida</span>
-
-        {isAuthenticated ? (
-          <div className="flex items-center gap-2.5">
-            {/* Separator */}
-            <div className="w-px h-5 bg-border-subtle hidden sm:block" />
-
-            {/* User avatar + name */}
-            <div className="flex items-center gap-2">
-              {user?.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name || 'User'}
-                  className="w-7 h-7 rounded-full border border-border-subtle object-cover"
-                />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center">
-                  <span className="text-accent-cyan text-[10px] font-bold font-mono">
-                    {getInitials(user?.name)}
-                  </span>
-                </div>
-              )}
-              <span className="text-text-primary text-xs font-medium hidden md:inline max-w-[100px] truncate">
-                {user?.name || user?.email}
-              </span>
-            </div>
-
-            {/* Admin button (admin only) */}
-            {user?.email?.toLowerCase() === ADMIN_EMAIL && (
+            return (
               <NavLink
-                to="/admin"
+                key={item.to}
+                to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
+                  `flex items-center gap-1.5 px-3 h-12 text-xs font-medium whitespace-nowrap transition-colors duration-150 border-b-2 shrink-0 ${
                     isActive
-                      ? 'bg-accent-amber/15 text-accent-amber border border-accent-amber/30'
-                      : 'text-text-muted hover:text-accent-amber hover:bg-accent-amber/10 border border-transparent'
+                      ? 'text-accent-cyan border-accent-cyan bg-accent-cyan/5'
+                      : highlightColor
+                        ? `${highlightColor.text} ${highlightColor.hoverText} border-transparent hover:bg-white/[0.02]`
+                        : 'text-text-secondary hover:text-text-primary border-transparent hover:bg-white/[0.02]'
                   }`
                 }
-                title="Admin Panel"
+                title={item.label}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                <span className="hidden sm:inline">Admin</span>
+                <span className="shrink-0">{item.icon}</span>
+                <span className="flex items-center gap-1.5">
+                  {item.label}
+                  {highlightColor && (
+                    <span className={`w-1.5 h-1.5 rounded-full ${highlightColor.dot} animate-pulse`} />
+                  )}
+                </span>
               </NavLink>
-            )}
-
-            {/* Logout button */}
-            <button
-              onClick={handleLogout}
-              className="text-text-muted hover:text-accent-magenta transition-colors p-1"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="w-px h-5 bg-border-subtle hidden sm:block" />
-            <button
-              onClick={() => navigate('/login')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 border border-accent-cyan/20
-                text-accent-cyan text-xs font-semibold hover:bg-accent-cyan/20 transition-all"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Login
-            </button>
-          </>
-        )}
-      </div>
+            )
+          })}
+        </div>
+      </nav>
     </header>
   )
 }

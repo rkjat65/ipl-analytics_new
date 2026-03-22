@@ -1,145 +1,540 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  ZoomableGroup,
+} from 'react-simple-maps'
 
-// City coordinates mapped to a 600x700 SVG viewBox (approximate positions on India map)
-// Includes J&K as part of India
-const CITY_COORDS = {
-  'Mumbai': { x: 185, y: 420 },
-  'Chennai': { x: 250, y: 570 },
-  'Kolkata': { x: 400, y: 360 },
-  'Bangalore': { x: 230, y: 530 },
-  'Bengaluru': { x: 230, y: 530 },
-  'Delhi': { x: 260, y: 230 },
-  'New Delhi': { x: 260, y: 230 },
-  'Hyderabad': { x: 255, y: 460 },
-  'Jaipur': { x: 225, y: 260 },
-  'Chandigarh': { x: 240, y: 185 },
-  'Mohali': { x: 240, y: 185 },
-  'Pune': { x: 200, y: 440 },
-  'Ahmedabad': { x: 170, y: 340 },
-  'Lucknow': { x: 310, y: 260 },
-  'Rajkot': { x: 145, y: 350 },
-  'Indore': { x: 220, y: 360 },
-  'Nagpur': { x: 270, y: 390 },
-  'Dharamsala': { x: 240, y: 165 },
-  'Ranchi': { x: 355, y: 345 },
-  'Visakhapatnam': { x: 310, y: 470 },
-  'Vizag': { x: 310, y: 470 },
-  'Cuttack': { x: 355, y: 400 },
-  'Guwahati': { x: 445, y: 270 },
-  'Raipur': { x: 300, y: 380 },
-  'Kochi': { x: 220, y: 600 },
-  'Thiruvananthapuram': { x: 215, y: 625 },
-  'Centurion': null,
-  'Port Elizabeth': null,
-  'Durban': null,
-  'Cape Town': null,
-  'Johannesburg': null,
+// Local GeoJSON for India states (includes J&K and Ladakh as part of India)
+const INDIA_GEO_JSON = '/india-states.json'
+
+// City lat/lon coordinates for IPL venues
+const CITY_COORDINATES = {
+  // Major IPL cities
+  Mumbai: [72.8777, 19.076],
+  Chennai: [80.2707, 13.0827],
+  Kolkata: [88.3639, 22.5726],
+  Bengaluru: [77.5946, 12.9716],
+  Bangalore: [77.5946, 12.9716],
+  Delhi: [77.1025, 28.7041],
+  'New Delhi': [77.209, 28.6139],
+  Hyderabad: [78.4867, 17.385],
+  Jaipur: [75.7873, 26.9124],
+  Chandigarh: [76.7794, 30.7333],
+  Mohali: [76.7179, 30.7046],
+  'New Chandigarh': [76.7179, 30.7046],
+  Pune: [73.8567, 18.5204],
+  Ahmedabad: [72.5714, 23.0225],
+  Lucknow: [80.9462, 26.8467],
+  Rajkot: [70.8022, 22.3039],
+  Indore: [75.8577, 22.7196],
+  Nagpur: [79.0882, 21.1458],
+  Dharamsala: [76.3234, 32.219],
+  Ranchi: [85.3096, 23.3441],
+  Visakhapatnam: [83.2185, 17.6868],
+  Vizag: [83.2185, 17.6868],
+  Cuttack: [85.8245, 20.4625],
+  Guwahati: [91.7362, 26.1445],
+  Raipur: [81.6296, 21.2514],
+  Kochi: [76.2673, 9.9312],
+  Thiruvananthapuram: [76.9366, 8.5241],
+  Kanpur: [80.3319, 26.4499],
+  Jamtha: [79.0882, 21.1458], // Nagpur area
+  Mullanpur: [76.5, 30.8], // Near Chandigarh
+  Navi_Mumbai: [73.0169, 19.033],
   // UAE venues
-  'Abu Dhabi': { x: 105, y: 300, uae: true },
-  'Dubai': { x: 115, y: 285, uae: true },
-  'Sharjah': { x: 120, y: 275, uae: true },
+  'Abu Dhabi': [54.3773, 24.4539],
+  Dubai: [55.2708, 25.2048],
+  Sharjah: [55.4033, 25.3463],
+  // South Africa
+  Centurion: [28.1878, -25.8603],
+  'Port Elizabeth': [25.6022, -33.918],
+  Durban: [31.0218, -29.8587],
+  'Cape Town': [18.4241, -33.9249],
+  Johannesburg: [28.0473, -26.2041],
+  Kimberley: [24.7714, -28.7282],
+  'East London': [27.9116, -32.983],
+  Bloemfontein: [26.2269, -29.0852],
 }
 
-// Simplified India outline path (includes J&K as part of India)
-const INDIA_PATH = `M 240 95 L 225 100 L 210 115 L 205 130 L 220 140 L 235 135 L 250 140 L 270 135 L 285 140 L 290 130 L 280 115 L 265 105 L 255 95 Z
-M 290 130 L 285 140 L 270 155 L 260 165 L 250 175 L 245 190 L 240 200 L 235 215 L 260 225 L 280 220 L 300 230 L 320 240 L 340 250 L 370 260 L 400 270 L 430 265 L 455 275 L 470 290 L 455 310 L 440 325 L 420 340 L 400 355 L 390 370 L 385 390 L 380 410 L 370 420 L 355 415 L 340 400 L 325 390 L 310 385 L 295 395 L 280 410 L 270 420 L 255 435 L 245 450 L 240 465 L 250 480 L 265 490 L 280 500 L 295 510 L 310 520 L 300 535 L 285 545 L 270 555 L 255 565 L 245 580 L 235 590 L 225 600 L 215 615 L 210 630 L 215 640 L 225 635 L 235 625 L 240 610 L 235 595 L 230 580 L 220 570 L 210 555 L 200 540 L 195 525 L 190 510 L 185 495 L 175 480 L 165 465 L 155 450 L 150 435 L 145 420 L 140 405 L 135 390 L 130 375 L 125 360 L 120 345 L 115 330 L 110 315 L 115 300 L 130 290 L 145 285 L 160 280 L 170 270 L 175 255 L 180 240 L 190 230 L 200 225 L 210 220 L 220 215 L 230 210 L 235 200 L 240 190 L 235 180 L 230 170 L 240 165 L 255 160 L 265 155 L 275 150 L 285 140`
+// Extract city name from venue string
+export function extractCityFromVenue(venueName) {
+  return extractCity(venueName)
+}
+
+function extractCity(venueName) {
+  if (!venueName) return null
+
+  // Direct city mentions at end after comma
+  const parts = venueName.split(',')
+  if (parts.length > 1) {
+    const lastPart = parts[parts.length - 1].trim()
+    if (CITY_COORDINATES[lastPart]) return lastPart
+    // Try second-to-last part
+    if (parts.length > 2) {
+      const secondLast = parts[parts.length - 2].trim()
+      if (CITY_COORDINATES[secondLast]) return secondLast
+    }
+  }
+
+  // Match known city names anywhere in venue name
+  const knownCities = [
+    'Mumbai',
+    'Chennai',
+    'Kolkata',
+    'Bengaluru',
+    'Bangalore',
+    'Delhi',
+    'Hyderabad',
+    'Jaipur',
+    'Chandigarh',
+    'Mohali',
+    'Pune',
+    'Ahmedabad',
+    'Lucknow',
+    'Rajkot',
+    'Indore',
+    'Nagpur',
+    'Dharamsala',
+    'Ranchi',
+    'Visakhapatnam',
+    'Vizag',
+    'Cuttack',
+    'Guwahati',
+    'Raipur',
+    'Kochi',
+    'Thiruvananthapuram',
+    'Kanpur',
+    'Mullanpur',
+    'Abu Dhabi',
+    'Dubai',
+    'Sharjah',
+    'Centurion',
+    'Port Elizabeth',
+    'Durban',
+    'Cape Town',
+    'Johannesburg',
+    'Kimberley',
+    'East London',
+    'Bloemfontein',
+  ]
+  for (const city of knownCities) {
+    if (venueName.includes(city)) return city
+  }
+
+  // Venue-specific mappings
+  const venueMap = {
+    'Eden Gardens': 'Kolkata',
+    'Wankhede Stadium': 'Mumbai',
+    'M Chinnaswamy Stadium': 'Bengaluru',
+    'M.Chinnaswamy Stadium': 'Bengaluru',
+    'Feroz Shah Kotla': 'Delhi',
+    'Arun Jaitley Stadium': 'Delhi',
+    'Sawai Mansingh Stadium': 'Jaipur',
+    'Narendra Modi Stadium': 'Ahmedabad',
+    'Sardar Patel Stadium': 'Ahmedabad',
+    'Punjab Cricket Association Stadium': 'Mohali',
+    'Punjab Cricket Association IS Bindra Stadium': 'Mohali',
+    'MA Chidambaram Stadium': 'Chennai',
+    'Chepauk': 'Chennai',
+    'Rajiv Gandhi International Stadium': 'Hyderabad',
+    'Uppal': 'Hyderabad',
+    'Brabourne Stadium': 'Mumbai',
+    'Dr DY Patil Sports Academy': 'Mumbai',
+    'Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium': 'Visakhapatnam',
+    'Subrata Roy Sahara Stadium': 'Pune',
+    'Maharashtra Cricket Association Stadium': 'Pune',
+    'Holkar Cricket Stadium': 'Indore',
+    'Nehru Stadium': 'Chennai',
+    'Green Park': 'Kanpur',
+    'Barabati Stadium': 'Cuttack',
+    'Saurashtra Cricket Association Stadium': 'Rajkot',
+    'JSCA International Stadium Complex': 'Ranchi',
+    'Himachal Pradesh Cricket Association Stadium': 'Dharamsala',
+    'Shaheed Veer Narayan Singh International Stadium': 'Raipur',
+    'Vidarbha Cricket Association Stadium': 'Nagpur',
+    'Barsapara Cricket Stadium': 'Guwahati',
+    'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium': 'Lucknow',
+    'Zayed Cricket Stadium': 'Abu Dhabi',
+    'Sheikh Zayed Stadium': 'Abu Dhabi',
+    'Dubai International Cricket Stadium': 'Dubai',
+    'Sharjah Cricket Stadium': 'Sharjah',
+    'SuperSport Park': 'Centurion',
+    'Kingsmead': 'Durban',
+    Newlands: 'Cape Town',
+    'New Wanderers Stadium': 'Johannesburg',
+    "St George's Park": 'Port Elizabeth',
+    'Buffalo Park': 'East London',
+    'De Beers Diamond Oval': 'Kimberley',
+    'OUTsurance Oval': 'Bloemfontein',
+    'Maharaja Yadavindra Singh International Cricket Stadium': 'Mullanpur',
+  }
+
+  for (const [key, city] of Object.entries(venueMap)) {
+    if (venueName.includes(key)) return city
+  }
+
+  return null
+}
 
 export default function IndiaVenueMap({ venues = [] }) {
   const navigate = useNavigate()
   const [hovered, setHovered] = useState(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
-  // Match venue cities to coordinates
-  const venuePoints = venues.map(v => {
-    const city = v.city || ''
-    const coords = CITY_COORDS[city]
-    if (!coords || coords.uae) return null
-    return { ...v, ...coords }
-  }).filter(Boolean)
+  // Process venues: group by city, aggregate matches
+  const { indianVenues, uaeVenues, otherVenues } = useMemo(() => {
+    const cityMap = {}
 
-  // UAE venues
-  const uaePoints = venues.map(v => {
-    const city = v.city || ''
-    const coords = CITY_COORDS[city]
-    if (!coords || !coords.uae) return null
-    return { ...v, ...coords }
-  }).filter(Boolean)
+    venues.forEach((v) => {
+      const city = v.city || extractCity(v.venue)
+      if (!city) return
+      const coords = CITY_COORDINATES[city]
+      if (!coords) return
 
-  const maxMatches = Math.max(...venues.map(v => v.matches || 0), 1)
+      if (!cityMap[city]) {
+        cityMap[city] = {
+          city,
+          coordinates: coords,
+          matches: 0,
+          venues: [],
+        }
+      }
+      cityMap[city].matches += v.matches || 0
+      cityMap[city].venues.push(v)
+    })
+
+    const all = Object.values(cityMap)
+    const indian = all.filter(
+      (c) =>
+        c.coordinates[0] > 65 &&
+        c.coordinates[0] < 100 &&
+        c.coordinates[1] > 6 &&
+        c.coordinates[1] < 40
+    )
+    const uae = all.filter(
+      (c) => c.coordinates[0] > 50 && c.coordinates[0] < 60
+    )
+    const other = all.filter(
+      (c) =>
+        !indian.includes(c) && !uae.includes(c)
+    )
+
+    return {
+      indianVenues: indian.sort((a, b) => b.matches - a.matches),
+      uaeVenues: uae.sort((a, b) => b.matches - a.matches),
+      otherVenues: other.sort((a, b) => b.matches - a.matches),
+    }
+  }, [venues])
+
+  const maxMatches = Math.max(
+    ...indianVenues.map((v) => v.matches),
+    1
+  )
+
+  // States that have IPL venues (mapped from city to state)
+  const statesWithVenues = useMemo(() => {
+    const cityToState = {
+      Mumbai: 'Maharashtra', Pune: 'Maharashtra', Nagpur: 'Maharashtra', Navi_Mumbai: 'Maharashtra',
+      Chennai: 'Tamil Nadu', Bengaluru: 'Karnataka', Bangalore: 'Karnataka',
+      Kolkata: 'West Bengal', Delhi: 'Delhi', 'New Delhi': 'Delhi',
+      Hyderabad: 'Telangana', Jaipur: 'Rajasthan',
+      Chandigarh: 'Chandigarh', Mohali: 'Punjab', 'New Chandigarh': 'Punjab', Mullanpur: 'Punjab',
+      Ahmedabad: 'Gujarat', Rajkot: 'Gujarat',
+      Lucknow: 'Uttar Pradesh', Kanpur: 'Uttar Pradesh',
+      Indore: 'Madhya Pradesh', Ranchi: 'Jharkhand',
+      Visakhapatnam: 'Andhra Pradesh', Vizag: 'Andhra Pradesh',
+      Cuttack: 'Odisha', Guwahati: 'Assam', Raipur: 'Chhattisgarh',
+      Kochi: 'Kerala', Thiruvananthapuram: 'Kerala',
+      Dharamsala: 'Himachal Pradesh',
+    }
+    const states = new Set()
+    indianVenues.forEach((v) => {
+      const state = cityToState[v.city]
+      if (state) states.add(state)
+    })
+    return states
+  }, [indianVenues])
+
+  const handleMouseMove = (e) => {
+    setTooltipPos({ x: e.clientX, y: e.clientY })
+  }
 
   return (
     <div className="card">
-      <h3 className="text-sm font-heading font-semibold text-text-secondary mb-4">Venue Map</h3>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <h3 className="text-lg font-heading font-semibold text-text-primary mb-1">
+        IPL Venue Map
+      </h3>
+      <p className="text-text-muted text-xs mb-4">
+        Click on a venue to explore detailed analytics
+      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* India Map */}
-        <div className="lg:col-span-3 relative">
-          <svg viewBox="80 80 420 580" className="w-full h-auto" style={{ maxHeight: 500 }}>
-            {/* India outline */}
-            <path d={INDIA_PATH} fill="#111118" stroke="#2A2A3A" strokeWidth="1.5" />
+        <div
+          className="lg:col-span-3 relative bg-[#0D0D14] rounded-xl border border-border-subtle overflow-hidden"
+          onMouseMove={handleMouseMove}
+        >
+          <ComposableMap
+            projection="geoMercator"
+            projectionConfig={{
+              scale: 800,
+              center: [82, 22],
+            }}
+            style={{ width: '100%', height: 'auto' }}
+            width={600}
+            height={500}
+          >
+            <ZoomableGroup center={[82, 22]} zoom={1} minZoom={1} maxZoom={3}>
+              {/* India GeoJSON */}
+              <Geographies geography={INDIA_GEO_JSON}>
+                {({ geographies }) =>
+                  geographies.map((geo) => {
+                    const stateName = geo.properties?.ST_NM || ''
+                    const hasVenue = statesWithVenues.has(stateName)
+                    return (
+                      <Geography
+                        key={geo.rpiKey || stateName || geo.id}
+                        geography={geo}
+                        fill={hasVenue ? '#1A1A28' : '#111118'}
+                        stroke="#2A2A3A"
+                        strokeWidth={0.5}
+                        style={{
+                          default: { outline: 'none' },
+                          hover: { fill: '#222233', outline: 'none' },
+                          pressed: { outline: 'none' },
+                        }}
+                      />
+                    )
+                  })
+                }
+              </Geographies>
 
-            {/* Venue dots */}
-            {venuePoints.map((v, i) => {
-              const r = 4 + (v.matches / maxMatches) * 8
-              const isHovered = hovered === v.venue
-              return (
-                <g key={i}
-                  onMouseEnter={() => setHovered(v.venue)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => navigate(`/venues/${encodeURIComponent(v.venue)}`)}
-                  className="cursor-pointer"
-                >
-                  {/* Glow */}
-                  <circle cx={v.x} cy={v.y} r={r + 4} fill="#00E5FF" opacity={isHovered ? 0.2 : 0.08} />
-                  {/* Dot */}
-                  <circle cx={v.x} cy={v.y} r={r} fill="#00E5FF" opacity={isHovered ? 1 : 0.7} stroke={isHovered ? '#00E5FF' : 'none'} strokeWidth={2} />
-                  {/* Label */}
-                  {isHovered && (
-                    <g>
-                      <rect x={v.x + r + 4} y={v.y - 22} width={Math.max((v.city || '').length * 7 + 40, 80)} height={36} rx={6} fill="#16161F" stroke="#2A2A3A" />
-                      <text x={v.x + r + 10} y={v.y - 8} fill="#F0F0F5" fontSize="10" fontWeight="600" fontFamily="Inter, sans-serif">{v.city}</text>
-                      <text x={v.x + r + 10} y={v.y + 6} fill="#00E5FF" fontSize="9" fontFamily="JetBrains Mono, monospace">{v.matches} matches</text>
-                    </g>
-                  )}
-                </g>
-              )
-            })}
-          </svg>
-        </div>
+              {/* Venue markers */}
+              {indianVenues.map((v) => {
+                const size = 4 + (v.matches / maxMatches) * 10
+                const isHov = hovered === v.city
+                return (
+                  <Marker
+                    key={v.city}
+                    coordinates={v.coordinates}
+                    onMouseEnter={() => setHovered(v.city)}
+                    onMouseLeave={() => setHovered(null)}
+                    onClick={() => {
+                      if (v.venues.length === 1) {
+                        navigate(
+                          `/venues/${encodeURIComponent(v.venues[0].venue)}`
+                        )
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Glow ring */}
+                    <circle
+                      r={size + 4}
+                      fill="#00E5FF"
+                      opacity={isHov ? 0.25 : 0.06}
+                    />
+                    {/* Pulse animation on hover */}
+                    {isHov && (
+                      <circle r={size + 8} fill="none" stroke="#00E5FF" strokeWidth={1} opacity={0.3}>
+                        <animate attributeName="r" from={size + 4} to={size + 16} dur="1.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" from="0.4" to="0" dur="1.5s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+                    {/* Main dot */}
+                    <circle
+                      r={size}
+                      fill={isHov ? '#00E5FF' : '#00E5FF'}
+                      opacity={isHov ? 1 : 0.75}
+                      stroke={isHov ? '#fff' : 'none'}
+                      strokeWidth={isHov ? 1.5 : 0}
+                    />
+                    {/* City label - always visible for top venues */}
+                    {(isHov || v.matches > maxMatches * 0.3) && (
+                      <text
+                        textAnchor="middle"
+                        y={-(size + 6)}
+                        style={{
+                          fontFamily: 'Inter, sans-serif',
+                          fontSize: isHov ? 10 : 8,
+                          fill: isHov ? '#F0F0F5' : '#8888A0',
+                          fontWeight: isHov ? 600 : 400,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        {v.city}
+                      </text>
+                    )}
+                  </Marker>
+                )
+              })}
+            </ZoomableGroup>
+          </ComposableMap>
 
-        {/* UAE mini section */}
-        <div className="lg:col-span-1">
-          {uaePoints.length > 0 && (
-            <div className="bg-bg-elevated border border-border-subtle rounded-xl p-4 mb-4">
-              <p className="text-xs text-text-muted uppercase tracking-wider mb-3 font-heading">UAE Venues</p>
-              {uaePoints.map((v, i) => (
-                <button
-                  key={i}
-                  onClick={() => navigate(`/venues/${encodeURIComponent(v.venue)}`)}
-                  className="w-full text-left flex items-center justify-between py-2 px-2 rounded-lg hover:bg-bg-card transition-colors"
-                >
-                  <span className="text-accent-cyan text-sm">{v.city}</span>
-                  <span className="text-text-muted text-xs font-mono">{v.matches}</span>
-                </button>
-              ))}
+          {/* Floating tooltip */}
+          {hovered && (
+            <div
+              className="fixed z-50 pointer-events-none bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-xl"
+              style={{
+                left: tooltipPos.x + 16,
+                top: tooltipPos.y - 10,
+              }}
+            >
+              <p className="text-text-primary text-sm font-semibold font-heading">
+                {hovered}
+              </p>
+              <p className="text-accent-cyan text-xs font-mono">
+                {indianVenues.find((v) => v.city === hovered)?.matches || 0}{' '}
+                matches
+              </p>
+              {(() => {
+                const v = indianVenues.find((vv) => vv.city === hovered)
+                if (v && v.venues.length > 1) {
+                  return (
+                    <p className="text-text-muted text-[10px] mt-0.5">
+                      {v.venues.length} grounds
+                    </p>
+                  )
+                }
+                return null
+              })()}
             </div>
           )}
 
-          {/* Top venues list */}
+          {/* Legend */}
+          <div className="absolute bottom-3 left-3 bg-[#111118]/90 border border-border-subtle rounded-lg px-3 py-2 backdrop-blur-sm">
+            <p className="text-[10px] text-text-muted mb-1.5 font-heading uppercase tracking-wider">
+              Matches
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-accent-cyan opacity-60" />
+                <span className="text-[9px] text-text-muted font-mono">
+                  Few
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3.5 h-3.5 rounded-full bg-accent-cyan opacity-80" />
+                <span className="text-[9px] text-text-muted font-mono">
+                  Many
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* UAE Venues */}
+          {uaeVenues.length > 0 && (
+            <div className="bg-bg-elevated border border-border-subtle rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <p className="text-xs text-text-muted uppercase tracking-wider font-heading">
+                  UAE Venues
+                </p>
+              </div>
+              {uaeVenues.map((v, i) =>
+                v.venues.map((vv, j) => (
+                  <button
+                    key={`${i}-${j}`}
+                    onClick={() =>
+                      navigate(`/venues/${encodeURIComponent(vv.venue)}`)
+                    }
+                    className="w-full text-left flex items-center justify-between py-2 px-2 rounded-lg hover:bg-bg-card transition-colors group"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-accent-cyan text-sm group-hover:text-white transition-colors truncate block">
+                        {v.city}
+                      </span>
+                      <span className="text-text-muted text-[10px] truncate block">
+                        {vv.venue}
+                      </span>
+                    </div>
+                    <span className="text-amber-400 text-xs font-mono font-bold ml-2">
+                      {vv.matches}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* South Africa Venues */}
+          {otherVenues.length > 0 && (
+            <div className="bg-bg-elevated border border-border-subtle rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <p className="text-xs text-text-muted uppercase tracking-wider font-heading">
+                  South Africa
+                </p>
+              </div>
+              {otherVenues.map((v, i) =>
+                v.venues.map((vv, j) => (
+                  <button
+                    key={`${i}-${j}`}
+                    onClick={() =>
+                      navigate(`/venues/${encodeURIComponent(vv.venue)}`)
+                    }
+                    className="w-full text-left flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-bg-card transition-colors group"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-text-primary text-xs group-hover:text-accent-cyan transition-colors truncate block">
+                        {v.city}
+                      </span>
+                    </div>
+                    <span className="text-emerald-400 text-[10px] font-mono font-bold ml-2">
+                      {vv.matches}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Top Indian Venues */}
           <div className="bg-bg-elevated border border-border-subtle rounded-xl p-4">
-            <p className="text-xs text-text-muted uppercase tracking-wider mb-3 font-heading">Top Venues</p>
-            {venues.slice(0, 8).map((v, i) => (
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-accent-cyan" />
+              <p className="text-xs text-text-muted uppercase tracking-wider font-heading">
+                Top Venues
+              </p>
+            </div>
+            {indianVenues.slice(0, 10).map((v, i) => (
               <button
                 key={i}
-                onClick={() => navigate(`/venues/${encodeURIComponent(v.venue)}`)}
-                onMouseEnter={() => setHovered(v.venue)}
+                onClick={() => {
+                  if (v.venues.length === 1) {
+                    navigate(
+                      `/venues/${encodeURIComponent(v.venues[0].venue)}`
+                    )
+                  }
+                }}
+                onMouseEnter={() => setHovered(v.city)}
                 onMouseLeave={() => setHovered(null)}
-                className="w-full text-left flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-bg-card transition-colors"
+                className="w-full text-left flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-bg-card transition-colors group"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-text-primary text-xs truncate">{v.venue}</p>
-                  <p className="text-text-muted text-[10px]">{v.city}</p>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-text-muted text-[10px] font-mono w-4 text-right">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-text-primary text-xs truncate group-hover:text-accent-cyan transition-colors">
+                      {v.city}
+                    </p>
+                    {v.venues.length > 1 && (
+                      <p className="text-text-muted text-[10px]">
+                        {v.venues.length} grounds
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <span className="text-accent-lime text-xs font-mono font-bold ml-2">{v.matches}</span>
+                <span className="text-accent-lime text-xs font-mono font-bold ml-2">
+                  {v.matches}
+                </span>
               </button>
             ))}
           </div>

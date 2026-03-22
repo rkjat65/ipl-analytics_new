@@ -754,47 +754,50 @@ export default function ContentStudio() {
         const losses = trend.filter(m => m.result === 'L').length
         const fiColor = fi >= 80 ? '#B8FF00' : fi >= 60 ? '#00E5FF' : fi >= 40 ? '#FFB800' : '#FF2D78'
         const fiLabel = fi >= 80 ? 'DOMINANT' : fi >= 60 ? 'STRONG' : fi >= 40 ? 'AVERAGE' : fi >= 20 ? 'STRUGGLING' : 'POOR'
+        const isPortrait = currentDims.height > currentDims.width
+        const scale = Math.sqrt((currentDims.width * currentDims.height) / (1200 * 675))
+        const sf = (px) => Math.round(px * scale)
         return (
-          <div style={{ width: currentDims.width, height: currentDims.height, background: 'linear-gradient(145deg, #0A0A0F, #111118)', position: 'relative', overflow: 'hidden', fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${fiColor}, ${fiColor}88)` }} />
-            <div style={{ padding: '5%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ color: '#60607A', fontSize: '0.7em', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Team Form Index</p>
-                <h2 style={{ color: '#F0F0F5', fontSize: '1.6em', fontWeight: 800, margin: 0 }}>{tfTeam || 'Select Team'}</h2>
-                <p style={{ color: '#A0A0B8', fontSize: '0.75em', marginTop: 4 }}>Last {tfLastN} matches</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8%' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '3em', fontWeight: 900, color: fiColor, fontFamily: 'monospace' }}>{fi.toFixed(1)}</div>
-                  <div style={{ fontSize: '0.7em', color: fiColor, letterSpacing: 2, fontWeight: 700 }}>{fiLabel}</div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    <div style={{ background: '#B8FF0018', border: '1px solid #B8FF0030', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.4em', fontWeight: 800, color: '#B8FF00', fontFamily: 'monospace' }}>{wins}</div>
-                      <div style={{ fontSize: '0.6em', color: '#A0A0B8', letterSpacing: 1 }}>WINS</div>
+              <div style={{ width: currentDims.width, height: currentDims.height, background: 'linear-gradient(145deg, #0A0A0F, #111118)', position: 'relative', overflow: 'hidden', fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: sf(5), background: `linear-gradient(90deg, ${fiColor}, ${fiColor}88)` }} />
+                <div style={{ padding: isPortrait ? '8% 6%' : '5%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isPortrait ? 'center' : 'space-between', gap: isPortrait ? sf(40) : undefined }}>
+                  <div>
+                    <p style={{ color: '#60607A', fontSize: sf(14), letterSpacing: 3, textTransform: 'uppercase', marginBottom: sf(8) }}>Team Form Index</p>
+                    <h2 style={{ color: '#F0F0F5', fontSize: sf(36), fontWeight: 800, margin: 0 }}>{tfTeam || 'Select Team'}</h2>
+                    <p style={{ color: '#A0A0B8', fontSize: sf(16), marginTop: sf(6) }}>Last {tfLastN} matches</p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: isPortrait ? 'column' : 'row', alignItems: 'center', gap: isPortrait ? sf(32) : '8%' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: sf(72), fontWeight: 900, color: fiColor, fontFamily: 'monospace', lineHeight: 1 }}>{fi.toFixed(1)}</div>
+                      <div style={{ fontSize: sf(16), color: fiColor, letterSpacing: 3, fontWeight: 700, marginTop: sf(4) }}>{fiLabel}</div>
                     </div>
-                    <div style={{ background: '#FF2D7818', border: '1px solid #FF2D7830', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.4em', fontWeight: 800, color: '#FF2D78', fontFamily: 'monospace' }}>{losses}</div>
-                      <div style={{ fontSize: '0.6em', color: '#A0A0B8', letterSpacing: 1 }}>LOSSES</div>
-                    </div>
-                    {streak && (
-                      <div style={{ background: '#FFB80018', border: '1px solid #FFB80030', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.4em', fontWeight: 800, color: '#FFB800', fontFamily: 'monospace' }}>{streak}</div>
-                        <div style={{ fontSize: '0.6em', color: '#A0A0B8', letterSpacing: 1 }}>STREAK</div>
+                    <div style={{ flex: isPortrait ? undefined : 1, width: isPortrait ? '100%' : undefined }}>
+                      <div style={{ display: 'flex', gap: sf(12), marginBottom: sf(16), justifyContent: isPortrait ? 'center' : 'flex-start' }}>
+                        <div style={{ background: '#B8FF0018', border: '1px solid #B8FF0030', borderRadius: sf(10), padding: `${sf(14)}px ${sf(24)}px`, textAlign: 'center' }}>
+                          <div style={{ fontSize: sf(28), fontWeight: 800, color: '#B8FF00', fontFamily: 'monospace' }}>{wins}</div>
+                          <div style={{ fontSize: sf(11), color: '#A0A0B8', letterSpacing: 2 }}>WINS</div>
+                        </div>
+                        <div style={{ background: '#FF2D7818', border: '1px solid #FF2D7830', borderRadius: sf(10), padding: `${sf(14)}px ${sf(24)}px`, textAlign: 'center' }}>
+                          <div style={{ fontSize: sf(28), fontWeight: 800, color: '#FF2D78', fontFamily: 'monospace' }}>{losses}</div>
+                          <div style={{ fontSize: sf(11), color: '#A0A0B8', letterSpacing: 2 }}>LOSSES</div>
+                        </div>
+                        {streak && (
+                          <div style={{ background: '#FFB80018', border: '1px solid #FFB80030', borderRadius: sf(10), padding: `${sf(14)}px ${sf(24)}px`, textAlign: 'center' }}>
+                            <div style={{ fontSize: sf(28), fontWeight: 800, color: '#FFB800', fontFamily: 'monospace' }}>{streak}</div>
+                            <div style={{ fontSize: sf(11), color: '#A0A0B8', letterSpacing: 2 }}>STREAK</div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div style={{ display: 'flex', gap: sf(5), justifyContent: isPortrait ? 'center' : 'flex-start' }}>
+                        {trend.slice().reverse().map((m, idx) => (
+                          <div key={idx} style={{ width: sf(16), height: sf(16), borderRadius: sf(4), background: m.result === 'W' ? '#B8FF00' : m.result === 'L' ? '#FF2D78' : '#60607A' }} />
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 3 }}>
-                    {trend.slice().reverse().map((m, i) => (
-                      <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: m.result === 'W' ? '#B8FF00' : m.result === 'L' ? '#FF2D78' : '#60607A' }} />
-                    ))}
-                  </div>
+                  <p style={{ color: '#60607A', fontSize: sf(12), textAlign: 'right', fontFamily: 'monospace', margin: 0 }}>@Crickrida &bull; Cricket via Stats</p>
                 </div>
               </div>
-              <p style={{ color: '#60607A', fontSize: '0.6em', textAlign: 'right', fontFamily: 'monospace', margin: 0 }}>@Crickrida &bull; Cricket via Stats</p>
-            </div>
-          </div>
         )
       }
       default:

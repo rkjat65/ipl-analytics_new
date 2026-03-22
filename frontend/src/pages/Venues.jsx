@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getVenues } from '../lib/api'
@@ -5,6 +6,7 @@ import SEO from '../components/SEO'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
 import IndiaVenueMap from '../components/ui/IndiaVenueMap'
+import { extractCityFromVenue } from '../components/ui/IndiaVenueMap'
 
 export default function Venues() {
   const navigate = useNavigate()
@@ -19,8 +21,13 @@ export default function Venues() {
     )
   }
 
-  // Sort by matches descending by default
-  const sortedVenues = (venues || []).slice().sort((a, b) => (b.matches || 0) - (a.matches || 0))
+  // Sort by matches descending, add city from venue name
+  const sortedVenues = useMemo(() =>
+    (venues || []).slice()
+      .sort((a, b) => (b.matches || 0) - (a.matches || 0))
+      .map(v => ({ ...v, city: v.city || extractCityFromVenue(v.venue) })),
+    [venues]
+  )
 
   const columns = [
     {

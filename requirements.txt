@@ -18,3 +18,4 @@ google-genai>=1.0.0
 
 # Dev / tooling
 ruff>=0.4.0
+razorpay>=2.0.0

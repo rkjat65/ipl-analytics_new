@@ -15,6 +15,12 @@ from pydantic import BaseModel
 
 from ..auth_db import get_auth_db
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+except ImportError:
+    pass
+
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")

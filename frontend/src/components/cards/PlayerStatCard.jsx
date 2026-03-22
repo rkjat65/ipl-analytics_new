@@ -75,19 +75,19 @@ export default function PlayerStatCard({ playerName, stats = {}, type = 'batting
         <div style={{ height: '3px', background: `linear-gradient(90deg, ${accentColor}66, transparent)`, marginBottom: '28px' }} />
 
         {/* Stats Grid - each box with distinct color */}
-        <div style={{ display: 'grid', gridTemplateColumns: isPortrait ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: isPortrait ? '14px' : '16px', flex: 1 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isPortrait ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: isPortrait ? '4px' : '16px', flex: 1 }}>
           {gridItems.slice(1).map((item, i) => {
             const boxColor = BOX_COLORS[i % BOX_COLORS.length]
             return (
               <div key={item.label} style={{
                 background: boxColor.bg, borderRadius: '12px',
-                padding: isPortrait ? '20px 16px' : '18px 20px',
+                padding: isPortrait ? '20px 16px' : '8px 10px',
                 border: `1px solid ${boxColor.border}`, textAlign: 'center',
               }}>
-                <div style={{ fontFamily: FONTS.mono, fontSize: sf(16), color: boxColor.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 700, opacity: 0.9 }}>
+                <div style={{ fontFamily: FONTS.mono, fontSize: sf(24), color: boxColor.accent, letterSpacing: '0.1em', textTransform: 'uppercase',  fontWeight: 700, opacity: 0.8, }}>
                   {item.label}
                 </div>
-                <div style={{ fontFamily: FONTS.mono, fontSize: sf(36), fontWeight: 700, color: '#F0F0F5' }}>
+                <div style={{ fontFamily: FONTS.mono, fontSize: sf(46), fontWeight: 700, color: '#F0F0F5' }}>
                   {item.value}
                 </div>
               </div>

@@ -1,233 +1,174 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 
-const navItems = [
-  {
-    to: '/dashboard',
-    label: 'Dashboard',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    to: '/ask',
-    label: 'Ask Cricket',
-    highlight: 'lime',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        <circle cx="12" cy="10" r="1" fill="currentColor" />
-        <circle cx="8" cy="10" r="1" fill="currentColor" />
-        <circle cx="16" cy="10" r="1" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    to: '/matches',
-    label: 'Matches',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <line x1="16" y1="2" x2="16" y2="6" />
-        <line x1="8" y1="2" x2="8" y2="6" />
-        <line x1="3" y1="10" x2="21" y2="10" />
-      </svg>
-    ),
-  },
-  {
-    to: '/batting',
-    label: 'Batting',
-    fullLabel: 'Batting Records',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-        <polyline points="17 6 23 6 23 12" />
-      </svg>
-    ),
-  },
-  {
-    to: '/bowling',
-    label: 'Bowling',
-    fullLabel: 'Bowling Records',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="6" />
-        <circle cx="12" cy="12" r="2" />
-      </svg>
-    ),
-  },
-  {
-    to: '/teams',
-    label: 'Teams',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    to: '/h2h',
-    label: 'Head to Head',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-      </svg>
-    ),
-  },
-  {
-    to: '/player-impact',
-    label: 'Player Impact',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="6" />
-        <circle cx="12" cy="12" r="2" />
-        <line x1="12" y1="2" x2="12" y2="6" />
-        <line x1="12" y1="18" x2="12" y2="22" />
-        <line x1="2" y1="12" x2="6" y2="12" />
-        <line x1="18" y1="12" x2="22" y2="12" />
-      </svg>
-    ),
-  },
-  {
-    to: '/venues',
-    label: 'Venues',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-        <circle cx="12" cy="10" r="3" />
-      </svg>
-    ),
-  },
-  {
-    to: '/seasons',
-    label: 'Seasons',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 7 12 7s5-3 7.5-3a2.5 2.5 0 0 1 0 5H18" />
-        <path d="M12 7v13" />
-        <path d="M8 21h8" />
-        <path d="M12 16l-4-4" />
-        <path d="M12 16l4-4" />
-      </svg>
-    ),
-  },
-  { separator: true },
-  {
-    to: '/pulse',
-    label: 'Cricket Pulse',
-    highlight: 'magenta',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    ),
-  },
-  {
-    to: '/content-studio',
-    label: 'Content Studio',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-        <circle cx="12" cy="13" r="4" />
-      </svg>
-    ),
-  },
-]
+const ADMIN_EMAIL = 'rkdevanda65@gmail.com'
 
 export default function Sidebar({ open, onToggle }) {
+  const navigate = useNavigate()
+  const { user, isAuthenticated, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
+  }
+
+  const getInitials = (name) => {
+    if (!name) return '?'
+    return name
+      .split(' ')
+      .map(w => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase()
+  }
+
   return (
-    <aside
-      className={`${
-        open ? 'w-60' : 'w-16'
-      } bg-bg-elevated border-r border-border-subtle flex flex-col transition-all duration-200 shrink-0`}
-    >
-      {/* Brand */}
-      <div className="h-14 flex items-center px-4 border-b border-border-subtle gap-3">
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
+
+      <aside
+        className={`${
+          open ? 'w-52' : 'w-16'
+        } bg-bg-elevated border-r border-border-subtle flex flex-col transition-all duration-200 shrink-0 z-50 relative h-full`}
+      >
+        {/* Brand */}
+        <div className="h-14 flex items-center px-4 border-b border-border-subtle gap-3">
+          <button
+            onClick={onToggle}
+            className="text-accent-cyan font-heading font-bold text-lg tracking-tight shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-accent-cyan/10 border border-accent-cyan/20 hover:bg-accent-cyan/20 transition-colors"
+          >
+            C
+          </button>
+          {open && (
+            <div className="overflow-hidden">
+              <span className="font-heading font-bold text-text-primary text-sm tracking-wide">
+                Crickrida
+              </span>
+              <p className="text-[10px] text-text-muted font-mono leading-none">
+                Cricket via Stats.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* User account section */}
+        <div className="border-t border-border-subtle p-2 flex flex-col gap-1">
+          {isAuthenticated ? (
+            <>
+              {/* User avatar + name */}
+              <div className={`flex items-center gap-2.5 px-2 py-2 rounded-lg ${open ? '' : 'justify-center'}`}>
+                {user?.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name || 'User'}
+                    className="w-8 h-8 rounded-full border border-border-subtle object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center shrink-0">
+                    <span className="text-accent-cyan text-[11px] font-bold font-mono">
+                      {getInitials(user?.name)}
+                    </span>
+                  </div>
+                )}
+                {open && (
+                  <div className="overflow-hidden">
+                    <p className="text-text-primary text-xs font-medium truncate">
+                      {user?.name || 'User'}
+                    </p>
+                    <p className="text-text-muted text-[10px] font-mono truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Admin button */}
+              {user?.email?.toLowerCase() === ADMIN_EMAIL && (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-mono font-semibold transition-all ${
+                      isActive
+                        ? 'bg-accent-amber/15 text-accent-amber border border-accent-amber/30'
+                        : 'text-text-muted hover:text-accent-amber hover:bg-accent-amber/10 border border-transparent'
+                    } ${!open ? 'justify-center px-0' : ''}`
+                  }
+                  title="Admin Panel"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  {open && <span>Admin</span>}
+                </NavLink>
+              )}
+
+              {/* Settings */}
+              <button
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary hover:bg-bg-card-hover transition-colors ${!open ? 'justify-center px-0' : ''}`}
+                title="Settings"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                {open && <span>Settings</span>}
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-text-muted hover:text-accent-magenta hover:bg-accent-magenta/10 transition-colors ${!open ? 'justify-center px-0' : ''}`}
+                title="Sign out"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                {open && <span>Sign out</span>}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-accent-cyan/10 border border-accent-cyan/20
+                text-accent-cyan text-xs font-semibold hover:bg-accent-cyan/20 transition-all ${!open ? 'justify-center px-0' : ''}`}
+              title="Login"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {open && <span>Login</span>}
+            </button>
+          )}
+        </div>
+
+        {/* Collapse toggle */}
         <button
           onClick={onToggle}
-          className="text-accent-cyan font-heading font-bold text-lg tracking-tight shrink-0"
+          className="h-10 flex items-center justify-center border-t border-border-subtle text-text-muted hover:text-text-primary transition-colors"
         >
-          C
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`w-4 h-4 transition-transform duration-200 ${open ? '' : 'rotate-180'}`}
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
         </button>
-        {open && (
-          <div className="overflow-hidden">
-            <span className="font-heading font-bold text-text-primary text-sm tracking-wide">
-              Crickrida
-            </span>
-            <p className="text-[10px] text-text-muted font-mono leading-none">
-              Cricket via Stats.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 py-3 flex flex-col gap-0.5 overflow-y-auto">
-        {navItems.map((item, idx) => {
-          if (item.separator) {
-            return (
-              <div key={`sep-${idx}`} className={`my-2 border-t border-border-subtle ${open ? 'mx-4' : 'mx-2'}`} />
-            )
-          }
-          const highlightColor = item.highlight === 'lime'
-            ? { text: 'text-accent-lime', bg: 'bg-accent-lime/5', dot: 'bg-accent-lime' }
-            : item.highlight === 'magenta'
-              ? { text: 'text-accent-magenta', bg: 'bg-accent-magenta/5', dot: 'bg-accent-magenta' }
-              : null
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors duration-150 ${
-                  isActive
-                    ? 'text-accent-cyan bg-accent-cyan/5 border-r-2 border-accent-cyan'
-                    : highlightColor
-                      ? `${highlightColor.text} hover:text-accent-cyan hover:bg-accent-cyan/5`
-                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-card-hover'
-                } ${!open ? 'justify-center px-0' : ''}`
-              }
-              title={!open ? item.label : undefined}
-            >
-              <span className="shrink-0">{item.icon}</span>
-              {open && (
-                <span className="flex items-center gap-2">
-                  {item.fullLabel || item.label}
-                  {highlightColor && <span className={`w-1.5 h-1.5 rounded-full ${highlightColor.dot} animate-pulse`} />}
-                </span>
-              )}
-            </NavLink>
-          )
-        })}
-      </nav>
-
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggle}
-        className="h-10 flex items-center justify-center border-t border-border-subtle text-text-muted hover:text-text-primary transition-colors"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`w-4 h-4 transition-transform duration-200 ${open ? '' : 'rotate-180'}`}
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
-    </aside>
+      </aside>
+    </>
   )
 }

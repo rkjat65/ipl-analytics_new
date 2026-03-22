@@ -27,32 +27,30 @@ try:
 except ImportError:
     pass
 
-try:
-    import google.generativeai as genai
-    GEMINI_KEY = os.getenv("GEMINI_API_KEY", "").strip().strip('"').strip("'")
-    if GEMINI_KEY and GEMINI_KEY != "your_gemini_api_key_here":
-        genai.configure(api_key=GEMINI_KEY)
-        # Text generation model (NL query, commentary, threads)
-        model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
-        GEMINI_AVAILABLE = True
-        MODEL_NAME = "gemini-3.1-flash-lite-preview"
-    else:
-        model = None
-        GEMINI_AVAILABLE = False
-        MODEL_NAME = None
-except ImportError:
-    model = None
-    GEMINI_AVAILABLE = False
-    MODEL_NAME = None
-
-# New google.genai SDK for image generation (supports response_modalities)
+GEMINI_KEY = os.getenv("GEMINI_API_KEY", "").strip().strip('"').strip("'")
 genai_client = None
+model = None
+GEMINI_AVAILABLE = False
+MODEL_NAME = None
+
 try:
-    from google import genai as genai_new
+    from google import genai
     if GEMINI_KEY and GEMINI_KEY != "your_gemini_api_key_here":
-        genai_client = genai_new.Client(api_key=GEMINI_KEY)
+        genai_client = genai.Client(api_key=GEMINI_KEY)
+        MODEL_NAME = "gemini-3.1-flash-lite-preview"
+        GEMINI_AVAILABLE = True
+        # Wrapper to keep model.generate_content() API compatible
+        class _GeminiModel:
+            def __init__(self, client, model_name):
+                self._client = client
+                self._model = model_name
+            def generate_content(self, prompt):
+                return self._client.models.generate_content(
+                    model=self._model, contents=prompt
+                )
+        model = _GeminiModel(genai_client, MODEL_NAME)
 except ImportError:
-    genai_client = None
+    pass
 
 router = APIRouter(prefix="/api/ai", tags=["AI"])
 

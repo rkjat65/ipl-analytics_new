@@ -308,7 +308,7 @@ export default function Seasons() {
                   name: getTeamAbbr(row.team),
                   points: row.points,
                   team: row.team,
-                })).reverse()}
+                }))}
                 layout="vertical"
                 margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
               >

@@ -47,96 +47,88 @@ export default function MatchupCard({
       <div style={dotGridBackground()} />
 
       {/* Top accent bar */}
-      <div style={{ height: '5px', background: `linear-gradient(90deg, ${accentColor}, ${secondaryColor})`, zIndex: 2 }} />
+      <div style={{ height: '15px', background: `linear-gradient(90deg, ${accentColor}, ${secondaryColor})`, zIndex: 2 }} />
 
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: isPortrait ? '40px 36px 52px 36px' : isSquare ? '36px 40px 48px 40px' : '28px 48px 36px 48px',
+        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: isPortrait ? 'center' : 'space-between',
+        gap: isPortrait ? '50px' : undefined,
+        padding: isPortrait ? '48px 36px 52px 36px' : isSquare ? '36px 40px 48px 40px' : '28px 48px 36px 48px',
         zIndex: 2, position: 'relative'
       }}>
-        {/* Header — compact VS layout */}
+        {/* Header — Side-by-Side Layout (Responsive) */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: isPortrait ? '16px' : '24px',
-          flexDirection: isPortrait ? 'column' : 'row',
+          gap: isPortrait ? '8px' : '24px', // Tighter gap for portrait
+          flexDirection: 'row', // Forces horizontal side-by-side regardless of format
+          width: '100%'
         }}>
+          
           {/* Player 1 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isPortrait ? undefined : 1, justifyContent: isPortrait ? 'center' : 'flex-end' }}>
-            {!isPortrait && (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: FONTS.mono, fontSize: sf(11), color: accentColor, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>
-                  {isBatting ? 'BATSMAN' : 'BOWLER'}
-                </div>
-                <div style={{ fontFamily: FONTS.heading, fontSize: sf(26), fontWeight: 700, color: '#F0F0F5', lineHeight: 1.15 }}>
-                  {playerName || 'Select Player'}
-                </div>
-              </div>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: isPortrait ? '8px' : '12px' }}>
             <PlayerAvatar
               name={playerName || 'Player'}
-              size={isPortrait ? scaledSize(100, dimensions) : scaledSize(72, dimensions)}
+              size={isPortrait ? scaledSize(280, dimensions) : scaledSize(180, dimensions)} // Scales down for portrait
               inline
               shape="rounded"
             />
-            {isPortrait && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: FONTS.mono, fontSize: sf(11), color: accentColor, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>
-                  {isBatting ? 'BATSMAN' : 'BOWLER'}
-                </div>
-                <div style={{ fontFamily: FONTS.heading, fontSize: sf(28), fontWeight: 700, color: '#F0F0F5', lineHeight: 1.15 }}>
-                  {playerName || 'Select Player'}
-                </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: FONTS.mono, fontSize: sf(isPortrait ? 18 : 16), color: accentColor, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>
+                {isBatting ? 'BATSMAN' : 'BOWLER'}
               </div>
-            )}
+              <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 38 : 38), fontWeight: 700, color: '#F0F0F5', lineHeight: 1.15, marginTop: '4px' }}>
+                {playerName || 'Select Player'}
+              </div>
+            </div>
           </div>
 
           {/* VS badge */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: isPortrait ? scaledSize(52, dimensions) : scaledSize(44, dimensions),
-            height: isPortrait ? scaledSize(52, dimensions) : scaledSize(44, dimensions),
+            width: isPortrait ? scaledSize(68, dimensions) : scaledSize(64, dimensions),
+            height: isPortrait ? scaledSize(68, dimensions) : scaledSize(64, dimensions),
             borderRadius: '50%',
             background: `linear-gradient(135deg, ${accentColor}25, ${secondaryColor}25)`,
             border: `2px solid ${accentColor}50`,
             flexShrink: 0,
+            zIndex: 10,
           }}>
-            <span style={{ fontFamily: FONTS.heading, fontSize: sf(16), fontWeight: 800, color: accentColor }}>VS</span>
+            <span style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 20 : 28), fontWeight: 800, color: accentColor }}>VS</span>
           </div>
 
           {/* Player 2 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isPortrait ? undefined : 1, justifyContent: isPortrait ? 'center' : 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: isPortrait ? '8px' : '12px' }}>
             <PlayerAvatar
               name={opponentName || 'Opponent'}
-              size={isPortrait ? scaledSize(100, dimensions) : scaledSize(72, dimensions)}
+              size={isPortrait ? scaledSize(280, dimensions) : scaledSize(180, dimensions)} // Scales down for portrait
               inline
               shape="rounded"
             />
-            <div style={{ textAlign: isPortrait ? 'center' : 'left' }}>
-              <div style={{ fontFamily: FONTS.mono, fontSize: sf(11), color: secondaryColor, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: FONTS.mono, fontSize: sf(isPortrait ? 18 : 16), color: secondaryColor, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>
                 {isBatting ? 'BOWLER' : 'BATSMAN'}
               </div>
-              <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 28 : 26), fontWeight: 700, color: '#F0F0F5', lineHeight: 1.15 }}>
-                {opponentName || 'Select Opponent'}
+              <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 38 : 34), fontWeight: 700, color: '#F0F0F5', lineHeight: 1.15, marginTop: '4px' }}>
+                {opponentName || 'Select Player'}
               </div>
             </div>
           </div>
+          
         </div>
 
         {/* Hero stat — centered, large */}
         <div style={{
           textAlign: 'center',
-          padding: isPortrait ? '28px 0' : '16px 0',
+          padding: isPortrait ? '10px 0' : '1px 1px',
           background: `linear-gradient(135deg, ${accentColor}08, ${secondaryColor}08)`,
-          borderRadius: '16px',
+          borderRadius: '66px',
           border: `1px solid ${accentColor}15`,
-          margin: isPortrait ? '24px 0' : '12px 0',
         }}>
-          <div style={{ fontFamily: FONTS.mono, fontSize: sf(12), color: accentColor, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '4px' }}>
+          <div style={{ fontFamily: FONTS.mono, fontSize: sf(isPortrait ? 22 :26), color: accentColor, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '5px' }}>
             {heroStat.label}
           </div>
-          <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 80 : 60), fontWeight: 800, color: '#F0F0F5', lineHeight: 1, letterSpacing: '-0.03em' }}>
+          <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 120 : 70), fontWeight: 1000, color: '#F0F0F5', lineHeight: 1.1, letterSpacing: '0.02em',}}>
             {heroStat.value}
           </div>
         </div>
@@ -145,22 +137,22 @@ export default function MatchupCard({
         <div style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gap: isPortrait ? '10px' : '8px',
+          gap: isPortrait ? '16px' : '8px',
         }}>
           {gridItems.map((item, i) => {
             const c = item.color
             return (
               <div key={i} style={{
                 background: c.bg,
-                border: `1px solid ${c.border}`,
-                borderRadius: '10px',
-                padding: isPortrait ? '14px 8px' : '12px 8px',
+                border: `2px solid ${c.border}`,
+                borderRadius: '18px',
+                padding: isPortrait ? '30px 22px' : '42px 18px',
                 textAlign: 'center'
               }}>
-                <div style={{ fontFamily: FONTS.mono, fontSize: sf(10), color: NEON_COLORS.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 18 : 18), color: 'whitesmoke', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '40px' }}>
                   {item.label}
                 </div>
-                <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 28 : 24), fontWeight: 700, color: c.accent }}>
+                <div style={{ fontFamily: FONTS.heading, fontSize: sf(isPortrait ? 66 : 44), fontWeight: 700, color: c.accent }}>
                   {item.value}
                 </div>
               </div>
@@ -170,7 +162,7 @@ export default function MatchupCard({
       </div>
 
       {/* Watermark */}
-      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
+      <div style={watermarkStyle()}>@Crickrida | Cricket via Stats</div>
     </div>
   )
 }

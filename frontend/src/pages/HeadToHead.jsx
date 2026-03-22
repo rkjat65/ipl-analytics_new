@@ -6,6 +6,7 @@ import { getTeams, compareTeams } from '../lib/api'
 import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal, formatDate } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
+import TeamLogo from '../components/ui/TeamLogo'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -226,16 +227,15 @@ export default function HeadToHead() {
           <label className="text-text-secondary text-sm font-body block mb-2">Team 1</label>
           <div className="relative">
             {team1 && (
-              <div
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
-                style={{ backgroundColor: color1 }}
-              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+                <TeamLogo team={team1} size={20} />
+              </div>
             )}
             <select
               value={team1}
               onChange={(e) => setTeam1(e.target.value)}
               className={selectClass}
-              style={{ ...selectStyle, paddingLeft: team1 ? '1.75rem' : '1rem' }}
+              style={{ ...selectStyle, paddingLeft: team1 ? '2.25rem' : '1rem' }}
             >
               <option value="">Select Team</option>
               {teamOptions
@@ -263,16 +263,15 @@ export default function HeadToHead() {
           <label className="text-text-secondary text-sm font-body block mb-2">Team 2</label>
           <div className="relative">
             {team2 && (
-              <div
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
-                style={{ backgroundColor: color2 }}
-              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+                <TeamLogo team={team2} size={20} />
+              </div>
             )}
             <select
               value={team2}
               onChange={(e) => setTeam2(e.target.value)}
               className={selectClass}
-              style={{ ...selectStyle, paddingLeft: team2 ? '1.75rem' : '1rem' }}
+              style={{ ...selectStyle, paddingLeft: team2 ? '2.25rem' : '1rem' }}
             >
               <option value="">Select Team</option>
               {teamOptions
@@ -331,12 +330,15 @@ export default function HeadToHead() {
               {/* Team names + abbreviations */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex flex-col items-start">
-                  <span
-                    className="text-4xl md:text-5xl font-heading font-black tracking-tight"
-                    style={{ color: color1 }}
-                  >
-                    {abbr1}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <TeamLogo team={team1} size={40} />
+                    <span
+                      className="text-4xl md:text-5xl font-heading font-black tracking-tight"
+                      style={{ color: color1 }}
+                    >
+                      {abbr1}
+                    </span>
+                  </div>
                   <span className="text-text-muted text-xs mt-1 max-w-[140px] truncate">{team1}</span>
                 </div>
 
@@ -348,12 +350,15 @@ export default function HeadToHead() {
                 </div>
 
                 <div className="flex flex-col items-end">
-                  <span
-                    className="text-4xl md:text-5xl font-heading font-black tracking-tight"
-                    style={{ color: color2 }}
-                  >
-                    {abbr2}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="text-4xl md:text-5xl font-heading font-black tracking-tight"
+                      style={{ color: color2 }}
+                    >
+                      {abbr2}
+                    </span>
+                    <TeamLogo team={team2} size={40} />
+                  </div>
                   <span className="text-text-muted text-xs mt-1 max-w-[140px] truncate text-right">{team2}</span>
                 </div>
               </div>
@@ -801,12 +806,12 @@ export default function HeadToHead() {
                 {/* Column headers */}
                 <div className="grid grid-cols-2 gap-3 mb-2 pb-3 border-b border-[#1E1E2A]">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color1 }} />
+                    <TeamLogo team={team1} size={24} />
                     <span className="font-heading font-bold text-sm" style={{ color: color1 }}>{team1}</span>
                   </div>
                   <div className="flex items-center gap-2 justify-end">
                     <span className="font-heading font-bold text-sm" style={{ color: color2 }}>{team2}</span>
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color2 }} />
+                    <TeamLogo team={team2} size={24} />
                   </div>
                 </div>
 
@@ -858,7 +863,10 @@ export default function HeadToHead() {
                       {/* Scores */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex flex-col items-start">
-                          <span className="font-heading font-bold text-sm" style={{ color: color1 }}>{abbr1}</span>
+                          <div className="flex items-center gap-1.5">
+                            <TeamLogo team={team1} size={20} />
+                            <span className="font-heading font-bold text-sm" style={{ color: color1 }}>{abbr1}</span>
+                          </div>
                           <span className={`font-mono text-xl font-black ${isT1Winner ? 'text-text-primary' : 'text-text-muted'}`}>
                             {match.team1_score ?? '-'}
                           </span>
@@ -869,7 +877,10 @@ export default function HeadToHead() {
                         </div>
 
                         <div className="flex flex-col items-end">
-                          <span className="font-heading font-bold text-sm" style={{ color: color2 }}>{abbr2}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-heading font-bold text-sm" style={{ color: color2 }}>{abbr2}</span>
+                            <TeamLogo team={team2} size={20} />
+                          </div>
                           <span className={`font-mono text-xl font-black ${isT2Winner ? 'text-text-primary' : 'text-text-muted'}`}>
                             {match.team2_score ?? '-'}
                           </span>
