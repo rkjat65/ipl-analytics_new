@@ -863,6 +863,51 @@ export default function CricketPulse() {
 
         return (
           <div className="space-y-6">
+            {/* Selected day header */}
+            <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📅</span>
+                <div>
+                  <h2 className="text-lg font-heading font-bold text-text-primary">
+                    {calSelectedDay
+                      ? `${calSelectedDay} ${MONTH_NAMES[calMonth]} — IPL History`
+                      : 'On This Day in IPL'
+                    }
+                  </h2>
+                  <p className="text-xs text-text-muted font-mono">
+                    {calSelectedDay
+                      ? `Showing all IPL matches played on ${MONTH_NAMES[calMonth]} ${calSelectedDay}`
+                      : otdDate ? new Date(otdDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' }) : 'Today'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Insights list */}
+            {otdLoading && (
+              <div className="flex items-center justify-center py-16 gap-3">
+                <div className="w-6 h-6 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-text-muted font-mono">Looking through IPL history...</span>
+              </div>
+            )}
+            {!otdLoading && otdInsights.length === 0 && (
+              <div className="text-center py-16 bg-bg-card border border-border-subtle rounded-2xl">
+                <span className="text-5xl block mb-4">📅</span>
+                <h3 className="text-lg font-heading font-bold text-text-primary mb-2">
+                  {calSelectedDay ? `No IPL matches on ${MONTH_NAMES[calMonth]} ${calSelectedDay}` : 'No IPL matches on this date'}
+                </h3>
+                <p className="text-text-secondary text-sm">Pick a highlighted date from the calendar above</p>
+              </div>
+            )}
+            {!otdLoading && otdInsights.length > 0 && (
+              <div className="space-y-4">
+                {otdInsights.map(insight => (
+                  <InsightCard key={insight.id} insight={insight} onCreateImage={setImageCreator} />
+                ))}
+              </div>
+            )}
+
             {/* Calendar */}
             <div className="bg-bg-card border border-border-subtle rounded-2xl p-6">
               <div className="flex items-center justify-between mb-5">
@@ -926,51 +971,6 @@ export default function CricketPulse() {
                 </button>
               </div>
             </div>
-
-            {/* Selected day header */}
-            <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📅</span>
-                <div>
-                  <h2 className="text-lg font-heading font-bold text-text-primary">
-                    {calSelectedDay
-                      ? `${calSelectedDay} ${MONTH_NAMES[calMonth]} — IPL History`
-                      : 'On This Day in IPL'
-                    }
-                  </h2>
-                  <p className="text-xs text-text-muted font-mono">
-                    {calSelectedDay
-                      ? `Showing all IPL matches played on ${MONTH_NAMES[calMonth]} ${calSelectedDay}`
-                      : otdDate ? new Date(otdDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' }) : 'Today'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Insights list */}
-            {otdLoading && (
-              <div className="flex items-center justify-center py-16 gap-3">
-                <div className="w-6 h-6 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm text-text-muted font-mono">Looking through IPL history...</span>
-              </div>
-            )}
-            {!otdLoading && otdInsights.length === 0 && (
-              <div className="text-center py-16 bg-bg-card border border-border-subtle rounded-2xl">
-                <span className="text-5xl block mb-4">📅</span>
-                <h3 className="text-lg font-heading font-bold text-text-primary mb-2">
-                  {calSelectedDay ? `No IPL matches on ${MONTH_NAMES[calMonth]} ${calSelectedDay}` : 'No IPL matches on this date'}
-                </h3>
-                <p className="text-text-secondary text-sm">Pick a highlighted date from the calendar above</p>
-              </div>
-            )}
-            {!otdLoading && otdInsights.length > 0 && (
-              <div className="space-y-4">
-                {otdInsights.map(insight => (
-                  <InsightCard key={insight.id} insight={insight} onCreateImage={setImageCreator} />
-                ))}
-              </div>
-            )}
           </div>
         )
       })()}

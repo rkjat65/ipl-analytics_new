@@ -20,6 +20,7 @@ const TEMPLATES = [
   { id: 'ball_v_bat', label: 'Ball v Bat', color: '#8B5CF6' },
   { id: 'record', label: 'Record Card', color: '#FFB800' },
   { id: 'season', label: 'Season Recap', color: '#00E5FF' },
+  { id: 'team_form', label: 'Team Form', color: '#22D3EE' },
 ]
 
 const FORMAT_OPTIONS = [
@@ -130,6 +131,12 @@ export default function ContentStudio() {
   const [blvbMatchups, setBlvbMatchups] = useState([])
   const [blvbOpponent, setBlvbOpponent] = useState('')
   const [blvbStats, setBlvbStats] = useState({})
+
+  // Team Form state
+  const [tfTeam, setTfTeam] = useState('')
+  const [tfLastN, setTfLastN] = useState(10)
+  const [tfData, setTfData] = useState(null)
+  const [tfLoading, setTfLoading] = useState(false)
 
   // AI Caption state
   const [aiCaption, setAiCaption] = useState('')
@@ -327,6 +334,16 @@ export default function ContentStudio() {
     if (m) setBlvbStats({ runs: m.runs, balls: m.balls, dots: m.dots, wickets: m.wickets, economy: m.economy })
   }, [blvbOpponent, blvbMatchups])
 
+  // Team Form data fetch
+  useEffect(() => {
+    if (!tfTeam || template !== 'team_form') return
+    setTfLoading(true)
+    fetch(`/api/advanced/form-index?team=${encodeURIComponent(tfTeam)}&last_n=${tfLastN}`)
+      .then(r => r.ok ? r.json() : Promise.reject('Failed'))
+      .then(d => { setTfData(d); setTfLoading(false) })
+      .catch(() => { setTfData(null); setTfLoading(false) })
+  }, [tfTeam, tfLastN, template])
+
   const currentDims = FORMAT_OPTIONS.find(f => f.id === format)?.dims || CARD_DIMENSIONS.twitter
 
   const handleDownload = useCallback(async () => {
@@ -391,6 +408,10 @@ export default function ContentStudio() {
         case 'season':
           stats = seasonData
           context = `IPL ${selectedSeason} season recap`
+          break
+        case 'team_form':
+          stats = { team: tfTeam, form_index: tfData?.form_index, streak: tfData?.current_streak }
+          context = `${tfTeam} current form analysis`
           break
       }
       const res = await generateCommentary({ stats, context }, token)
@@ -639,6 +660,28 @@ export default function ContentStudio() {
           </div>
         )
 
+      case 'team_form':
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Team</label>
+              <select value={tfTeam} onChange={e => setTfTeam(e.target.value)}
+                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50">
+                <option value="">Select team...</option>
+                {teams.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Last N Matches</label>
+              <select value={tfLastN} onChange={e => setTfLastN(Number(e.target.value))}
+                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50">
+                {[5, 10, 15, 20].map(n => <option key={n} value={n}>Last {n}</option>)}
+              </select>
+            </div>
+            {tfLoading && <p className="text-text-muted text-xs">Loading form data...</p>}
+          </div>
+        )
+
       default:
         return null
     }
@@ -703,6 +746,57 @@ export default function ContentStudio() {
             dimensions={currentDims}
           />
         )
+      case 'team_form': {
+        const fi = tfData?.form_index ?? 0
+        const streak = tfData?.current_streak ?? ''
+        const trend = tfData?.trend ?? tfData?.recent_matches ?? []
+        const wins = trend.filter(m => m.result === 'W').length
+        const losses = trend.filter(m => m.result === 'L').length
+        const fiColor = fi >= 80 ? '#B8FF00' : fi >= 60 ? '#00E5FF' : fi >= 40 ? '#FFB800' : '#FF2D78'
+        const fiLabel = fi >= 80 ? 'DOMINANT' : fi >= 60 ? 'STRONG' : fi >= 40 ? 'AVERAGE' : fi >= 20 ? 'STRUGGLING' : 'POOR'
+        return (
+          <div style={{ width: currentDims.width, height: currentDims.height, background: 'linear-gradient(145deg, #0A0A0F, #111118)', position: 'relative', overflow: 'hidden', fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${fiColor}, ${fiColor}88)` }} />
+            <div style={{ padding: '5%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ color: '#60607A', fontSize: '0.7em', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Team Form Index</p>
+                <h2 style={{ color: '#F0F0F5', fontSize: '1.6em', fontWeight: 800, margin: 0 }}>{tfTeam || 'Select Team'}</h2>
+                <p style={{ color: '#A0A0B8', fontSize: '0.75em', marginTop: 4 }}>Last {tfLastN} matches</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8%' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '3em', fontWeight: 900, color: fiColor, fontFamily: 'monospace' }}>{fi.toFixed(1)}</div>
+                  <div style={{ fontSize: '0.7em', color: fiColor, letterSpacing: 2, fontWeight: 700 }}>{fiLabel}</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <div style={{ background: '#B8FF0018', border: '1px solid #B8FF0030', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.4em', fontWeight: 800, color: '#B8FF00', fontFamily: 'monospace' }}>{wins}</div>
+                      <div style={{ fontSize: '0.6em', color: '#A0A0B8', letterSpacing: 1 }}>WINS</div>
+                    </div>
+                    <div style={{ background: '#FF2D7818', border: '1px solid #FF2D7830', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.4em', fontWeight: 800, color: '#FF2D78', fontFamily: 'monospace' }}>{losses}</div>
+                      <div style={{ fontSize: '0.6em', color: '#A0A0B8', letterSpacing: 1 }}>LOSSES</div>
+                    </div>
+                    {streak && (
+                      <div style={{ background: '#FFB80018', border: '1px solid #FFB80030', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4em', fontWeight: 800, color: '#FFB800', fontFamily: 'monospace' }}>{streak}</div>
+                        <div style={{ fontSize: '0.6em', color: '#A0A0B8', letterSpacing: 1 }}>STREAK</div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {trend.slice().reverse().map((m, i) => (
+                      <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: m.result === 'W' ? '#B8FF00' : m.result === 'L' ? '#FF2D78' : '#60607A' }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p style={{ color: '#60607A', fontSize: '0.6em', textAlign: 'right', fontFamily: 'monospace', margin: 0 }}>@Crickrida &bull; Cricket via Stats</p>
+            </div>
+          </div>
+        )
+      }
       default:
         return null
     }

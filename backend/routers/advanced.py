@@ -704,16 +704,32 @@ def player_impact(
         """, [player] + sp)
         bat_wins = int(wins_data[0]["wins"] or 0) if wins_data else 0
 
-        # Component scores (each 0-25)
-        boundary_score = min(boundary_pct / 30 * 25, 25)
-        dot_score_val = max(0, (50 - dot_pct) / 50 * 25)
+        # Compute batting average and overall SR
+        total_runs = int(bm.get("total_runs") or 0)
+        total_balls = int(bm.get("total_balls") or 0)
+        overall_sr = _safe_div(total_runs * 100.0, total_balls, 0)
+        bat_avg = _safe_div(total_runs, bat_matches, 0)
+
+        # Component scores (6 components, each 0-16.67, total = 100)
+        # 1. Batting average: 40+ = perfect (top IPL batsmen avg 30-45)
+        avg_score = min(bat_avg / 40 * 16.67, 16.67)
+        # 2. Strike rate: 150+ = perfect
+        sr_score = min(overall_sr / 150 * 16.67, 16.67)
+        # 3. Boundary %: 25%+ = perfect
+        boundary_score = min(boundary_pct / 25 * 16.67, 16.67)
+        # 4. Dot ball management: lower is better (20% dots = perfect, 50%+ = 0)
+        dot_score_val = max(0, (50 - dot_pct) / 30 * 16.67)
+        # 5. Phase impact: death + PP strike rates (avg 160+ = perfect)
         phase_sr = (death_sr + pp_sr) / 2 if (death_sr and pp_sr) else max(death_sr, pp_sr)
-        phase_score = min(phase_sr / 200 * 25, 25)
+        phase_score = min(phase_sr / 160 * 16.67, 16.67)
+        # 6. Win contribution
         win_rate = _safe_div(bat_wins, bat_matches, 0)
-        win_score = min(win_rate * 25, 25)
-        batting_score = min(boundary_score + dot_score_val + phase_score + win_score, 100)
+        win_score = min(win_rate * 16.67, 16.67)
+        batting_score = min(avg_score + sr_score + boundary_score + dot_score_val + phase_score + win_score, 100)
 
         batting_metrics = {
+            "batting_avg": round(bat_avg, 1),
+            "strike_rate": round(overall_sr, 1),
             "boundary_pct": round(boundary_pct, 1),
             "dot_pct": round(dot_pct, 1),
             "death_sr": round(death_sr, 1),

@@ -53,8 +53,10 @@ function getScoreColor(score) {
 function normalizeMetrics(metrics, role) {
   const norms = {
     // Batting norms
-    boundary_pct: { min: 0, max: 35 },
-    dot_pct: { min: 50, max: 0, invert: true }, // lower is better
+    batting_avg: { min: 0, max: 45 },
+    strike_rate: { min: 80, max: 170 },
+    boundary_pct: { min: 0, max: 30 },
+    dot_pct: { min: 50, max: 15, invert: true }, // lower is better
     death_sr: { min: 0, max: 200 },
     powerplay_sr: { min: 0, max: 200 },
     win_contribution: { min: 0, max: 100 },
@@ -65,8 +67,10 @@ function normalizeMetrics(metrics, role) {
     powerplay_wicket_pct: { min: 0, max: 50 },
     wickets_per_match: { min: 0, max: 3.5 },
     // All-rounder prefixed
-    bat_boundary_pct: { min: 0, max: 35 },
-    bat_dot_pct: { min: 50, max: 0, invert: true },
+    bat_batting_avg: { min: 0, max: 45 },
+    bat_strike_rate: { min: 80, max: 170 },
+    bat_boundary_pct: { min: 0, max: 30 },
+    bat_dot_pct: { min: 50, max: 15, invert: true },
     bat_death_sr: { min: 0, max: 200 },
     bat_powerplay_sr: { min: 0, max: 200 },
     bat_win_contribution: { min: 0, max: 100 },

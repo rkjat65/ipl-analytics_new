@@ -11,6 +11,9 @@ from fastapi.responses import FileResponse
 from .auth_db import init_auth_db
 from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth
 
+# Team images directory
+TEAM_IMAGES_DIR = Path(__file__).resolve().parent / "team_images"
+
 app = FastAPI(title="IPL Analytics API", version="1.0.0")
 
 # Initialise the SQLite auth database tables on startup
@@ -45,6 +48,11 @@ app.include_router(auth.router)
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
+
+
+# Serve team logo images
+if TEAM_IMAGES_DIR.is_dir():
+    app.mount("/api/team-images", StaticFiles(directory=str(TEAM_IMAGES_DIR)), name="team-images")
 
 
 # ── Serve frontend static build in production ──────────────────────

@@ -101,7 +101,7 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
       </button>
 
       {open && (
-        <div className="absolute z-30 top-full mt-1 w-72 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-hidden">
+        <div className="absolute z-30 top-full mt-1 w-72 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-hidden right-0">
           {/* Quick actions row */}
           <div className="flex flex-wrap gap-1.5 p-2.5 border-b border-border-subtle">
             <button

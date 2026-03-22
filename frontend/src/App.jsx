@@ -19,7 +19,7 @@ import BattingCompare from './pages/BattingCompare'
 import ContentStudio from './pages/ContentStudio'
 import AskCricket from './pages/AskCricket'
 import SocialCompose from './pages/SocialCompose'
-import AdvancedAnalytics from './pages/AdvancedAnalytics'
+// AdvancedAnalytics removed — Team Form Index moved to Content Studio
 import CricketPulse from './pages/CricketPulse'
 import PlayerImpact from './pages/PlayerImpact'
 import Admin from './pages/Admin'
@@ -53,7 +53,6 @@ export default function App() {
         <Route path="/ask" element={<ProtectedRoute><AskCricket /></ProtectedRoute>} />
         <Route path="/social" element={<ProtectedRoute><SocialCompose /></ProtectedRoute>} />
         <Route path="/pulse" element={<ProtectedRoute><CricketPulse /></ProtectedRoute>} />
-        <Route path="/advanced" element={<ProtectedRoute><AdvancedAnalytics /></ProtectedRoute>} />
         <Route path="/player-impact" element={<ProtectedRoute><PlayerImpact /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       </Route>

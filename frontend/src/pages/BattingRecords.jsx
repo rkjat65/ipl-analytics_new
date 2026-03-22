@@ -80,7 +80,7 @@ export default function BattingRecords() {
   const { data: teams } = useFetch(() => getTeams(), [])
 
   const { data: batters, loading, error } = useFetch(
-    () => getBattingLeaderboard({ season, team, sort_by: sortBy, limit: 50 }),
+    () => getBattingLeaderboard({ season, team, sort_by: sortBy, limit: 500 }),
     [season, team, sortBy]
   )
 

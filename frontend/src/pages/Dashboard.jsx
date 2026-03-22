@@ -16,6 +16,7 @@ import {
   getTitleWinners,
 } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
+import TeamLogo from '../components/ui/TeamLogo'
 import {
   BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [showTopTotals, setShowTopTotals] = useState(false)
   const [showTopSixes, setShowTopSixes] = useState(false)
   const [showTopFours, setShowTopFours] = useState(false)
+  const [showTopWickets, setShowTopWickets] = useState(false)
   const [batSort, setBatSort] = useState('runs')
   const [bowlSort, setBowlSort] = useState('wickets')
 
@@ -309,7 +311,7 @@ export default function Dashboard() {
       {/* ═══════════════════════════════════════════════════
           EXPANDABLE HIGHLIGHT CARDS (Top Totals, Sixes, Fours)
           ═══════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Highest Totals */}
         <div className="bg-[#111118] border border-[#1E1E2A] rounded-xl p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -468,6 +470,62 @@ export default function Dashboard() {
                   className="text-accent-cyan text-xs mt-2 hover:underline cursor-pointer"
                 >
                   {showTopFours ? 'Collapse \u25B2' : 'View Top 10 \u25BC'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Most Wickets */}
+        <div className="bg-[#111118] border border-[#1E1E2A] rounded-xl p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent-magenta/10 flex items-center justify-center">
+              <svg className="w-5 h-5 text-accent-magenta" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+              </svg>
+            </div>
+            <p className="text-xs uppercase tracking-wider text-text-muted font-medium">Most Wickets</p>
+          </div>
+          {bowlersLoading ? (
+            <Loading message="Loading..." />
+          ) : bowlersWithRank.length === 0 ? (
+            <p className="text-text-muted text-sm">No data</p>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-text-muted font-mono text-xs w-5 text-right">#1</span>
+                <Link to={`/bowling/${encodeURIComponent(bowlersWithRank[0].player)}`} className="hover:underline flex-1 min-w-0">
+                  <span className="text-xl font-heading font-bold text-accent-magenta stat-glow-magenta">
+                    {bowlersWithRank[0].wickets}
+                  </span>
+                  <span className="text-text-secondary ml-2 text-sm">
+                    {bowlersWithRank[0].player}
+                  </span>
+                  <span className="text-text-muted ml-1 text-xs">
+                    ({bowlersWithRank[0].matches} mat)
+                  </span>
+                </Link>
+              </div>
+
+              {showTopWickets && bowlersWithRank.slice(1, 10).map((item, idx) => (
+                <div key={item.player || idx} className="flex items-baseline gap-2 py-1.5 border-t border-[#1E1E2A]">
+                  <span className="text-text-muted font-mono text-xs w-5 text-right">#{idx + 2}</span>
+                  <Link to={`/bowling/${encodeURIComponent(item.player)}`} className="hover:underline flex-1 min-w-0">
+                    <span className="font-mono font-bold text-accent-magenta text-sm">{item.wickets}</span>
+                    <span className="text-text-secondary ml-2 text-xs">{item.player}</span>
+                    <span className="text-text-muted ml-1 text-xs">({item.matches} mat)</span>
+                  </Link>
+                </div>
+              ))}
+
+              {bowlersWithRank.length > 1 && (
+                <button
+                  onClick={() => setShowTopWickets(!showTopWickets)}
+                  className="text-accent-cyan text-xs mt-2 hover:underline cursor-pointer"
+                >
+                  {showTopWickets ? 'Collapse \u25B2' : 'View Top 10 \u25BC'}
                 </button>
               )}
             </>
@@ -838,11 +896,15 @@ export default function Dashboard() {
                       </span>
                     )}
                   </div>
-                  <p className="font-heading font-semibold text-text-primary text-sm mb-1">
-                    {match.team1}
-                    <span className="text-text-muted mx-2">vs</span>
-                    {match.team2}
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <TeamLogo team={match.team1} size={20} />
+                    <p className="font-heading font-semibold text-text-primary text-sm">
+                      {match.team1}
+                      <span className="text-text-muted mx-2">vs</span>
+                      {match.team2}
+                    </p>
+                    <TeamLogo team={match.team2} size={20} />
+                  </div>
 
                   {/* Mini score bars */}
                   {(t1Score > 0 || t2Score > 0) && (

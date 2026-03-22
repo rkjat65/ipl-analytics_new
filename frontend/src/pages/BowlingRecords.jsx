@@ -79,7 +79,7 @@ export default function BowlingRecords() {
   const { data: teams } = useFetch(() => getTeams(), [])
 
   const { data: bowlers, loading, error } = useFetch(
-    () => getBowlingLeaderboard({ season, team, sort_by: sortBy, limit: 50 }),
+    () => getBowlingLeaderboard({ season, team, sort_by: sortBy, limit: 500 }),
     [season, team, sortBy]
   )
 

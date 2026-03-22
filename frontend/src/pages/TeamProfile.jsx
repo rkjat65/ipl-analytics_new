@@ -5,16 +5,21 @@ import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal } from '../utils/format'
-import { getTeamColor, getTeamAbbr } from '../constants/teams'
+import { getTeamColor, getTeamAbbr, getTeamLogo } from '../constants/teams'
+import TeamLogo from '../components/ui/TeamLogo'
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
+  AreaChart,
+  Area,
 } from 'recharts'
 
 function ChartTooltip({ active, payload, label }) {
@@ -82,10 +87,7 @@ export default function TeamProfile() {
       label: 'Opponent',
       render: (val) => (
         <div className="flex items-center gap-2">
-          <span
-            className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: getTeamColor(val) }}
-          />
+          <TeamLogo team={val} size={22} />
           <Link to={`/teams/${encodeURIComponent(val)}`} className="text-accent-cyan hover:underline">
             {val}
           </Link>
@@ -113,10 +115,15 @@ export default function TeamProfile() {
         <Link to="/teams" className="text-text-muted text-sm hover:text-accent-cyan transition-colors mb-2 inline-block">
           &larr; All Teams
         </Link>
-        <h1 className="text-3xl font-heading font-bold" style={{ color }}>
-          {decoded}
-        </h1>
-        <div className="h-1 w-24 rounded-full mt-2" style={{ backgroundColor: color }} />
+        <div className="flex items-center gap-4 mt-1">
+          <TeamLogo team={decoded} size={56} />
+          <div>
+            <h1 className="text-3xl font-heading font-bold" style={{ color }}>
+              {decoded}
+            </h1>
+            <div className="h-1 w-24 rounded-full mt-2" style={{ backgroundColor: color }} />
+          </div>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -164,6 +171,28 @@ export default function TeamProfile() {
                 <Bar dataKey="wins" stackId="wl" fill="#22C55E" name="Wins" radius={[0, 0, 0, 0]} />
                 <Bar dataKey="losses" stackId="wl" fill="#EF4444" name="Losses" radius={[4, 4, 0, 0]} />
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Win % Trend Line */}
+        {!seasonsLoading && (seasons || []).length > 1 && (
+          <div className="card mb-6">
+            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">Win % Trend</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={seasons} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="winPctGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+                <XAxis dataKey="season" tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
+                <YAxis domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: color, strokeDasharray: '3 3' }} />
+                <Area type="monotone" dataKey="win_pct" stroke={color} strokeWidth={2} fill="url(#winPctGrad)" name="Win %" dot={{ fill: color, r: 3 }} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         )}

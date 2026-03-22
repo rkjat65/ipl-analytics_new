@@ -5,6 +5,7 @@ import SEO from '../components/SEO'
 import Loading from '../components/ui/Loading'
 import { formatDecimal } from '../utils/format'
 import { getTeamColor } from '../constants/teams'
+import TeamLogo from '../components/ui/TeamLogo'
 import { useState, useEffect } from 'react'
 
 function TeamCard({ team }) {
@@ -35,12 +36,15 @@ function TeamCard({ team }) {
           className="h-1 -mx-4 -mt-4 mb-4 rounded-t-lg"
           style={{ backgroundColor: color }}
         />
-        <h3
-          className="text-lg font-heading font-bold mb-2 group-hover:underline"
-          style={{ color }}
-        >
-          {team}
-        </h3>
+        <div className="flex items-center gap-3 mb-2">
+          <TeamLogo team={team} size={36} />
+          <h3
+            className="text-lg font-heading font-bold group-hover:underline"
+            style={{ color }}
+          >
+            {team}
+          </h3>
+        </div>
         <p className="text-3xl font-heading font-bold text-accent-cyan stat-glow-cyan mb-4 font-mono">
           {formatDecimal(stats.win_pct, 1)}%
           <span className="text-xs text-text-muted font-body font-normal ml-2 uppercase tracking-wider">

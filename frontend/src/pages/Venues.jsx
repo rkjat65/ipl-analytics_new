@@ -4,6 +4,7 @@ import { getVenues } from '../lib/api'
 import SEO from '../components/SEO'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
+import IndiaVenueMap from '../components/ui/IndiaVenueMap'
 
 export default function Venues() {
   const navigate = useNavigate()
@@ -54,11 +55,14 @@ export default function Venues() {
       {loading ? (
         <Loading message="Loading venues..." />
       ) : (
-        <DataTable
-          columns={columns}
-          data={sortedVenues}
-          onRowClick={(row) => navigate(`/venues/${encodeURIComponent(row.venue)}`)}
-        />
+        <>
+          <IndiaVenueMap venues={sortedVenues} />
+          <DataTable
+            columns={columns}
+            data={sortedVenues}
+            onRowClick={(row) => navigate(`/venues/${encodeURIComponent(row.venue)}`)}
+          />
+        </>
       )}
     </div>
   )

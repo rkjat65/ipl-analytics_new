@@ -16,7 +16,7 @@ def batting_leaderboard(
     season: str | None = None,
     team: str | None = None,
     sort_by: str = Query("runs", pattern="^(runs|avg|sr|fifties|hundreds|sixes|fours|matches)$"),
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(500, ge=1, le=1000),
 ):
     season_filter = ""
     params = []
@@ -86,7 +86,7 @@ def bowling_leaderboard(
     season: str | None = None,
     team: str | None = None,
     sort_by: str = Query("wickets", pattern="^(wickets|avg|economy|sr|five_wickets|four_wickets|matches)$"),
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(500, ge=1, le=1000),
 ):
     season_filter = ""
     params = []
