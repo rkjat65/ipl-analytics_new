@@ -69,8 +69,8 @@ def top_performers(venue_name: str):
                SUM(d.runs_batter) AS runs,
                COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS balls,
                ROUND(SUM(d.runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS sr,
-               SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-               SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes
+               SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
+               SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE m.venue = ? AND d.is_super_over = false

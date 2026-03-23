@@ -499,9 +499,9 @@ def batting_impact(
             COUNT(DISTINCT d.match_id) AS matches,
             SUM(d.runs_batter) AS total_runs,
             COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS total_balls,
-            SUM(CASE WHEN d.runs_batter = 4 OR d.runs_batter = 6 THEN 1 ELSE 0 END) AS boundaries,
+            SUM(CASE WHEN (d.runs_batter = 4 OR d.runs_batter = 6) AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS boundaries,
             SUM(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 AND d.runs_batter = 0 THEN 1 ELSE 0 END) AS dots,
-            ROUND(SUM(CASE WHEN d.runs_batter = 4 OR d.runs_batter = 6 THEN 1 ELSE 0 END) * 100.0
+            ROUND(SUM(CASE WHEN (d.runs_batter = 4 OR d.runs_batter = 6) AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) * 100.0
                 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS boundary_pct,
             ROUND(SUM(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 AND d.runs_batter = 0 THEN 1 ELSE 0 END) * 100.0
                 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS dot_pct
@@ -659,8 +659,8 @@ def player_impact(
                 COUNT(DISTINCT d.match_id) AS matches,
                 SUM(d.runs_batter) AS total_runs,
                 COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS total_balls,
-                SUM(CASE WHEN d.runs_batter = 4 OR d.runs_batter = 6 THEN 1 ELSE 0 END) AS boundaries,
-                ROUND(SUM(CASE WHEN d.runs_batter = 4 OR d.runs_batter = 6 THEN 1 ELSE 0 END) * 100.0
+                SUM(CASE WHEN (d.runs_batter = 4 OR d.runs_batter = 6) AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS boundaries,
+                ROUND(SUM(CASE WHEN (d.runs_batter = 4 OR d.runs_batter = 6) AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) * 100.0
                     / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS boundary_pct,
                 ROUND(SUM(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 AND d.runs_batter = 0 THEN 1 ELSE 0 END) * 100.0
                     / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS dot_pct

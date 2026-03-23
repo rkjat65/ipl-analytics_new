@@ -45,8 +45,8 @@ def batting_leaderboard(
                    d.match_id,
                    SUM(d.runs_batter) AS runs,
                    COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS balls,
-                   SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-                   SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
+                   SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
+                   SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
                    MAX(CASE WHEN d.is_wicket AND d.player_dismissed = d.batter THEN 1 ELSE 0 END) AS was_out
             FROM deliveries d
             JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
@@ -215,8 +215,8 @@ def batting_profile(name: str):
             SELECT d.match_id,
                    SUM(d.runs_batter) AS runs,
                    COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS balls,
-                   SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-                   SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
+                   SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
+                   SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
                    MAX(CASE WHEN d.is_wicket AND d.player_dismissed = d.batter THEN 1 ELSE 0 END) AS was_out
             FROM deliveries d
             WHERE d.batter = ? AND d.is_super_over = false
@@ -246,8 +246,8 @@ def batting_profile(name: str):
             SELECT m.season, d.match_id,
                    SUM(d.runs_batter) AS runs,
                    COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS balls,
-                   SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-                   SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
+                   SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
+                   SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
                    MAX(CASE WHEN d.is_wicket AND d.player_dismissed = d.batter THEN 1 ELSE 0 END) AS was_out
             FROM deliveries d
             JOIN matches m ON d.match_id = m.match_id
@@ -281,9 +281,9 @@ def batting_profile(name: str):
             COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
             ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr,
             SUM(CASE WHEN is_wicket AND player_dismissed = batter THEN 1 ELSE 0 END) AS dismissals,
-            SUM(CASE WHEN runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-            SUM(CASE WHEN runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
-            SUM(CASE WHEN runs_batter = 4 OR runs_batter = 6 THEN 1 ELSE 0 END) AS boundaries,
+            SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
+            SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
+            SUM(CASE WHEN (runs_batter = 4 OR runs_batter = 6) AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS boundaries,
             ROUND(SUM(runs_batter) * 1.0 / NULLIF(SUM(CASE WHEN is_wicket AND player_dismissed = batter THEN 1 ELSE 0 END), 0), 2) AS avg
         FROM deliveries
         WHERE batter = ? AND is_super_over = false
@@ -524,8 +524,8 @@ def batting_matchups(name: str):
                COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
                SUM(runs_batter) AS runs,
                SUM(CASE WHEN extras_wides = 0 AND extras_noballs = 0 AND runs_batter = 0 AND runs_extras = 0 THEN 1 ELSE 0 END) AS dots,
-               SUM(CASE WHEN runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
-               SUM(CASE WHEN runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
+               SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
+               SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
                SUM(CASE WHEN is_wicket AND player_dismissed = batter THEN 1 ELSE 0 END) AS dismissals,
                ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr
         FROM deliveries

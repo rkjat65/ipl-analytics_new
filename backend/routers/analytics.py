@@ -26,9 +26,9 @@ def dashboard_kpis(season: str | None = None):
     runs_wickets = query(f"""
         SELECT SUM(d.runs_total) AS total_runs,
                SUM(CASE WHEN d.is_wicket THEN 1 ELSE 0 END) AS total_wickets,
-               SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) +
-               SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS total_boundaries,
-               SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS total_sixes
+               SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) +
+               SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS total_boundaries,
+               SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS total_sixes
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE d.is_super_over = false {sf_m}
@@ -51,7 +51,7 @@ def dashboard_kpis(season: str | None = None):
     """, sp_m[:])
 
     most_sixes = query(f"""
-        SELECT d.batter AS player, SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes
+        SELECT d.batter AS player, SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE d.is_super_over = false {sf_m}
@@ -83,7 +83,7 @@ def phase_stats(season: str | None = None):
             ROUND(SUM(d.runs_total) * 1.0 / COUNT(DISTINCT d.match_id || '-' || d.innings_number), 2) AS avg_runs,
             ROUND(SUM(CASE WHEN d.is_wicket THEN 1 ELSE 0 END) * 1.0 / COUNT(DISTINCT d.match_id || '-' || d.innings_number), 2) AS avg_wickets,
             ROUND(SUM(d.runs_total) * 6.0 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS run_rate,
-            ROUND((SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END)) * 100.0
+            ROUND((SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) + SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END)) * 100.0
                 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS boundary_pct
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
@@ -187,9 +187,9 @@ def top_sixes(season: str | None = None):
     sf, sp = _season_filter("m", season)
     rows = query(f"""
         SELECT d.batter AS player,
-               SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes,
+               SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
                COUNT(DISTINCT d.match_id) AS matches,
-               SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS fours
+               SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE d.is_super_over = false {sf}
@@ -205,9 +205,9 @@ def top_fours(season: str | None = None):
     sf, sp = _season_filter("m", season)
     rows = query(f"""
         SELECT d.batter AS player,
-               SUM(CASE WHEN d.runs_batter = 4 THEN 1 ELSE 0 END) AS fours,
+               SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
                COUNT(DISTINCT d.match_id) AS matches,
-               SUM(CASE WHEN d.runs_batter = 6 THEN 1 ELSE 0 END) AS sixes
+               SUM(CASE WHEN d.runs_batter = 6 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE d.is_super_over = false {sf}
