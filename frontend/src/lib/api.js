@@ -23,6 +23,13 @@ export const searchPlayers = (q) => fetchAPI('/meta/players', { q })
 // Dashboard
 export const getKPIs = (season) => fetchAPI('/analytics/kpis', { season })
 export const getPhaseStats = (season) => fetchAPI('/analytics/phase-stats', { season })
+export const getInningsDNA = (season) => fetchAPI('/analytics/innings-dna', { season })
+export const getSixEvolution = () => fetchAPI('/analytics/six-evolution')
+export const getBattingMatrix = (season, min_innings) => fetchAPI('/analytics/batting-matrix', { season, min_innings })
+export const getBowlingMatrix = (season, min_innings) => fetchAPI('/analytics/bowling-matrix', { season, min_innings })
+export const getChaseAnalysis = (season) => fetchAPI('/analytics/chase-analysis', { season })
+export const getDismissalTypes = (season) => fetchAPI('/analytics/dismissal-types', { season })
+export const getPhaseDominance = (season) => fetchAPI('/analytics/phase-dominance', { season })
 
 // Matches
 export const getMatches = (params) => fetchAPI('/matches', params)

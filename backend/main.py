@@ -3,6 +3,13 @@
 import os
 from pathlib import Path
 
+# Load .env BEFORE any router imports so all env vars are available
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
+except ImportError:
+    pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

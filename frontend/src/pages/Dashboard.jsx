@@ -19,7 +19,7 @@ import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
 import {
   BarChart, Bar, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'

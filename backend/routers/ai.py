@@ -23,7 +23,8 @@ def record_usage(user_id, feature):
 # ── Gemini Setup ──────────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+    load_dotenv(_env_path, override=True)
 except ImportError:
     pass
 
