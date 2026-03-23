@@ -1,7 +1,7 @@
 """Team endpoints: stats, seasons, head-to-head, comparison."""
 
 from fastapi import APIRouter, Query
-from ..database import query, normalize_team, team_variants
+from ..database import query, normalize_team, team_variants, SUPER_OVER_WINNER_CTE
 
 router = APIRouter(prefix="/api/teams", tags=["teams"])
 
@@ -14,16 +14,25 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
         ph = ", ".join(["?"] * len(v))
         return query(f"""
             WITH team_matches AS (
-                SELECT match_id, season, winner, team1, team2, result
-                FROM matches
-                WHERE team1 IN ({ph}) OR team2 IN ({ph})
+                SELECT m.match_id, m.season, m.winner, m.team1, m.team2, m.result
+                FROM matches m
+                WHERE m.team1 IN ({ph}) OR m.team2 IN ({ph})
+            ),
+            {SUPER_OVER_WINNER_CTE},
+            resolved AS (
+                SELECT tm.*,
+                    COALESCE(tm.winner, sow.so_winner) AS effective_winner
+                FROM team_matches tm
+                LEFT JOIN super_over_winners sow ON tm.match_id = sow.match_id
             )
             SELECT
                 COUNT(*) AS matches,
-                SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) AS wins,
-                SUM(CASE WHEN winner IS NOT NULL AND winner NOT IN ({ph}) AND result = 'win' THEN 1 ELSE 0 END) AS losses,
-                ROUND(SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS win_pct
-            FROM team_matches
+                SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) AS wins,
+                SUM(CASE WHEN effective_winner IS NOT NULL AND effective_winner NOT IN ({ph}) THEN 1 ELSE 0 END) AS losses,
+                SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS ties,
+                SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_results,
+                ROUND(SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct
+            FROM resolved
         """, v * 5)[0]
 
     def _batting_stats(team):
@@ -48,27 +57,53 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
     h2h_where = f"(team1 IN ({ph1}) AND team2 IN ({ph2})) OR (team1 IN ({ph2}) AND team2 IN ({ph1}))"
     h2h_params = v1 + v2 + v2 + v1
 
-    # Overall H2H record
+    # Overall H2H record (with super over resolution)
     h2h = query(f"""
+        WITH h2h_matches AS (
+            SELECT m.match_id, m.winner, m.result
+            FROM matches m
+            WHERE {h2h_where}
+        ),
+        {SUPER_OVER_WINNER_CTE},
+        resolved AS (
+            SELECT hm.*,
+                COALESCE(hm.winner, sow.so_winner) AS effective_winner
+            FROM h2h_matches hm
+            LEFT JOIN super_over_winners sow ON hm.match_id = sow.match_id
+        )
         SELECT
             COUNT(*) AS played,
-            SUM(CASE WHEN winner IN ({ph1}) THEN 1 ELSE 0 END) AS team1_wins,
-            SUM(CASE WHEN winner IN ({ph2}) THEN 1 ELSE 0 END) AS team2_wins
-        FROM matches
-        WHERE {h2h_where}
-    """, v1 + v2 + h2h_params)
+            SUM(CASE WHEN effective_winner IN ({ph1}) THEN 1 ELSE 0 END) AS team1_wins,
+            SUM(CASE WHEN effective_winner IN ({ph2}) THEN 1 ELSE 0 END) AS team2_wins,
+            SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS ties,
+            SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_results
+        FROM resolved
+    """, h2h_params + v1 + v2)
 
-    # Season-wise H2H breakdown
+    # Season-wise H2H breakdown (with super over resolution)
     season_wise_h2h = query(f"""
+        WITH h2h_matches AS (
+            SELECT m.match_id, m.season, m.winner, m.result
+            FROM matches m
+            WHERE {h2h_where}
+        ),
+        {SUPER_OVER_WINNER_CTE},
+        resolved AS (
+            SELECT hm.*,
+                COALESCE(hm.winner, sow.so_winner) AS effective_winner
+            FROM h2h_matches hm
+            LEFT JOIN super_over_winners sow ON hm.match_id = sow.match_id
+        )
         SELECT
             season,
-            SUM(CASE WHEN winner IN ({ph1}) THEN 1 ELSE 0 END) AS team1_wins,
-            SUM(CASE WHEN winner IN ({ph2}) THEN 1 ELSE 0 END) AS team2_wins
-        FROM matches
-        WHERE {h2h_where}
+            SUM(CASE WHEN effective_winner IN ({ph1}) THEN 1 ELSE 0 END) AS team1_wins,
+            SUM(CASE WHEN effective_winner IN ({ph2}) THEN 1 ELSE 0 END) AS team2_wins,
+            SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS ties,
+            SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_results
+        FROM resolved
         GROUP BY season
         ORDER BY season
-    """, v1 + v2 + h2h_params)
+    """, h2h_params + v1 + v2)
 
     # Recent matches (last 10) between the two teams
     recent_matches_raw = query(f"""
@@ -76,6 +111,7 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
             m.date,
             m.season,
             m.winner,
+            m.result,
             m.venue,
             m.win_by_runs,
             m.win_by_wickets,
@@ -123,14 +159,28 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
             else:
                 t1_score = rm["innings1_score"]
                 t2_score = rm["innings2_score"]
+
+        # Determine result label
+        result_label = rm.get("result", "")
+        margin = None
+        if result_label == "tie":
+            margin = "Super Over"
+        elif result_label == "no result":
+            margin = "No Result"
+        elif rm.get("win_by_runs"):
+            margin = f"{rm['win_by_runs']} runs"
+        elif rm.get("win_by_wickets"):
+            margin = f"{rm['win_by_wickets']} wickets"
+
         recent_matches.append({
             "date": str(rm["date"]) if rm["date"] else None,
             "season": rm["season"],
             "winner": normalize_team(rm["winner"]) if rm["winner"] else None,
+            "result": result_label,
             "team1_score": t1_score,
             "team2_score": t2_score,
             "venue": rm["venue"],
-            "margin": f"{rm['win_by_runs']} runs" if rm.get("win_by_runs") else f"{rm['win_by_wickets']} wickets" if rm.get("win_by_wickets") else None,
+            "margin": margin,
         })
 
     # Toss stats from H2H matches
@@ -181,18 +231,26 @@ def team_stats(name: str):
 
     stats = query(f"""
         WITH team_matches AS (
-            SELECT match_id, season, winner, result
-            FROM matches
-            WHERE team1 IN ({ph}) OR team2 IN ({ph})
+            SELECT m.match_id, m.season, m.winner, m.result
+            FROM matches m
+            WHERE m.team1 IN ({ph}) OR m.team2 IN ({ph})
+        ),
+        {SUPER_OVER_WINNER_CTE},
+        resolved AS (
+            SELECT tm.*,
+                COALESCE(tm.winner, sow.so_winner) AS effective_winner
+            FROM team_matches tm
+            LEFT JOIN super_over_winners sow ON tm.match_id = sow.match_id
         )
         SELECT
             COUNT(*) AS matches,
-            SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) AS wins,
-            SUM(CASE WHEN winner IS NOT NULL AND winner NOT IN ({ph}) AND result = 'win' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN effective_winner IS NOT NULL AND effective_winner NOT IN ({ph}) THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS ties,
             SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_results,
-            ROUND(SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct,
+            ROUND(SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct,
             COUNT(DISTINCT season) AS seasons_played
-        FROM team_matches
+        FROM resolved
     """, variants * 5)
 
     # Titles (finals won - approximate: last match of each season where team won)
@@ -229,14 +287,22 @@ def team_seasons(name: str):
             SELECT m.match_id, m.season, m.winner, m.result
             FROM matches m
             WHERE m.team1 IN ({ph}) OR m.team2 IN ({ph})
+        ),
+        {SUPER_OVER_WINNER_CTE},
+        resolved AS (
+            SELECT tm.*,
+                COALESCE(tm.winner, sow.so_winner) AS effective_winner
+            FROM team_matches tm
+            LEFT JOIN super_over_winners sow ON tm.match_id = sow.match_id
         )
         SELECT season,
                COUNT(*) AS matches,
-               SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) AS wins,
-               SUM(CASE WHEN winner IS NOT NULL AND winner NOT IN ({ph}) AND result = 'win' THEN 1 ELSE 0 END) AS losses,
+               SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) AS wins,
+               SUM(CASE WHEN effective_winner IS NOT NULL AND effective_winner NOT IN ({ph}) THEN 1 ELSE 0 END) AS losses,
+               SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS ties,
                SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_results,
-               ROUND(SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct
-        FROM team_matches
+               ROUND(SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct
+        FROM resolved
         GROUP BY season
         ORDER BY season
     """, variants * 5)
@@ -248,19 +314,28 @@ def head_to_head(name: str):
     variants = team_variants(name)
     ph = ", ".join(["?"] * len(variants))
     rows = query(f"""
-        WITH opponents AS (
-            SELECT
-                CASE WHEN team1 IN ({ph}) THEN team2 ELSE team1 END AS opponent,
-                winner, result
-            FROM matches
-            WHERE team1 IN ({ph}) OR team2 IN ({ph})
+        WITH base AS (
+            SELECT m.match_id,
+                CASE WHEN m.team1 IN ({ph}) THEN m.team2 ELSE m.team1 END AS opponent,
+                m.winner, m.result
+            FROM matches m
+            WHERE m.team1 IN ({ph}) OR m.team2 IN ({ph})
+        ),
+        {SUPER_OVER_WINNER_CTE},
+        resolved AS (
+            SELECT b.opponent, b.result,
+                COALESCE(b.winner, sow.so_winner) AS effective_winner
+            FROM base b
+            LEFT JOIN super_over_winners sow ON b.match_id = sow.match_id
         )
         SELECT opponent,
                COUNT(*) AS played,
-               SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) AS won,
-               SUM(CASE WHEN winner = opponent THEN 1 ELSE 0 END) AS lost,
-               ROUND(SUM(CASE WHEN winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct
-        FROM opponents
+               SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) AS won,
+               SUM(CASE WHEN effective_winner IS NOT NULL AND effective_winner NOT IN ({ph}) THEN 1 ELSE 0 END) AS lost,
+               SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS ties,
+               SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_results,
+               ROUND(SUM(CASE WHEN effective_winner IN ({ph}) THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN result != 'no result' THEN 1 ELSE 0 END), 0), 2) AS win_pct
+        FROM resolved
         GROUP BY opponent
         ORDER BY played DESC
     """, variants * 5)
@@ -274,8 +349,10 @@ def head_to_head(name: str):
             m["played"] += row["played"]
             m["won"] += row["won"]
             m["lost"] += row["lost"]
-            total_decisive = m["played"] - (m.get("_nr", 0))
-            m["win_pct"] = round(m["won"] * 100.0 / total_decisive, 2) if total_decisive else None
+            m["ties"] = m.get("ties", 0) + row.get("ties", 0)
+            m["no_results"] = m.get("no_results", 0) + row.get("no_results", 0)
+            decisive = m["played"] - m.get("no_results", 0)
+            m["win_pct"] = round(m["won"] * 100.0 / decisive, 2) if decisive else None
         else:
             merged[opp] = {**row, "opponent": opp}
     return sorted(merged.values(), key=lambda x: x["played"], reverse=True)

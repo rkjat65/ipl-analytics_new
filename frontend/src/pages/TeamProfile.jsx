@@ -72,6 +72,8 @@ export default function TeamProfile() {
     { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
     { key: 'wins', label: 'W', align: 'right', render: (val) => <span className="font-mono text-accent-lime">{val}</span> },
     { key: 'losses', label: 'L', align: 'right', render: (val) => <span className="font-mono text-danger">{val}</span> },
+    { key: 'ties', label: 'T', align: 'right', render: (val) => <span className="font-mono text-accent-amber">{val || 0}</span> },
+    { key: 'no_results', label: 'NR', align: 'right', render: (val) => <span className="font-mono text-text-muted">{val || 0}</span> },
     {
       key: 'win_pct',
       label: 'Win%',
@@ -130,10 +132,12 @@ export default function TeamProfile() {
       {statsLoading ? (
         <Loading message="Loading team stats..." />
       ) : stats ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <StatCard label="Matches" value={formatNumber(stats.matches)} color="cyan" />
           <StatCard label="Wins" value={formatNumber(stats.wins)} color="lime" />
           <StatCard label="Losses" value={formatNumber(stats.losses)} color="magenta" />
+          {stats.ties > 0 && <StatCard label="Super Overs" value={formatNumber(stats.ties)} color="amber" />}
+          {stats.no_results > 0 && <StatCard label="No Result" value={formatNumber(stats.no_results)} color="cyan" />}
           <StatCard label="Win %" value={`${formatDecimal(stats.win_pct, 1)}%`} color="cyan" />
           <StatCard label="Titles" value={stats.titles ?? '-'} color="amber" />
           <StatCard label="Avg Score" value={formatDecimal(stats.avg_score, 1)} color="lime" />
@@ -169,7 +173,9 @@ export default function TeamProfile() {
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="wins" stackId="wl" fill="#22C55E" name="Wins" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="losses" stackId="wl" fill="#EF4444" name="Losses" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="losses" stackId="wl" fill="#EF4444" name="Losses" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="ties" stackId="wl" fill="#FFB800" name="Ties (SO)" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="no_results" stackId="wl" fill="#6B7280" name="No Result" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

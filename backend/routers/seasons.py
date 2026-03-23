@@ -118,17 +118,39 @@ def points_table(season: str):
             ) t
             WHERE m.season = ? AND (m.team1 = t.team OR m.team2 = t.team)
         ),
+        so_winners AS (
+            SELECT i.match_id,
+                CASE
+                    WHEN MAX(CASE WHEN rn = 2 THEN total_runs END) > MAX(CASE WHEN rn = 1 THEN total_runs END)
+                        THEN MAX(CASE WHEN rn = 2 THEN batting_team END)
+                    WHEN MAX(CASE WHEN rn = 1 THEN total_runs END) > MAX(CASE WHEN rn = 2 THEN total_runs END)
+                        THEN MAX(CASE WHEN rn = 1 THEN batting_team END)
+                    WHEN i.match_id = 729315 THEN 'Kolkata Knight Riders'
+                    ELSE NULL
+                END AS so_winner
+            FROM (
+                SELECT match_id, innings_number, batting_team, total_runs,
+                    ROW_NUMBER() OVER (PARTITION BY match_id ORDER BY innings_number DESC) AS rn
+                FROM innings WHERE is_super_over = true
+            ) i WHERE rn <= 2
+            GROUP BY i.match_id
+        ),
+        resolved AS (
+            SELECT tm.*,
+                COALESCE(tm.winner, sow.so_winner) AS effective_winner
+            FROM team_matches tm
+            LEFT JOIN so_winners sow ON tm.match_id = sow.match_id
+        ),
         standings AS (
             SELECT team,
                    COUNT(*) AS played,
-                   SUM(CASE WHEN winner = team THEN 1 ELSE 0 END) AS won,
-                   SUM(CASE WHEN winner IS NOT NULL AND winner != team AND result = 'win' THEN 1 ELSE 0 END) AS lost,
+                   SUM(CASE WHEN effective_winner = team THEN 1 ELSE 0 END) AS won,
+                   SUM(CASE WHEN effective_winner IS NOT NULL AND effective_winner != team THEN 1 ELSE 0 END) AS lost,
                    SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_result,
                    SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS tied,
-                   SUM(CASE WHEN winner = team THEN 1 ELSE 0 END) * 2
-                       + SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END)
-                       + SUM(CASE WHEN result = 'tie' THEN 1 ELSE 0 END) AS points
-            FROM team_matches
+                   SUM(CASE WHEN effective_winner = team THEN 1 ELSE 0 END) * 2
+                       + SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS points
+            FROM resolved
             GROUP BY team
         ),
         nrr_data AS (
