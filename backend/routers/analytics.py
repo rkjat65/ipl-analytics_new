@@ -492,3 +492,31 @@ def phase_dominance(season: str | None = None):
         team_data[team][row["phase"]] = row["run_rate"]
 
     return sorted(team_data.values(), key=lambda r: r["death"], reverse=True)
+
+
+@router.get("/cap-winners")
+def cap_winners():
+    """Orange Cap (most runs) and Purple Cap (most wickets) winners per season."""
+    orange = query("""
+        SELECT m.season, d.batter AS player, SUM(d.runs_batter) AS value
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE d.is_super_over = false
+        GROUP BY m.season, d.batter
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY m.season ORDER BY SUM(d.runs_batter) DESC) = 1
+        ORDER BY m.season
+    """)
+
+    purple = query("""
+        SELECT m.season, d.bowler AS player,
+            COUNT(*) AS value
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE d.is_wicket = true AND d.is_super_over = false
+          AND d.dismissal_kind NOT IN ('run out', 'retired hurt', 'retired out', 'obstructing the field')
+        GROUP BY m.season, d.bowler
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY m.season ORDER BY COUNT(*) DESC) = 1
+        ORDER BY m.season
+    """)
+
+    return {"orange_cap": orange, "purple_cap": purple}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 /**
  * Multi-season selector with individual picks, range selection, custom range, and "All" option.
@@ -11,7 +11,9 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
   const [customMode, setCustomMode] = useState(false)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState({})
   const ref = useRef(null)
+  const dropdownRef = useRef(null)
 
   const selected = value ? value.split(',').map(s => s.trim()) : []
   const isAll = selected.length === 0
@@ -29,6 +31,54 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // Position dropdown within the viewport
+  const positionDropdown = useCallback(() => {
+    if (!ref.current || !dropdownRef.current) return
+    const trigger = ref.current.getBoundingClientRect()
+    const dd = dropdownRef.current
+    const style = {}
+    const viewportW = window.innerWidth
+    const viewportH = window.innerHeight
+    const margin = 8
+
+    // Reset so we can measure natural size
+    dd.style.maxHeight = 'none'
+    dd.style.left = ''
+    dd.style.right = ''
+    const ddRect = dd.getBoundingClientRect()
+    const ddW = ddRect.width
+    const ddNaturalH = ddRect.height
+
+    // Horizontal: prefer right-aligned with trigger, but shift left if it overflows
+    let left = trigger.right - ddW // right-align with trigger
+    if (left < margin) left = margin
+    if (left + ddW > viewportW - margin) left = viewportW - margin - ddW
+
+    // Convert to position relative to the trigger parent
+    style.left = left - trigger.left
+    style.right = 'auto'
+
+    // Vertical: cap max-height so dropdown stays within viewport
+    const spaceBelow = viewportH - trigger.bottom - margin - 4 // 4px for mt-1
+    const maxH = Math.max(200, Math.min(spaceBelow, ddNaturalH))
+    style.maxHeight = maxH
+
+    setDropdownStyle(style)
+  }, [])
+
+  useEffect(() => {
+    if (open) {
+      // Run after DOM paint
+      requestAnimationFrame(positionDropdown)
+      window.addEventListener('resize', positionDropdown)
+      window.addEventListener('scroll', positionDropdown, true)
+      return () => {
+        window.removeEventListener('resize', positionDropdown)
+        window.removeEventListener('scroll', positionDropdown, true)
+      }
+    }
+  }, [open, customMode, positionDropdown])
 
   function toggleSeason(s) {
     if (selected.includes(s)) {
@@ -101,7 +151,21 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
       </button>
 
       {open && (
-        <div className="absolute z-30 top-full mt-1 w-72 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-hidden right-0">
+        <div
+          ref={dropdownRef}
+          className="fixed sm:absolute z-50 sm:top-full sm:mt-1 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-y-auto"
+          style={{
+            /* Mobile: fixed centered; Desktop: absolute positioned */
+            ...(window.innerWidth < 640
+              ? { left: 8, right: 8, bottom: 8, maxHeight: '60vh', width: 'auto' }
+              : {
+                  left: dropdownStyle.left != null ? dropdownStyle.left : undefined,
+                  right: dropdownStyle.right != null ? dropdownStyle.right : 0,
+                  maxHeight: dropdownStyle.maxHeight != null ? dropdownStyle.maxHeight : '70vh',
+                  width: '18rem',
+                }),
+          }}
+        >
           {/* Quick actions row */}
           <div className="flex flex-wrap gap-1.5 p-2.5 border-b border-border-subtle">
             <button
@@ -165,7 +229,7 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
           )}
 
           {/* Season grid */}
-          <div className="grid grid-cols-4 gap-1 p-2.5 max-h-56 overflow-y-auto">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 p-2.5 max-h-56 overflow-y-auto">
             {sortedDesc.map(s => {
               const isSelected = selected.includes(s)
               return (

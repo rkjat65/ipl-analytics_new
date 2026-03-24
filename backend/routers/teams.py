@@ -338,7 +338,7 @@ def head_to_head(name: str):
         FROM resolved
         GROUP BY opponent
         ORDER BY played DESC
-    """, variants * 5)
+    """, variants * 6)
 
     # Normalize opponent names and merge rows for same canonical team
     merged = {}

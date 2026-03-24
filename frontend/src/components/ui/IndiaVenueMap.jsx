@@ -280,12 +280,12 @@ export default function IndiaVenueMap({ venues = [] }) {
           <ComposableMap
             projection="geoMercator"
             projectionConfig={{
-              scale: 800,
+              scale: 650,
               center: [82, 22],
             }}
             style={{ width: '100%', height: 'auto' }}
             width={600}
-            height={500}
+            height={460}
           >
             <ZoomableGroup center={[82, 22]} zoom={1} minZoom={1} maxZoom={3}>
               {/* India GeoJSON */}
@@ -323,10 +323,10 @@ export default function IndiaVenueMap({ venues = [] }) {
                     onMouseEnter={() => setHovered(v.city)}
                     onMouseLeave={() => setHovered(null)}
                     onClick={() => {
-                      if (v.venues.length === 1) {
-                        navigate(
-                          `/venues/${encodeURIComponent(v.venues[0].venue)}`
-                        )
+                      // Navigate to the venue with most matches in this city
+                      const topVenue = [...v.venues].sort((a, b) => (b.matches || 0) - (a.matches || 0))[0]
+                      if (topVenue) {
+                        navigate(`/venues/${encodeURIComponent(topVenue.venue)}`)
                       }
                     }}
                     style={{ cursor: 'pointer' }}
@@ -507,11 +507,8 @@ export default function IndiaVenueMap({ venues = [] }) {
               <button
                 key={i}
                 onClick={() => {
-                  if (v.venues.length === 1) {
-                    navigate(
-                      `/venues/${encodeURIComponent(v.venues[0].venue)}`
-                    )
-                  }
+                  const topVenue = [...v.venues].sort((a, b) => (b.matches || 0) - (a.matches || 0))[0]
+                  if (topVenue) navigate(`/venues/${encodeURIComponent(topVenue.venue)}`)
                 }}
                 onMouseEnter={() => setHovered(v.city)}
                 onMouseLeave={() => setHovered(null)}

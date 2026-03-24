@@ -17,6 +17,7 @@ def batting_leaderboard(
     team: str | None = None,
     sort_by: str = Query("runs", pattern="^(runs|avg|sr|fifties|hundreds|sixes|fours|matches)$"),
     limit: int = Query(500, ge=1, le=1000),
+    min_balls: int = Query(0, ge=0),
 ):
     season_filter = ""
     params = []
@@ -37,7 +38,7 @@ def batting_leaderboard(
 
     sort_map = {"runs": "runs DESC", "avg": "avg DESC NULLS LAST", "sr": "sr DESC", "fifties": "fifties DESC", "hundreds": "hundreds DESC", "sixes": "sixes DESC", "fours": "fours DESC", "matches": "matches DESC"}
     order = sort_map.get(sort_by, "runs DESC")
-    params.append(limit)
+    # min_balls and limit params are appended at end of query
 
     rows = query(f"""
         WITH batting AS (
@@ -74,10 +75,10 @@ def batting_leaderboard(
                ROUND(runs * 1.0 / NULLIF(dismissals, 0), 2) AS avg,
                ROUND(runs * 100.0 / NULLIF(balls, 0), 2) AS sr
         FROM agg
-        WHERE balls > 0
+        WHERE balls >= ?
         ORDER BY {order}
         LIMIT ?
-    """, params)
+    """, params + [min_balls if min_balls > 0 else 1, limit])
     return rows
 
 
@@ -87,6 +88,7 @@ def bowling_leaderboard(
     team: str | None = None,
     sort_by: str = Query("wickets", pattern="^(wickets|avg|economy|sr|five_wickets|four_wickets|matches)$"),
     limit: int = Query(500, ge=1, le=1000),
+    min_balls: int = Query(0, ge=0),
 ):
     season_filter = ""
     params = []
@@ -115,7 +117,7 @@ def bowling_leaderboard(
         "matches": "matches DESC",
     }
     order = sort_map.get(sort_by, "wickets DESC")
-    params.append(limit)
+    params.extend([min_balls if min_balls > 0 else 1, limit])
 
     rows = query(f"""
         WITH bowling_match AS (
@@ -176,7 +178,7 @@ def bowling_leaderboard(
         FROM agg a
         JOIN best_fig bf ON a.player = bf.player
         LEFT JOIN hauls h ON a.player = h.player
-        WHERE a.total_legal_balls > 0
+        WHERE a.total_legal_balls >= ?
         ORDER BY {order}
         LIMIT ?
     """, params)

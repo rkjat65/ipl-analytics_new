@@ -64,6 +64,7 @@ export default function BattingRecords() {
   const [season, setSeason] = useState('')
   const [team, setTeam] = useState('')
   const [sortBy, setSortBy] = useState('runs')
+  const [minBalls, setMinBalls] = useState(0)
   const [downloading, setDownloading] = useState(false)
 
   const handleDownloadChart = useCallback(async () => {
@@ -80,8 +81,8 @@ export default function BattingRecords() {
   const { data: teams } = useFetch(() => getTeams(), [])
 
   const { data: batters, loading, error } = useFetch(
-    () => getBattingLeaderboard({ season, team, sort_by: sortBy, limit: 500 }),
-    [season, team, sortBy]
+    () => getBattingLeaderboard({ season, team, sort_by: sortBy, limit: 500, min_balls: minBalls || undefined }),
+    [season, team, sortBy, minBalls]
   )
 
   const seasonOptions = [{ value: '', label: 'All Seasons' }, ...(seasons || []).map((s) => ({ value: s, label: s }))]
@@ -164,6 +165,22 @@ export default function BattingRecords() {
         <div className="flex items-center gap-2">
           <label className="text-text-secondary text-sm">Sort by</label>
           <Select options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} placeholder="" />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm">Min Balls</label>
+          <Select
+            options={[
+              { value: 0, label: 'All' },
+              { value: 50, label: '50+' },
+              { value: 100, label: '100+' },
+              { value: 200, label: '200+' },
+              { value: 500, label: '500+' },
+              { value: 1000, label: '1000+' },
+            ]}
+            value={minBalls}
+            onChange={(v) => setMinBalls(Number(v))}
+            placeholder=""
+          />
         </div>
       </div>
 

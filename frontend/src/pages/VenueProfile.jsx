@@ -168,7 +168,8 @@ export default function VenueProfile() {
             <div className="card mb-4">
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart
-                  data={topBatters.map((b) => ({ name: b.player, runs: b.runs })).reverse()}
+                  data={topBatters.map((b) => ({ name: b.player, runs: b.runs }))}
+
                   layout="vertical"
                   margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                 >
@@ -198,7 +199,8 @@ export default function VenueProfile() {
             <div className="card mb-4">
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart
-                  data={topBowlers.map((b) => ({ name: b.player, wickets: b.wickets })).reverse()}
+                  data={topBowlers.map((b) => ({ name: b.player, wickets: b.wickets }))}
+
                   layout="vertical"
                   margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                 >

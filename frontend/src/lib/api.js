@@ -138,6 +138,7 @@ export const getTopSixes = (season) => fetchAPI('/analytics/top-sixes', { season
 export const getTopFours = (season) => fetchAPI('/analytics/top-fours', { season })
 export const getMostWins = (season) => fetchAPI('/analytics/most-wins', { season })
 export const getTitleWinners = () => fetchAPI('/analytics/title-winners')
+export const getCapWinners = () => fetchAPI('/analytics/cap-winners')
 
 // Pulse — Social Growth Engine
 export const getPulseFeed = (params) => fetchAPI('/pulse/feed', params)

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import SEO from '../components/SEO'
 import { useFetch } from '../hooks/useFetch'
 import {
@@ -10,6 +11,7 @@ import {
   getChaseAnalysis,
   getDismissalTypes,
   getPhaseDominance,
+  getCapWinners,
 } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import {
@@ -189,6 +191,7 @@ export default function Charts() {
   const { data: chaseAnalysis, loading: chaseLoading } = useFetch(() => getChaseAnalysis(season), [season])
   const { data: dismissalTypes, loading: dismissalLoading } = useFetch(() => getDismissalTypes(season), [season])
   const { data: phaseDominance, loading: phaseLoading } = useFetch(() => getPhaseDominance(season), [season])
+  const { data: capWinners, loading: capLoading } = useFetch(() => getCapWinners(), [])
 
   // Prepare matrix data outside render for reveal hooks
   const batMatrixData = (battingMatrix || [])
@@ -755,6 +758,69 @@ export default function Charts() {
           })()}
         </div>
       </section>
+
+      {/* ═══════════════════════════════════════════════════
+          5. ORANGE CAP & PURPLE CAP WINNERS
+          ═══════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Orange Cap */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1 h-6 rounded-full" style={{ background: '#FF8C00' }} />
+            <h2 className="text-xl font-heading font-bold" style={{ color: '#FF8C00' }}>Orange Cap Winners</h2>
+          </div>
+          <div className="card">
+            {capLoading ? <Loading message="Loading Orange Cap..." /> :
+             !capWinners?.orange_cap?.length ? <p className="text-text-muted text-sm py-4 text-center">No data</p> : (
+              <div className="divide-y divide-border-subtle">
+                {[...capWinners.orange_cap].reverse().map((c) => (
+                  <div key={c.season} className="flex items-center justify-between py-2.5 px-1 hover:bg-bg-card/50 transition-colors rounded">
+                    <div className="flex items-center gap-3">
+                      <span className="text-text-muted text-xs font-mono w-14">{c.season}</span>
+                      <Link to={`/batting/${encodeURIComponent(c.player)}`}
+                        className="text-sm font-medium text-accent-cyan hover:text-white hover:underline transition-colors">
+                        {c.player}
+                      </Link>
+                    </div>
+                    <span className="font-mono font-bold text-sm" style={{ color: '#FF8C00' }}>
+                      {c.value.toLocaleString()} runs
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Purple Cap */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1 h-6 rounded-full" style={{ background: '#8B5CF6' }} />
+            <h2 className="text-xl font-heading font-bold" style={{ color: '#8B5CF6' }}>Purple Cap Winners</h2>
+          </div>
+          <div className="card">
+            {capLoading ? <Loading message="Loading Purple Cap..." /> :
+             !capWinners?.purple_cap?.length ? <p className="text-text-muted text-sm py-4 text-center">No data</p> : (
+              <div className="divide-y divide-border-subtle">
+                {[...capWinners.purple_cap].reverse().map((c) => (
+                  <div key={c.season} className="flex items-center justify-between py-2.5 px-1 hover:bg-bg-card/50 transition-colors rounded">
+                    <div className="flex items-center gap-3">
+                      <span className="text-text-muted text-xs font-mono w-14">{c.season}</span>
+                      <Link to={`/bowling/${encodeURIComponent(c.player)}`}
+                        className="text-sm font-medium text-accent-cyan hover:text-white hover:underline transition-colors">
+                        {c.player}
+                      </Link>
+                    </div>
+                    <span className="font-mono font-bold text-sm" style={{ color: '#8B5CF6' }}>
+                      {c.value} wkts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   )
 }
