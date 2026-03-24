@@ -1,7 +1,7 @@
 """Match endpoints: list, detail, scorecards, win probability."""
 
 from fastapi import APIRouter, Query, HTTPException
-from ..database import query, normalize_team, team_variants
+from ..database import query, normalize_team, team_variants, normalize_venue, VENUE_NORM_SQL
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
 
@@ -31,14 +31,25 @@ def list_matches(
         conditions.append(f"(m.team1 IN ({placeholders}) OR m.team2 IN ({placeholders}))")
         params.extend(variants + variants)
     if venue:
-        conditions.append("m.venue = ?")
-        params.append(venue)
+        from ..database import VENUE_NAME_MAP
+        # Find all raw venue names that map to the same canonical venue
+        canonical = normalize_venue(venue)
+        venue_vars = set()
+        for raw, norm in VENUE_NAME_MAP.items():
+            if norm == canonical:
+                venue_vars.add(raw)
+        venue_vars.add(venue)
+        venue_vars.add(canonical)
+        venue_vars = list(venue_vars)
+        vph = ", ".join(["?"] * len(venue_vars))
+        conditions.append(f"m.venue IN ({vph})")
+        params.extend(venue_vars)
 
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
     params.extend([limit, offset])
 
     rows = query(f"""
-        SELECT m.match_id, m.season, m.date, m.city, m.venue,
+        SELECT m.match_id, m.season, m.date, m.city, ({VENUE_NORM_SQL}) AS venue,
                m.team1, m.team2, m.toss_winner, m.toss_decision,
                m.winner, m.win_by_runs, m.win_by_wickets, m.result,
                m.player_of_match
@@ -69,6 +80,8 @@ def match_detail(match_id: str):
     for key in ("team1", "team2", "winner", "toss_winner"):
         if info.get(key):
             info[key] = normalize_team(info[key])
+    if info.get("venue"):
+        info["venue"] = normalize_venue(info["venue"])
 
     # Innings summary
     innings_summary = query("""

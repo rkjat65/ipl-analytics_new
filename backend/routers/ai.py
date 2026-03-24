@@ -96,6 +96,7 @@ IMPORTANT RULES:
 - Player names are full names like 'V Kohli', 'MS Dhoni', 'JJ Bumrah'
 - Team names: 'Chennai Super Kings', 'Mumbai Indians', 'Royal Challengers Bangalore', 'Kolkata Knight Riders', 'Delhi Capitals', 'Punjab Kings', 'Rajasthan Royals', 'Sunrisers Hyderabad', 'Gujarat Titans', 'Lucknow Super Giants'
 - Historical team names also exist: 'Delhi Daredevils', 'Kings XI Punjab', 'Royal Challengers Bengaluru'
+- Venue names have variants (e.g. 'Feroz Shah Kotla', 'Arun Jaitley Stadium', 'Arun Jaitley Stadium, Delhi' are the same ground). When querying by venue, use IN clause with all known variants or use LIKE. Key venues: 'Wankhede Stadium%' (Mumbai), 'Eden Gardens%' (Kolkata), '%Chinnaswamy%' (Bengaluru), '%Arun Jaitley%' OR 'Feroz Shah Kotla' (Delhi), '%Chidambaram%' (Chennai), '%Rajiv Gandhi%' (Hyderabad), '%Narendra Modi%' OR '%Sardar Patel%' (Ahmedabad), '%Bindra%' OR '%Punjab Cricket%Mohali%' (Mohali).
 - Limit results to 20 rows max unless user asks for more.
 - Always add meaningful column aliases.
 - Return ONLY the SQL query, nothing else. No markdown, no explanation.

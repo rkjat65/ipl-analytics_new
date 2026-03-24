@@ -1,7 +1,7 @@
 """Analytics endpoints: KPIs, phase stats, venues, toss impact."""
 
 from fastapi import APIRouter, Query
-from ..database import query, normalize_team
+from ..database import query, normalize_team, VENUE_NORM_SQL
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -100,7 +100,7 @@ def venue_stats(season: str | None = None):
 
     rows = query(f"""
         WITH venue_innings AS (
-            SELECT m.venue, i.innings_number, i.total_runs, i.batting_team, m.winner, m.match_id,
+            SELECT ({VENUE_NORM_SQL}) AS venue, i.innings_number, i.total_runs, i.batting_team, m.winner, m.match_id,
                    m.toss_winner, m.toss_decision
             FROM innings i
             JOIN matches m ON i.match_id = m.match_id
@@ -124,11 +124,11 @@ def venue_stats(season: str | None = None):
     # Top performer per venue
     top_perf = query(f"""
         WITH batter_venue AS (
-            SELECT m.venue, d.batter, SUM(d.runs_batter) AS runs
+            SELECT ({VENUE_NORM_SQL}) AS venue, d.batter, SUM(d.runs_batter) AS runs
             FROM deliveries d
             JOIN matches m ON d.match_id = m.match_id
             WHERE d.is_super_over = false {sf}
-            GROUP BY m.venue, d.batter
+            GROUP BY ({VENUE_NORM_SQL}), d.batter
         ),
         ranked AS (
             SELECT venue, batter, runs,
@@ -153,15 +153,15 @@ def toss_impact(season: str | None = None):
     sf, sp = _season_filter("m", season)
 
     rows = query(f"""
-        SELECT m.venue,
+        SELECT ({VENUE_NORM_SQL}) AS venue,
                m.toss_decision,
                COUNT(*) AS matches,
                SUM(CASE WHEN m.toss_winner = m.winner THEN 1 ELSE 0 END) AS toss_winner_wins,
                ROUND(SUM(CASE WHEN m.toss_winner = m.winner THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS toss_win_pct
         FROM matches m
         WHERE m.result = 'win' {sf}
-        GROUP BY m.venue, m.toss_decision
-        ORDER BY m.venue, m.toss_decision
+        GROUP BY ({VENUE_NORM_SQL}), m.toss_decision
+        ORDER BY venue, m.toss_decision
     """, sp)
     return rows
 
@@ -172,7 +172,7 @@ def top_totals(season: str | None = None):
     rows = query(f"""
         SELECT i.batting_team, i.total_runs, m.match_id, m.date,
                CASE WHEN i.batting_team = m.team1 THEN m.team2 ELSE m.team1 END AS opponent,
-               m.venue
+               ({VENUE_NORM_SQL}) AS venue
         FROM innings i
         JOIN matches m ON i.match_id = m.match_id
         WHERE i.is_super_over = false {sf}

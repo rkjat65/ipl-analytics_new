@@ -29,6 +29,95 @@ def team_variants(name):
             variants.append(old)
     return list(set(variants))
 
+# ── Venue name normalisation ─────────────────────────────────────────
+VENUE_NAME_MAP = {
+    # Arun Jaitley Stadium (formerly Feroz Shah Kotla), Delhi
+    "Feroz Shah Kotla": "Arun Jaitley Stadium, Delhi",
+    "Arun Jaitley Stadium": "Arun Jaitley Stadium, Delhi",
+    "Arun Jaitley Stadium, Delhi": "Arun Jaitley Stadium, Delhi",
+    # M. Chinnaswamy Stadium, Bengaluru
+    "M Chinnaswamy Stadium": "M Chinnaswamy Stadium, Bengaluru",
+    "M.Chinnaswamy Stadium": "M Chinnaswamy Stadium, Bengaluru",
+    "M Chinnaswamy Stadium, Bengaluru": "M Chinnaswamy Stadium, Bengaluru",
+    # Narendra Modi Stadium (formerly Sardar Patel Stadium), Ahmedabad
+    "Sardar Patel Stadium, Motera": "Narendra Modi Stadium, Ahmedabad",
+    "Narendra Modi Stadium, Ahmedabad": "Narendra Modi Stadium, Ahmedabad",
+    # Maharashtra Cricket Association Stadium, Pune
+    "Subrata Roy Sahara Stadium": "Maharashtra Cricket Association Stadium, Pune",
+    "Maharashtra Cricket Association Stadium": "Maharashtra Cricket Association Stadium, Pune",
+    "Maharashtra Cricket Association Stadium, Pune": "Maharashtra Cricket Association Stadium, Pune",
+    # MA Chidambaram Stadium, Chepauk, Chennai
+    "MA Chidambaram Stadium": "MA Chidambaram Stadium, Chennai",
+    "MA Chidambaram Stadium, Chepauk": "MA Chidambaram Stadium, Chennai",
+    "MA Chidambaram Stadium, Chepauk, Chennai": "MA Chidambaram Stadium, Chennai",
+    # Punjab Cricket Association IS Bindra Stadium, Mohali
+    "Punjab Cricket Association IS Bindra Stadium": "IS Bindra Stadium, Mohali",
+    "Punjab Cricket Association IS Bindra Stadium, Mohali": "IS Bindra Stadium, Mohali",
+    "Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh": "IS Bindra Stadium, Mohali",
+    "Punjab Cricket Association Stadium, Mohali": "IS Bindra Stadium, Mohali",
+    # Rajiv Gandhi International Stadium, Hyderabad
+    "Rajiv Gandhi International Stadium": "Rajiv Gandhi International Stadium, Hyderabad",
+    "Rajiv Gandhi International Stadium, Uppal": "Rajiv Gandhi International Stadium, Hyderabad",
+    "Rajiv Gandhi International Stadium, Uppal, Hyderabad": "Rajiv Gandhi International Stadium, Hyderabad",
+    # Wankhede Stadium, Mumbai
+    "Wankhede Stadium": "Wankhede Stadium, Mumbai",
+    "Wankhede Stadium, Mumbai": "Wankhede Stadium, Mumbai",
+    # Eden Gardens, Kolkata
+    "Eden Gardens": "Eden Gardens, Kolkata",
+    "Eden Gardens, Kolkata": "Eden Gardens, Kolkata",
+    # Sawai Mansingh Stadium, Jaipur
+    "Sawai Mansingh Stadium": "Sawai Mansingh Stadium, Jaipur",
+    "Sawai Mansingh Stadium, Jaipur": "Sawai Mansingh Stadium, Jaipur",
+    # Dr DY Patil Sports Academy, Mumbai
+    "Dr DY Patil Sports Academy": "Dr DY Patil Sports Academy, Mumbai",
+    "Dr DY Patil Sports Academy, Mumbai": "Dr DY Patil Sports Academy, Mumbai",
+    # Brabourne Stadium, Mumbai
+    "Brabourne Stadium": "Brabourne Stadium, Mumbai",
+    "Brabourne Stadium, Mumbai": "Brabourne Stadium, Mumbai",
+    # Dubai International Cricket Stadium
+    "Dubai International Cricket Stadium": "Dubai International Cricket Stadium",
+    # Sheikh Zayed Stadium, Abu Dhabi
+    "Sheikh Zayed Stadium": "Sheikh Zayed Stadium, Abu Dhabi",
+    "Zayed Cricket Stadium, Abu Dhabi": "Sheikh Zayed Stadium, Abu Dhabi",
+    # HPCA Stadium, Dharamsala
+    "Himachal Pradesh Cricket Association Stadium": "HPCA Stadium, Dharamsala",
+    "Himachal Pradesh Cricket Association Stadium, Dharamsala": "HPCA Stadium, Dharamsala",
+    # ACA-VDCA Stadium, Visakhapatnam
+    "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium": "ACA-VDCA Stadium, Visakhapatnam",
+    "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium, Visakhapatnam": "ACA-VDCA Stadium, Visakhapatnam",
+    # Ekana Stadium, Lucknow
+    "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow": "Ekana Cricket Stadium, Lucknow",
+    # Mullanpur (keep separate from Mohali)
+    "Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur": "MYSI Cricket Stadium, Mullanpur",
+    "Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh": "MYSI Cricket Stadium, Mullanpur",
+}
+
+
+def normalize_venue(name):
+    """Map venue name variants to a canonical standardized name."""
+    if not name:
+        return name
+    return VENUE_NAME_MAP.get(name, name)
+
+
+# SQL CASE expression for normalizing venue names inside queries.
+# Usage: f"({VENUE_NORM_SQL}) AS venue" in SELECT clauses.
+def _build_venue_norm_sql():
+    # Deduplicate: only entries where key != value
+    cases = []
+    seen = set()
+    for old, new in VENUE_NAME_MAP.items():
+        if old != new and old not in seen:
+            safe_old = old.replace("'", "''")
+            safe_new = new.replace("'", "''")
+            cases.append(f"WHEN venue = '{safe_old}' THEN '{safe_new}'")
+            seen.add(old)
+    return "CASE " + " ".join(cases) + " ELSE venue END"
+
+
+VENUE_NORM_SQL = _build_venue_norm_sql()
+
+
 _local = threading.local()
 
 
