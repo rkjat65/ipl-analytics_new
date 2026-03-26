@@ -202,6 +202,7 @@ export const getLiveStatus = () => fetchAPI('/live/status')
 export const getLiveMatches = () => fetchAPI('/live/matches')
 export const getLiveScorecard = (id) => fetchAPI(`/live/scorecard/${encodeURIComponent(id)}`)
 export const getLiveMatchInfo = (id) => fetchAPI(`/live/info/${encodeURIComponent(id)}`)
+export const getIPLSchedule = () => fetchAPI('/live/schedule')
 
 // Admin
 export const getAdminUsers = (token) => {
