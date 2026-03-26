@@ -197,6 +197,12 @@ export const verifyPayment = (data, token) => {
   })
 }
 
+// Live Scores
+export const getLiveStatus = () => fetchAPI('/live/status')
+export const getLiveMatches = () => fetchAPI('/live/matches')
+export const getLiveScorecard = (id) => fetchAPI(`/live/scorecard/${encodeURIComponent(id)}`)
+export const getLiveMatchInfo = (id) => fetchAPI(`/live/info/${encodeURIComponent(id)}`)
+
 // Admin
 export const getAdminUsers = (token) => {
   return fetch(`${window.location.origin}/api/auth/admin/users`, {

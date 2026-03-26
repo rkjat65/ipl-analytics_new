@@ -23,6 +23,7 @@ import SocialCompose from './pages/SocialCompose'
 import CricketPulse from './pages/CricketPulse'
 import PlayerImpact from './pages/PlayerImpact'
 import Charts from './pages/Charts'
+import LiveScores from './pages/LiveScores'
 import Admin from './pages/Admin'
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/ask" element={<ProtectedRoute><AskCricket /></ProtectedRoute>} />
         <Route path="/social" element={<ProtectedRoute><SocialCompose /></ProtectedRoute>} />
         <Route path="/charts" element={<Charts />} />
+        <Route path="/live" element={<ProtectedRoute><LiveScores /></ProtectedRoute>} />
         <Route path="/pulse" element={<ProtectedRoute><CricketPulse /></ProtectedRoute>} />
         <Route path="/player-impact" element={<ProtectedRoute><PlayerImpact /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
