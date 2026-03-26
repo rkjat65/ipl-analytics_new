@@ -4,8 +4,8 @@ import os
 import sqlite3
 import threading
 
-# Use persistent volume path on Railway, fallback to project root for local dev
-_default_path = os.path.join(os.path.dirname(__file__), "..", "users.db")
+# Use AUTH_DB_PATH env var if set (e.g. Railway volume), else store inside backend dir
+_default_path = os.path.join(os.path.dirname(__file__), "data", "users.db")
 AUTH_DB_PATH = os.environ.get("AUTH_DB_PATH", _default_path)
 _local = threading.local()
 
@@ -13,6 +13,7 @@ _local = threading.local()
 def get_auth_db() -> sqlite3.Connection:
     """Return a thread-local SQLite connection for the auth database."""
     if not hasattr(_local, "auth_conn") or _local.auth_conn is None:
+        os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
         _local.auth_conn = sqlite3.connect(AUTH_DB_PATH)
         _local.auth_conn.row_factory = sqlite3.Row
     return _local.auth_conn
@@ -20,6 +21,7 @@ def get_auth_db() -> sqlite3.Connection:
 
 def init_auth_db():
     """Create auth tables if they don't exist."""
+    os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
     conn = sqlite3.connect(AUTH_DB_PATH)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (

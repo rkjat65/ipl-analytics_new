@@ -19,6 +19,7 @@ frontend/.env
 
 # Auth database (recreated on startup)
 users.db
+backend/data/
 
 # IDE
 .vscode/
