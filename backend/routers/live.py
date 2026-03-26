@@ -8,8 +8,11 @@ from fastapi import APIRouter, HTTPException
 router = APIRouter(prefix="/api/live", tags=["live"])
 
 # ── Config ──────────────────────────────────────────────────────
-CRICAPI_KEY = os.getenv("CRICAPI_KEY", "")
 CRICAPI_BASE = "https://api.cricapi.com/v1"
+
+
+def _get_key():
+    return os.getenv("CRICAPI_KEY", "")
 
 # ── In-memory TTL cache ─────────────────────────────────────────
 _cache: dict[str, tuple[float, object]] = {}
@@ -29,14 +32,15 @@ def _set_cache(key: str, value: object):
 
 
 def _api_available():
-    return bool(CRICAPI_KEY)
+    return bool(_get_key())
 
 
 async def _fetch(endpoint: str, params: dict | None = None):
     """Call CricAPI with API key."""
-    if not _api_available():
+    key = _get_key()
+    if not key:
         raise HTTPException(503, "CricAPI key not configured. Set CRICAPI_KEY in .env")
-    p = {"apikey": CRICAPI_KEY}
+    p = {"apikey": key}
     if params:
         p.update(params)
     async with httpx.AsyncClient(timeout=10) as client:
