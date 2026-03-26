@@ -91,8 +91,233 @@ function ParticleField() {
   )
 }
 
-// ── Showcase card with animated screenshot ──────────────────────────
-function ShowcaseCard({ title, description, gradient, features, delay }) {
+// ── Mini UI Mockups for showcase cards ──────────────────────────────
+
+function MockDashboard({ animate }) {
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+      {/* KPI row */}
+      <div className="grid grid-cols-4 gap-1.5 mb-3">
+        {[
+          { label: 'Matches', val: '1,169', c: '#00E5FF' },
+          { label: 'Runs', val: '3,73,973', c: '#FF2D78' },
+          { label: 'Wickets', val: '13,794', c: '#B8FF00' },
+          { label: 'Sixes', val: '14,243', c: '#FFB800' },
+        ].map((k, i) => (
+          <div key={i} className="bg-white/[0.03] rounded p-1.5 text-center" style={{ animationDelay: `${i * 150}ms` }}>
+            <div className="text-[8px] uppercase tracking-wider" style={{ color: k.c }}>{k.label}</div>
+            <div className={`text-[10px] font-bold text-white font-mono ${animate ? 'animate-pulse' : ''}`}>{k.val}</div>
+          </div>
+        ))}
+      </div>
+      {/* Chart mockup */}
+      <div className="h-16 flex items-end gap-[3px]">
+        {[40, 65, 55, 80, 70, 90, 60, 75, 85, 50, 95, 70].map((h, i) => (
+          <div key={i} className="flex-1 rounded-t transition-all duration-1000"
+            style={{
+              height: animate ? `${h}%` : '4px',
+              background: `linear-gradient(to top, #00E5FF${i % 2 ? '40' : '80'}, #00E5FF10)`,
+              transitionDelay: `${i * 80}ms`,
+            }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MockLiveScores({ animate }) {
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+      {/* Match cards */}
+      {[
+        { t1: 'CSK', t2: 'MI', s1: '185/4', s2: '142/8', status: 'CSK won by 43 runs', live: false },
+        { t1: 'RCB', t2: 'SRH', s1: '108/3', s2: '', status: 'In Progress', live: true },
+      ].map((m, i) => (
+        <div key={i} className={`rounded-lg p-2 mb-2 border transition-all duration-700 ${
+          m.live ? 'border-[#FF2D78]/30 bg-[#FF2D78]/5' : 'border-white/[0.04] bg-white/[0.02]'
+        }`} style={{ opacity: animate ? 1 : 0, transform: animate ? 'translateX(0)' : 'translateX(-20px)', transitionDelay: `${i * 200}ms` }}>
+          {m.live && <div className="flex items-center gap-1 mb-1"><span className="w-1.5 h-1.5 rounded-full bg-[#FF2D78] animate-pulse" /><span className="text-[7px] font-bold text-[#FF2D78] uppercase">Live</span></div>}
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] font-bold text-white">{m.t1}</span>
+            <span className="text-[8px] font-mono text-[#00E5FF]">{m.s1}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] font-bold text-white">{m.t2}</span>
+            <span className="text-[8px] font-mono text-[#00E5FF]">{m.s2 || '—'}</span>
+          </div>
+          <div className="text-[7px] text-white/40 mt-1">{m.status}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MockAIChat({ animate }) {
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+      <div className="flex items-center gap-1.5 mb-2">
+        <div className="w-4 h-4 rounded bg-[#B8FF00]/20 flex items-center justify-center"><span className="text-[6px] text-[#B8FF00]">AI</span></div>
+        <span className="text-[8px] text-white/60 font-mono">Ask Cricket AI</span>
+      </div>
+      <div className={`bg-white/[0.03] rounded p-2 mb-2 border border-white/[0.04] transition-all duration-500 ${animate ? 'opacity-100' : 'opacity-0'}`}>
+        <span className="text-[8px] text-white/80">Who hit most sixes in IPL 2023?</span>
+      </div>
+      <div className={`bg-[#B8FF00]/5 rounded p-2 border border-[#B8FF00]/10 transition-all duration-700 ${animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ transitionDelay: '400ms' }}>
+        <span className="text-[7px] text-[#B8FF00]">AI Response</span>
+        <div className="mt-1 space-y-0.5">
+          {['1. F du Plessis — 37', '2. SA Yadav — 35', '3. HH Pandya — 30'].map((r, i) => (
+            <div key={i} className="text-[7px] text-white/70 font-mono">{r}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MockContentStudio({ animate }) {
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+      <div className="flex gap-2">
+        {/* Left config panel */}
+        <div className="w-1/3 space-y-1.5">
+          <div className="text-[7px] text-white/40 uppercase">Template</div>
+          <div className="flex gap-1">
+            {['Stats', 'H2H'].map((t, i) => (
+              <div key={i} className={`text-[6px] px-1.5 py-0.5 rounded ${i === 0 ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-white/[0.04] text-white/30'}`}>{t}</div>
+            ))}
+          </div>
+          <div className="text-[7px] text-white/40 uppercase mt-1">Format</div>
+          <div className="flex gap-1">
+            {['16:9', '1:1', '9:16'].map((f, i) => (
+              <div key={i} className={`text-[5px] px-1 py-0.5 rounded ${i === 0 ? 'bg-[#FFB800]/20 text-[#FFB800]' : 'bg-white/[0.04] text-white/30'}`}>{f}</div>
+            ))}
+          </div>
+        </div>
+        {/* Right preview */}
+        <div className={`flex-1 bg-[#111118] rounded border border-white/[0.06] p-2 transition-all duration-700 ${animate ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
+          <div className="text-[6px] text-[#00E5FF] uppercase mb-1">Batting Stats</div>
+          <div className="text-[9px] font-bold text-white mb-1">V Kohli</div>
+          <div className="grid grid-cols-3 gap-1">
+            {[{ l: 'Mat', v: '259' }, { l: 'Runs', v: '8,661' }, { l: 'SR', v: '133' }].map((s, i) => (
+              <div key={i} className="bg-white/[0.04] rounded p-0.5 text-center">
+                <div className="text-[5px] text-[#FF2D78]">{s.l}</div>
+                <div className="text-[7px] font-bold text-white font-mono">{s.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MockVenueMap({ animate }) {
+  // Simplified India outline with venue dots
+  const venues = [
+    { x: 25, y: 30, name: 'Delhi', size: 4 },
+    { x: 72, y: 72, name: 'Kolkata', size: 5 },
+    { x: 22, y: 55, name: 'Mumbai', size: 6 },
+    { x: 38, y: 78, name: 'Bengaluru', size: 5 },
+    { x: 35, y: 70, name: 'Hyderabad', size: 4 },
+    { x: 42, y: 85, name: 'Chennai', size: 5 },
+    { x: 30, y: 45, name: 'Ahmedabad', size: 4 },
+    { x: 52, y: 22, name: 'Chandigarh', size: 3 },
+  ]
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06] relative overflow-hidden" style={{ height: 120 }}>
+      {/* Map background shape */}
+      <svg viewBox="0 0 100 100" className="absolute inset-2 opacity-10" fill="none" stroke="#00E5FF" strokeWidth="0.5">
+        <path d="M45,5 L55,8 L65,15 L70,25 L72,35 L75,50 L70,65 L60,80 L50,90 L45,95 L35,85 L25,75 L20,60 L18,45 L20,30 L25,20 L35,10 Z" />
+      </svg>
+      {/* Venue dots */}
+      {venues.map((v, i) => (
+        <div key={i} className="absolute transition-all duration-500"
+          style={{
+            left: `${v.x}%`, top: `${v.y}%`,
+            opacity: animate ? 1 : 0,
+            transform: animate ? 'scale(1)' : 'scale(0)',
+            transitionDelay: `${i * 120}ms`,
+          }}>
+          <div className="relative">
+            <div className="rounded-full bg-[#B8FF00] animate-ping absolute inset-0 opacity-20" style={{ width: v.size * 2, height: v.size * 2 }} />
+            <div className="rounded-full bg-[#B8FF00]" style={{ width: v.size * 2, height: v.size * 2 }} />
+            <span className="absolute left-3 top-[-2px] text-[5px] text-white/60 whitespace-nowrap">{v.name}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MockCapTracker({ animate }) {
+  const caps = [
+    { season: '2024', orange: 'V Kohli', runs: '741', purple: 'H Patel', wkts: '24' },
+    { season: '2023', orange: 'S Gill', runs: '890', purple: 'M Shami', wkts: '28' },
+    { season: '2022', orange: 'J Buttler', runs: '863', purple: 'YS Chahal', wkts: '27' },
+  ]
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+      <div className="flex gap-3">
+        {/* Orange Cap */}
+        <div className="flex-1">
+          <div className="flex items-center gap-1 mb-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm bg-[#FFB800]" />
+            <span className="text-[7px] font-bold text-[#FFB800] uppercase">Orange Cap</span>
+          </div>
+          {caps.map((c, i) => (
+            <div key={i} className={`flex justify-between items-center py-0.5 border-b border-white/[0.03] transition-all duration-500 ${animate ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`}
+              style={{ transitionDelay: `${i * 150}ms` }}>
+              <div><span className="text-[6px] text-white/30 mr-1">{c.season}</span><span className="text-[7px] text-white">{c.orange}</span></div>
+              <span className="text-[7px] font-mono text-[#FFB800]">{c.runs}</span>
+            </div>
+          ))}
+        </div>
+        {/* Purple Cap */}
+        <div className="flex-1">
+          <div className="flex items-center gap-1 mb-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm bg-[#8B5CF6]" />
+            <span className="text-[7px] font-bold text-[#8B5CF6] uppercase">Purple Cap</span>
+          </div>
+          {caps.map((c, i) => (
+            <div key={i} className={`flex justify-between items-center py-0.5 border-b border-white/[0.03] transition-all duration-500 ${animate ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`}
+              style={{ transitionDelay: `${i * 150}ms` }}>
+              <div><span className="text-[6px] text-white/30 mr-1">{c.season}</span><span className="text-[7px] text-white">{c.purple}</span></div>
+              <span className="text-[7px] font-mono text-[#8B5CF6]">{c.wkts}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MockPointsTable({ animate }) {
+  const teams = [
+    { name: 'CSK', w: 10, l: 4, pts: 20, c: '#FFB800' },
+    { name: 'GT', w: 9, l: 5, pts: 18, c: '#1C3F6E' },
+    { name: 'MI', w: 8, l: 6, pts: 16, c: '#004BA0' },
+    { name: 'RCB', w: 7, l: 7, pts: 14, c: '#E3262A' },
+  ]
+  return (
+    <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+      <div className="text-[7px] text-white/40 uppercase mb-1.5">Points Table — IPL 2024</div>
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 gap-y-1 text-[7px]">
+        <div className="text-white/30">Team</div><div className="text-white/30">W</div><div className="text-white/30">L</div><div className="text-white/30">Pts</div>
+        {teams.map((t, i) => (
+          <div key={i} className={`contents transition-all duration-500 ${animate ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: `${i * 120}ms` }}>
+            <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full" style={{ background: t.c }} /><span className="text-white font-medium">{t.name}</span></div>
+            <div className="text-[#B8FF00] font-mono text-center">{t.w}</div>
+            <div className="text-[#FF2D78] font-mono text-center">{t.l}</div>
+            <div className="text-[#00E5FF] font-mono font-bold text-center">{t.pts}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Showcase card with visual mockup ────────────────────────────────
+function ShowcaseCard({ title, description, gradient, features, delay, mockup }) {
   const ref = useRef(null)
   const [visible, setVisible] = useState(false)
 
@@ -108,20 +333,28 @@ function ShowcaseCard({ title, description, gradient, features, delay }) {
   return (
     <div
       ref={ref}
-      className={`relative rounded-2xl border border-white/[0.06] bg-[#111118] overflow-hidden transition-all duration-700 ${
+      className={`group relative rounded-2xl border border-white/[0.06] bg-[#111118] overflow-hidden transition-all duration-700 hover:border-white/[0.12] ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
       }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {/* Gradient top bar */}
       <div className={`h-1 bg-gradient-to-r ${gradient}`} />
-      <div className="p-6 sm:p-8">
-        <h3 className="font-heading font-bold text-xl text-text-primary mb-2">{title}</h3>
-        <p className="text-text-secondary text-sm mb-5 leading-relaxed">{description}</p>
-        <ul className="space-y-2">
+
+      {/* Visual mockup */}
+      {mockup && (
+        <div className="px-4 pt-4 transition-transform duration-500 group-hover:scale-[1.02]">
+          {mockup(visible)}
+        </div>
+      )}
+
+      <div className="p-5 sm:p-6">
+        <h3 className="font-heading font-bold text-lg text-text-primary mb-2">{title}</h3>
+        <p className="text-text-secondary text-sm mb-4 leading-relaxed">{description}</p>
+        <ul className="space-y-1.5">
           {features.map((f, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-text-secondary">
-              <svg className="w-4 h-4 text-[#00E5FF] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
+              <svg className="w-3.5 h-3.5 text-[#00E5FF] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               {f}
@@ -373,33 +606,62 @@ export default function Landing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <ShowcaseCard
               delay={0}
-              title="Innings DNA & Six Evolution"
-              description="Animated area charts that draw in real-time, perfect for recording screen captures."
+              title="Interactive Dashboard"
+              description="Real-time KPIs, leaderboards, and animated trend charts in one glance."
               gradient="from-[#00E5FF] to-[#00E5FF]/50"
+              mockup={(vis) => <MockDashboard animate={vis} />}
               features={[
-                'Slow-draw animation with replay button',
-                'Zoom in/out controls with data overlays',
-                'Avg runs per over across 1-20 with powerplay markers',
-                'Sixes per match evolution across all seasons',
+                'Animated counters for matches, runs, wickets, sixes',
+                'Season-filterable bar charts and leaderboards',
+                'Top batters, bowlers, and team win charts',
+                'Downloadable chart images for sharing',
               ]}
             />
             <ShowcaseCard
               delay={100}
-              title="Batting & Bowling Matrix"
-              description="Scatter plot impact analysis with player avatar bubbles and one-by-one reveal animations."
+              title="Live Scores & Schedule"
+              description="Real-time scores via CricAPI with IPL 2026 complete schedule and countdown."
               gradient="from-[#FF2D78] to-[#FF2D78]/50"
+              mockup={(vis) => <MockLiveScores animate={vis} />}
               features={[
-                'Strike Rate vs Average scatter with player images',
-                'Economy vs Bowling Avg impact quadrants',
-                'Animated player reveal with zoom controls',
-                'Season filtering across all matrix views',
+                'Live match scores with auto-refresh every 15 min',
+                'IPL 2026 full 70-match schedule with team filter',
+                'Countdown timer to next upcoming match',
+                'IPL matches highlighted and sorted first',
               ]}
             />
             <ShowcaseCard
               delay={200}
+              title="Ask Cricket AI"
+              description="Natural language queries powered by Gemini AI with instant chart responses."
+              gradient="from-[#B8FF00] to-[#B8FF00]/50"
+              mockup={(vis) => <MockAIChat animate={vis} />}
+              features={[
+                'Ask any question in plain English',
+                'Context-aware SQL generation from your data',
+                'Instant table and chart rendering',
+                'Powered by Gemini AI model',
+              ]}
+            />
+            <ShowcaseCard
+              delay={300}
+              title="Content Studio"
+              description="Generate share-ready stat cards in branded templates for social media."
+              gradient="from-[#FFB800] to-[#FFB800]/50"
+              mockup={(vis) => <MockContentStudio animate={vis} />}
+              features={[
+                'Player stats, match summary, comparison templates',
+                'Twitter, Instagram, LinkedIn, Portrait formats',
+                'Download PNG or copy to clipboard',
+                'AI-generated captions for each platform',
+              ]}
+            />
+            <ShowcaseCard
+              delay={400}
               title="Orange & Purple Cap Tracker"
-              description="Complete season-by-season cap winners list with clickable player profiles."
+              description="Season-by-season cap winners with clickable player profiles."
               gradient="from-[#FFB800] to-[#8B5CF6]"
+              mockup={(vis) => <MockCapTracker animate={vis} />}
               features={[
                 'Most runs scorer per season (Orange Cap)',
                 'Most wickets taker per season (Purple Cap)',
@@ -408,34 +670,88 @@ export default function Landing() {
               ]}
             />
             <ShowcaseCard
-              delay={300}
+              delay={500}
               title="Interactive Venue Map"
-              description="India map with all IPL grounds plotted as clickable markers with match counts."
+              description="India map with all IPL grounds plotted as animated, clickable markers."
               gradient="from-[#B8FF00] to-[#B8FF00]/50"
+              mockup={(vis) => <MockVenueMap animate={vis} />}
               features={[
                 'Zoomable India map with venue markers',
                 'Click any ground to see venue profile',
-                'Multi-venue city navigation (top venue auto-select)',
+                'Multi-venue city auto-navigation',
                 '30+ venue name normalizations for clean data',
               ]}
             />
             <ShowcaseCard
-              delay={400}
-              title="Season Explorer"
-              description="Points table, results, and performance deep-dive for every IPL season since 2008."
+              delay={600}
+              title="Season Explorer & Points Table"
+              description="Full season breakdown with points table, cap races, and team stats."
               gradient="from-[#00E5FF] to-[#FF2D78]"
+              mockup={(vis) => <MockPointsTable animate={vis} />}
               features={[
                 'Points table with super over resolution',
                 'Cap race charts with cumulative match data',
-                'Season summary with key stats and milestones',
-                'Team season breakdowns with W/L/T/NR tracking',
+                'Team breakdowns with W/L/T/NR tracking',
+                'Every season from 2008 to present',
               ]}
             />
             <ShowcaseCard
-              delay={500}
+              delay={700}
+              title="Batting & Bowling Matrix"
+              description="Scatter plot impact analysis with player avatars and animated reveal."
+              gradient="from-[#FF2D78] to-[#00E5FF]"
+              mockup={(vis) => (
+                <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06] h-[120px] relative overflow-hidden">
+                  {/* Quadrant lines */}
+                  <div className="absolute left-1/2 top-2 bottom-2 w-px bg-white/[0.06]" />
+                  <div className="absolute top-1/2 left-2 right-2 h-px bg-white/[0.06]" />
+                  <div className="absolute top-1 right-2 text-[5px] text-[#B8FF00]/60">High SR</div>
+                  <div className="absolute bottom-1 left-2 text-[5px] text-[#FF2D78]/60">Low SR</div>
+                  {/* Player dots */}
+                  {[
+                    { x: 70, y: 20, c: '#00E5FF', n: 'VK' },
+                    { x: 80, y: 30, c: '#FF2D78', n: 'AB' },
+                    { x: 60, y: 25, c: '#B8FF00', n: 'RS' },
+                    { x: 45, y: 40, c: '#FFB800', n: 'MS' },
+                    { x: 30, y: 60, c: '#8B5CF6', n: 'KL' },
+                    { x: 75, y: 45, c: '#00E5FF', n: 'HP' },
+                  ].map((p, i) => (
+                    <div key={i} className="absolute transition-all duration-700"
+                      style={{ left: `${p.x}%`, top: `${p.y}%`, opacity: vis ? 1 : 0, transform: vis ? 'scale(1)' : 'scale(0)', transitionDelay: `${i * 150}ms` }}>
+                      <div className="w-4 h-4 rounded-full border flex items-center justify-center" style={{ background: `${p.c}30`, borderColor: `${p.c}60` }}>
+                        <span className="text-[5px] font-bold text-white">{p.n}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              features={[
+                'Strike Rate vs Average with player images',
+                'Economy vs Bowling Avg impact quadrants',
+                'Animated one-by-one player reveal',
+                'Zoom in/out and data overlays',
+              ]}
+            />
+            <ShowcaseCard
+              delay={800}
               title="Cricket Pulse & Trends"
               description="AI-generated trending stories, on-this-day moments, and social content."
               gradient="from-[#8B5CF6] to-[#FF2D78]"
+              mockup={(vis) => (
+                <div className="bg-[#0A0A0F] rounded-lg p-3 border border-white/[0.06]">
+                  {[
+                    { tag: 'ON THIS DAY', text: 'Sachin scored his only IPL century (2012)', c: '#FFB800' },
+                    { tag: 'TRENDING', text: 'Most expensive over in IPL history', c: '#FF2D78' },
+                    { tag: 'RECORD', text: 'Fastest fifty: 14 balls by KL Rahul', c: '#B8FF00' },
+                  ].map((s, i) => (
+                    <div key={i} className={`mb-1.5 p-1.5 rounded bg-white/[0.02] border border-white/[0.04] transition-all duration-500 ${vis ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-6'}`}
+                      style={{ transitionDelay: `${i * 200}ms` }}>
+                      <span className="text-[6px] font-bold uppercase tracking-wider" style={{ color: s.c }}>{s.tag}</span>
+                      <div className="text-[8px] text-white/80 mt-0.5">{s.text}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
               features={[
                 'On-this-day historical IPL moments',
                 'Trending stat highlights auto-generated',
