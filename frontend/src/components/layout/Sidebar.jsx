@@ -217,9 +217,9 @@ export default function Sidebar({ open, onToggle }) {
         <div className="h-14 flex items-center px-4 border-b border-border-subtle gap-3">
           <button
             onClick={onToggle}
-            className="text-accent-cyan font-heading font-bold text-lg tracking-tight shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-accent-cyan/10 border border-accent-cyan/20 hover:bg-accent-cyan/20 transition-colors"
+            className="shrink-0 w-8 h-8 rounded-lg overflow-hidden hover:ring-2 hover:ring-accent-cyan/30 transition-all"
           >
-            C
+            <img src="/logo.png" alt="Crickrida" className="w-full h-full object-cover" />
           </button>
           {open && (
             <div className="overflow-hidden">

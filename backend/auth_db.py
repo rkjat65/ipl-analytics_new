@@ -4,7 +4,9 @@ import os
 import sqlite3
 import threading
 
-AUTH_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "users.db")
+# Use persistent volume path on Railway, fallback to project root for local dev
+_default_path = os.path.join(os.path.dirname(__file__), "..", "users.db")
+AUTH_DB_PATH = os.environ.get("AUTH_DB_PATH", _default_path)
 _local = threading.local()
 
 
