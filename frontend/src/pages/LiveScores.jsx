@@ -412,10 +412,11 @@ function IPLScheduleView() {
         <select
           value={teamFilter}
           onChange={e => setTeamFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-xs bg-surface-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent-cyan"
+          className="px-3 py-1.5 rounded-lg text-xs bg-surface-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent-cyan appearance-none pr-8"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2300E5FF' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
         >
-          <option value="all">All Teams</option>
-          {teams.map(t => <option key={t} value={t}>{t}</option>)}
+          <option value="all" className="bg-[#111118] text-white">All Teams</option>
+          {teams.map(t => <option key={t} value={t} className="bg-[#111118] text-white">{t}</option>)}
         </select>
         {teamFilter !== 'all' && (
           <span className="text-xs text-text-secondary">

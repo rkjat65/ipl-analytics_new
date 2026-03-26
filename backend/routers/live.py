@@ -288,9 +288,9 @@ def ipl_schedule():
         else:
             status = "upcoming"
             if next_match is None:
-                next_match = {**m, "dateTimeGMT": utc_dt.isoformat() + "Z", "status": status}
+                next_match = {**m, "dateTimeGMT": utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), "status": status}
 
-        matches.append({**m, "dateTimeGMT": utc_dt.isoformat() + "Z", "status": status})
+        matches.append({**m, "dateTimeGMT": utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), "status": status})
 
     return {
         "season": "IPL 2026",
