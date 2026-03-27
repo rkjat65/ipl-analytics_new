@@ -35,20 +35,7 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
             FROM resolved
         """, v * 5)[0]
 
-    def _batting_stats(team):
-        v = team_variants(team)
-        ph = ", ".join(["?"] * len(v))
-        return query(f"""
-            SELECT
-                ROUND(AVG(total_runs), 2) AS avg_score,
-                MAX(total_runs) AS highest_total,
-                MIN(total_runs) AS lowest_total
-            FROM innings
-            WHERE batting_team IN ({ph}) AND is_super_over = false
-        """, v)[0]
-
     s1, s2 = _team_stats(team1), _team_stats(team2)
-    b1, b2 = _batting_stats(team1), _batting_stats(team2)
 
     v1, v2 = team_variants(team1), team_variants(team2)
     ph1, ph2 = ", ".join(["?"] * len(v1)), ", ".join(["?"] * len(v2))
@@ -56,6 +43,23 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
     # H2H match filter condition (reused across queries)
     h2h_where = f"(team1 IN ({ph1}) AND team2 IN ({ph2})) OR (team1 IN ({ph2}) AND team2 IN ({ph1}))"
     h2h_params = v1 + v2 + v2 + v1
+
+    # H2H batting stats (avg/highest/lowest only from H2H matches)
+    def _h2h_batting(team_v, team_ph):
+        return query(f"""
+            SELECT
+                ROUND(AVG(i.total_runs), 2) AS avg_score,
+                MAX(i.total_runs) AS highest_total,
+                MIN(i.total_runs) AS lowest_total
+            FROM innings i
+            JOIN matches m ON i.match_id = m.match_id
+            WHERE i.batting_team IN ({team_ph})
+              AND i.is_super_over = false
+              AND ({h2h_where})
+        """, team_v + h2h_params)[0]
+
+    b1 = _h2h_batting(v1, ph1)
+    b2 = _h2h_batting(v2, ph2)
 
     # Overall H2H record (with super over resolution)
     h2h = query(f"""

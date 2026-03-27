@@ -3,20 +3,31 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
-export default function Layout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const location = useLocation()
-  const [initialLoad, setInitialLoad] = useState(true)
-
-  // Auto-collapse sidebar when navigating to any page (except first load)
+function useIsDesktop() {
+  const [desktop, setDesktop] = useState(() => window.innerWidth >= 1024)
   useEffect(() => {
-    if (initialLoad) {
-      setInitialLoad(false)
-      return
-    }
-    // Collapse on navigation (desktop keeps collapsed, mobile always closes)
-    setSidebarOpen(false)
-  }, [location.pathname])
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const handler = (e) => setDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return desktop
+}
+
+export default function Layout({ children }) {
+  const isDesktop = useIsDesktop()
+  const [sidebarOpen, setSidebarOpen] = useState(isDesktop)
+  const location = useLocation()
+
+  // On mobile, close sidebar when navigating. Desktop stays as-is.
+  useEffect(() => {
+    if (!isDesktop) setSidebarOpen(false)
+  }, [location.pathname, isDesktop])
+
+  // When switching between mobile/desktop, set appropriate default
+  useEffect(() => {
+    setSidebarOpen(isDesktop)
+  }, [isDesktop])
 
   const handleToggle = useCallback(() => setSidebarOpen(o => !o), [])
 
