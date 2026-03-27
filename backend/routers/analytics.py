@@ -38,14 +38,14 @@ def dashboard_kpis(season: str | None = None):
         SELECT ROUND(AVG(i.total_runs), 2) AS avg_score
         FROM innings i
         JOIN matches m ON i.match_id = m.match_id
-        WHERE i.is_super_over = false {sf_m}
+        WHERE i.is_super_over = false AND m.result != 'no result' {sf_m}
     """, sp_m[:])
 
     highest = query(f"""
         SELECT i.batting_team, i.total_runs, m.match_id, m.date
         FROM innings i
         JOIN matches m ON i.match_id = m.match_id
-        WHERE i.is_super_over = false {sf_m}
+        WHERE i.is_super_over = false AND m.result != 'no result' {sf_m}
         ORDER BY i.total_runs DESC
         LIMIT 1
     """, sp_m[:])
@@ -317,9 +317,11 @@ def six_evolution():
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         JOIN (
-            SELECT match_id, AVG(total_runs) AS avg_total
-            FROM innings WHERE is_super_over = false
-            GROUP BY match_id
+            SELECT i.match_id, AVG(i.total_runs) AS avg_total
+            FROM innings i
+            JOIN matches m ON i.match_id = m.match_id
+            WHERE i.is_super_over = false AND m.result != 'no result'
+            GROUP BY i.match_id
         ) i_avg ON d.match_id = i_avg.match_id
         WHERE d.is_super_over = false
         GROUP BY m.season

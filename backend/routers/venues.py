@@ -45,6 +45,7 @@ def venue_stats(venue_name: str):
             FROM matches m
             JOIN innings i ON m.match_id = i.match_id
             WHERE m.venue IN ({ph}) AND i.is_super_over = false
+              AND m.result != 'no result'
         )
         SELECT
             COUNT(DISTINCT match_id) AS matches,

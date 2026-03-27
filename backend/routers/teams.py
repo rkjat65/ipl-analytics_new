@@ -55,6 +55,7 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
             JOIN matches m ON i.match_id = m.match_id
             WHERE i.batting_team IN ({team_ph})
               AND i.is_super_over = false
+              AND m.result != 'no result'
               AND ({h2h_where})
         """, team_v + h2h_params)[0]
 
@@ -271,9 +272,11 @@ def team_stats(name: str):
     """, variants)
 
     avg_score = query(f"""
-        SELECT ROUND(AVG(total_runs), 2) AS avg_score
-        FROM innings
-        WHERE batting_team IN ({ph}) AND is_super_over = false
+        SELECT ROUND(AVG(i.total_runs), 2) AS avg_score
+        FROM innings i
+        JOIN matches m ON i.match_id = m.match_id
+        WHERE i.batting_team IN ({ph}) AND i.is_super_over = false
+          AND m.result != 'no result'
     """, variants)
 
     result = stats[0] if stats else {}
