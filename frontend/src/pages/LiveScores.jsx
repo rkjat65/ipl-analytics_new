@@ -422,6 +422,37 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             {scorecard.status}
           </p>
 
+          {/* Runs needed in balls — shown only during 2nd innings chase */}
+          {(() => {
+            if (!isLive) return null
+            const scores = scorecard.score || []
+            if (scores.length < 2) return null
+            const firstInnings = scores.find(s => (s.inningNumber || 1) === 1)
+            const secondInnings = scores.find(s => (s.inningNumber || s.inning || 2) === 2) || scores[1]
+            if (!firstInnings || !secondInnings) return null
+            const targetRuns = (firstInnings.r ?? 0) + 1
+            const currentRuns = secondInnings.r ?? 0
+            const runsNeeded = targetRuns - currentRuns
+            if (runsNeeded <= 0) return null
+            const oversFloat = parseFloat(secondInnings.o || 0)
+            const completedOvers = Math.floor(oversFloat)
+            const ballsInOver = Math.round((oversFloat - completedOvers) * 10)
+            const totalBallsBowled = completedOvers * 6 + ballsInOver
+            const ballsRemaining = 120 - totalBallsBowled
+            if (ballsRemaining <= 0) return null
+            const rrr = (runsNeeded / (ballsRemaining / 6)).toFixed(2)
+            return (
+              <div className="mt-2 flex items-center justify-center gap-3 text-sm">
+                <span className="px-3 py-1 rounded-full bg-accent-amber/10 border border-accent-amber/30 text-accent-amber font-bold">
+                  Need {runsNeeded} run{runsNeeded !== 1 ? 's' : ''} in {ballsRemaining} ball{ballsRemaining !== 1 ? 's' : ''}
+                </span>
+                <span className="text-text-muted">
+                  RRR: <span className="text-accent-amber font-mono font-bold">{rrr}</span>
+                </span>
+              </div>
+            )
+          })()}
+
           {/* Active players inline */}
           {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
             <ActivePlayersInline scorecard={scorecard} playerLookup={playerLookup} />
