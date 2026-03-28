@@ -36,28 +36,28 @@ export default function App() {
       {/* App routes (with sidebar/header layout) */}
       <Route element={<Layout />}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/matches" element={<ProtectedRoute><Matches /></ProtectedRoute>} />
-        <Route path="/matches/:matchId" element={<ProtectedRoute><MatchDetail /></ProtectedRoute>} />
-        <Route path="/batting" element={<ProtectedRoute><BattingRecords /></ProtectedRoute>} />
-        <Route path="/batting/compare" element={<ProtectedRoute><BattingCompare /></ProtectedRoute>} />
-        <Route path="/batting/:playerName" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
-        <Route path="/bowling" element={<ProtectedRoute><BowlingRecords /></ProtectedRoute>} />
-        <Route path="/bowling/:playerName" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
-        <Route path="/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
-        <Route path="/teams/:teamName" element={<ProtectedRoute><TeamProfile /></ProtectedRoute>} />
-        <Route path="/venues" element={<ProtectedRoute><Venues /></ProtectedRoute>} />
-        <Route path="/venues/:venueName" element={<ProtectedRoute><VenueProfile /></ProtectedRoute>} />
-        <Route path="/seasons" element={<ProtectedRoute><Seasons /></ProtectedRoute>} />
-        <Route path="/seasons/:year" element={<ProtectedRoute><Seasons /></ProtectedRoute>} />
-        <Route path="/players/:playerName" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
-        <Route path="/h2h" element={<ProtectedRoute><HeadToHead /></ProtectedRoute>} />
-        <Route path="/content-studio" element={<ProtectedRoute><ContentStudio /></ProtectedRoute>} />
+        <Route path="/matches" element={<Matches />} />
+        <Route path="/matches/:matchId" element={<MatchDetail />} />
+        <Route path="/batting" element={<BattingRecords />} />
+        <Route path="/batting/compare" element={<BattingCompare />} />
+        <Route path="/batting/:playerName" element={<PlayerProfile />} />
+        <Route path="/bowling" element={<BowlingRecords />} />
+        <Route path="/bowling/:playerName" element={<PlayerProfile />} />
+        <Route path="/teams" element={<Teams />} />
+        <Route path="/teams/:teamName" element={<TeamProfile />} />
+        <Route path="/venues" element={<Venues />} />
+        <Route path="/venues/:venueName" element={<VenueProfile />} />
+        <Route path="/seasons" element={<Seasons />} />
+        <Route path="/seasons/:year" element={<Seasons />} />
+        <Route path="/players/:playerName" element={<PlayerProfile />} />
+        <Route path="/h2h" element={<HeadToHead />} />
+        <Route path="/content-studio" element={<ContentStudio />} />
         <Route path="/ask" element={<ProtectedRoute><AskCricket /></ProtectedRoute>} />
-        <Route path="/social" element={<ProtectedRoute><SocialCompose /></ProtectedRoute>} />
+        <Route path="/social" element={<SocialCompose />} />
         <Route path="/charts" element={<Charts />} />
         <Route path="/live" element={<LiveScores />} />
-        <Route path="/pulse" element={<ProtectedRoute><CricketPulse /></ProtectedRoute>} />
-        <Route path="/player-impact" element={<ProtectedRoute><PlayerImpact /></ProtectedRoute>} />
+        <Route path="/pulse" element={<CricketPulse />} />
+        <Route path="/player-impact" element={<PlayerImpact />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/about" element={<About />} />
       </Route>

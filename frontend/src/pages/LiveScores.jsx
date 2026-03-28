@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -17,7 +17,7 @@ import PlayerAvatar from '../components/ui/PlayerAvatar'
 import Loading from '../components/ui/Loading'
 import SEO from '../components/SEO'
 
-const POLL_INTERVAL = 30_000
+const POLL_INTERVAL = 3_000
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -91,9 +91,10 @@ function LiveScoreHero({ match, onClick, isSelected }) {
 
   const getScoreForTeam = (teamIdx) => {
     const teamName = (teams[teamIdx] || '').toLowerCase()
-    return scores[teamIdx] || scores.find(s => {
-      const inn = (s.inning || '').toLowerCase()
-      return inn === teamName || inn.includes(teamName.split(' ')[0])
+    const teamFirst = teamName.split(' ')[0]
+    return scores.find(s => {
+      const t = (s.team || s.inning || '').toLowerCase()
+      return t === teamName || t.startsWith(teamName) || t.includes(teamFirst)
     })
   }
 
@@ -230,8 +231,21 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
   if (!scorecard) return null
 
   const isLive = scorecard.matchStarted && !scorecard.matchEnded
-  const teams = scorecard.teams || []
-  const teamInfo = scorecard.teamInfo || []
+  const rawTeams = scorecard.teams || []
+  const rawTeamInfo = scorecard.teamInfo || []
+
+  const firstInnings = (scorecard.scorecard || [])[0]
+  const battingTeamName = firstInnings?.inning || ''
+  const battingIdx = rawTeams.findIndex(t =>
+    t.toLowerCase() === battingTeamName.toLowerCase() ||
+    battingTeamName.toLowerCase().includes(t.toLowerCase().split(' ')[0])
+  )
+  const teams = battingIdx > 0
+    ? [rawTeams[battingIdx], ...rawTeams.filter((_, i) => i !== battingIdx)]
+    : rawTeams
+  const teamInfo = battingIdx > 0
+    ? [rawTeamInfo[battingIdx], ...rawTeamInfo.filter((_, i) => i !== battingIdx)]
+    : rawTeamInfo
 
   return (
     <div className="space-y-5">
@@ -262,46 +276,53 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           {/* Teams & Scores */}
           <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4">
             {teams.map((team, i) => {
-              const score = (scorecard.score || [])[i] || (scorecard.score || []).find(s => {
-                const inn = (s.inning || '').toLowerCase()
-                return inn === team.toLowerCase() || inn.includes(team.toLowerCase().split(' ')[0])
+              const scoreArr = scorecard.score || []
+              const teamLower = team.toLowerCase()
+              const teamFirst = teamLower.split(' ')[0]
+              const score = scoreArr.find(s => {
+                const t = (s.team || s.inning || '').toLowerCase()
+                return t === teamLower || t.startsWith(teamLower) || t.includes(teamFirst)
               })
               const img = teamInfo[i]?.img
               const color = getTeamColor(team)
               return (
-                <div key={i} className={`flex-1 min-w-0 ${i === 1 ? 'text-right' : 'text-left'}`}>
-                  <Link to={teamLink(team)} className={`flex items-center gap-2 sm:gap-3 ${i === 1 ? 'flex-row-reverse' : ''} mb-2 group`}>
-                    {img ? (
-                      <img src={img} alt={`${team} team logo`} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-border-subtle flex-shrink-0" />
-                    ) : (
-                      <TeamLogo team={team} size={40} />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm sm:text-base font-bold text-text-primary group-hover:text-accent-cyan transition-colors">{getTeamAbbr(team)}</p>
-                      <p className="text-[10px] text-text-muted truncate hidden sm:block">{team}</p>
+                <React.Fragment key={i}>
+                  {i === 1 && teams.length === 2 && (
+                    <div className="flex-shrink-0 px-1 sm:px-3 self-center">
+                      <span className="text-xs sm:text-sm font-black text-text-muted">VS</span>
                     </div>
-                  </Link>
-                  {score ? (
-                    <div className={i === 1 ? 'text-right' : 'text-left'}>
-                      <span className="text-2xl sm:text-3xl font-mono font-black" style={{ color }}>
-                        {score.r !== undefined ? score.r : ''}
-                        <span className="text-base sm:text-lg text-text-muted">/{score.w !== undefined ? score.w : ''}</span>
-                      </span>
-                      {score.o !== undefined && (
-                        <span className="text-xs sm:text-sm text-text-secondary ml-1 sm:ml-2">({score.o} ov)</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-xl font-mono text-text-muted">—</span>
                   )}
-                </div>
+                  <div className={`flex-1 min-w-0 ${i === 1 ? 'text-right' : 'text-left'}`}>
+                    <Link to={teamLink(team)} className={`flex items-center gap-2 sm:gap-3 ${i === 1 ? 'flex-row-reverse' : ''} mb-2 group`}>
+                      {img ? (
+                        <img src={img} alt={`${team} team logo`} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-border-subtle flex-shrink-0" />
+                      ) : (
+                        <TeamLogo team={team} size={40} />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base font-bold text-text-primary group-hover:text-accent-cyan transition-colors">{getTeamAbbr(team)}</p>
+                        <p className="text-[10px] text-text-muted truncate hidden sm:block">{team}</p>
+                      </div>
+                    </Link>
+                    {score ? (
+                      <div className={i === 1 ? 'text-right' : 'text-left'}>
+                        <span className="text-2xl sm:text-3xl font-mono font-black" style={{ color }}>
+                          {score.r !== undefined ? score.r : ''}
+                          <span className="text-base sm:text-lg text-text-muted">/{score.w !== undefined ? score.w : ''}</span>
+                        </span>
+                        {score.o !== undefined && (
+                          <span className="text-xs sm:text-sm text-text-secondary ml-1 sm:ml-2">({score.o} ov)</span>
+                        )}
+                      </div>
+                    ) : scoreArr.length > 0 ? (
+                      <span className="text-xs font-medium text-text-muted italic">Yet to bat</span>
+                    ) : (
+                      <span className="text-xl font-mono text-text-muted">—</span>
+                    )}
+                  </div>
+                </React.Fragment>
               )
             })}
-            {teams.length === 2 && (
-              <div className="flex-shrink-0 px-1 sm:px-3">
-                <span className="text-xs sm:text-sm font-black text-text-muted">VS</span>
-              </div>
-            )}
           </div>
 
           {/* Match info row */}
@@ -339,8 +360,8 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
       )}
 
       {/* Innings cards */}
-      {(scorecard.scorecard || []).map((inn, idx) => (
-        <InningsCard key={idx} innings={inn} index={idx} isLive={isLive} />
+      {(scorecard.scorecard || []).map((inn, idx, arr) => (
+        <InningsCard key={idx} innings={inn} index={idx} isLive={isLive} isCurrentInnings={idx === arr.length - 1} />
       ))}
 
       {/* Active players info (from the batting side of the current innings) */}
@@ -353,7 +374,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
 
 
 /* ── Single Innings Card (Batting + Bowling side-by-side) ───── */
-function InningsCard({ innings, index, isLive }) {
+function InningsCard({ innings, index, isLive, isCurrentInnings }) {
   const batsmen = innings.batsmen || innings.batting || []
   const bowlers = innings.bowlers || innings.bowling || []
 
@@ -367,7 +388,7 @@ function InningsCard({ innings, index, isLive }) {
           </span>
           {innings.inning || `Innings ${index + 1}`}
         </h3>
-        {isLive && index === (innings.scoreboard === 'S2' ? 1 : 0) && (
+        {isLive && isCurrentInnings && (
           <span className="text-[9px] uppercase tracking-widest text-accent-magenta font-bold">Current</span>
         )}
       </div>
@@ -498,17 +519,33 @@ function InningsCard({ innings, index, isLive }) {
 /* ── Active Players Section ──────────────────────────────────── */
 function ActivePlayersSection({ scorecard }) {
   const lastInnings = scorecard.scorecard[scorecard.scorecard.length - 1]
-  const batsmen = (lastInnings?.batsmen || lastInnings?.batting || [])
-    .filter(b => {
-      const d = (b.dismissal || '').toLowerCase()
-      return d.includes('not out') || d === ''
-    })
+  const allBatsmen = lastInnings?.batsmen || lastInnings?.batting || []
+  const notOutBatsmen = allBatsmen.filter(b => {
+    const d = (b.dismissal || '').toLowerCase()
+    return d.includes('not out') || d === ''
+  })
 
-  const bowlers = (lastInnings?.bowlers || lastInnings?.bowling || []).slice(-1)
+  const striker = notOutBatsmen.find(b => b.active) || notOutBatsmen[notOutBatsmen.length - 1]
+  const nonStriker = notOutBatsmen.find(b => b !== striker)
+  const battingPair = [striker, nonStriker].filter(Boolean)
+
+  const allBowlers = lastInnings?.bowlers || lastInnings?.bowling || []
+  const activeBowler = allBowlers.find(b => b.active) || allBowlers[allBowlers.length - 1]
 
   const activePlayers = [
-    ...batsmen.slice(0, 2).map(b => ({ ...b, role: 'Batting', name: b.name || b.batsman?.name || b.batsman || '', fullName: b.fullName || '' })),
-    ...bowlers.map(bw => ({ ...bw, role: 'Bowling', name: bw.name || bw.bowler?.name || bw.bowler || '', fullName: bw.fullName || '' })),
+    ...battingPair.map(b => ({
+      ...b,
+      role: b.active ? 'Batting' : 'Batting',
+      isStriker: !!b.active,
+      name: b.name || b.batsman?.name || b.batsman || '',
+      fullName: b.fullName || '',
+    })),
+    ...(activeBowler ? [{
+      ...activeBowler,
+      role: 'Bowling',
+      name: activeBowler.name || activeBowler.bowler?.name || activeBowler.bowler || '',
+      fullName: activeBowler.fullName || '',
+    }] : []),
   ]
 
   if (activePlayers.length === 0) return null
@@ -531,7 +568,9 @@ function ActivePlayersSection({ scorecard }) {
               <p className="text-sm font-bold text-text-primary truncate group-hover:text-accent-cyan transition-colors">
                 {p.fullName || p.name}
               </p>
-              <p className="text-[10px] text-text-muted uppercase tracking-wider">{p.role}</p>
+              <p className="text-[10px] text-text-muted uppercase tracking-wider">
+                {p.role}{p.isStriker ? ' *' : ''}
+              </p>
               <div className="flex gap-2 mt-0.5">
                 {p.role === 'Batting' ? (
                   <>
@@ -1133,7 +1172,7 @@ function ScorecardWithAnalytics({ matchId }) {
   }, [])
 
   const isLive = liveScorecard?.matchStarted && !liveScorecard?.matchEnded
-  const hasScorecard = isLive && liveScorecard?.scorecard?.length > 0
+  const hasScorecard = isLive
 
   const mobileSlot = hasScorecard
     ? <LiveAnalyticsPanel scorecard={liveScorecard} />
@@ -1211,7 +1250,8 @@ function LiveAnalyticsPanel({ scorecard }) {
   const target = useMemo(() => {
     if (inningsNumber < 2) return null
     const scores = scorecard.score || []
-    if (scores.length >= 2) return (scores[0]?.r ?? 0) + 1
+    const firstInnings = scores.find(s => (s.inningNumber || 1) === 1)
+    if (firstInnings) return (firstInnings.r ?? 0) + 1
     return null
   }, [scorecard, inningsNumber])
 
@@ -1749,29 +1789,8 @@ export default function LiveScores() {
             <SetupGuide />
           ) : (
             <>
-              {/* Controls */}
-              <div className="flex items-center gap-3 mb-5">
-                <button
-                  onClick={() => setAutoRefresh(!autoRefresh)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                    autoRefresh
-                      ? 'border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan'
-                      : 'border-border-subtle bg-surface-card text-text-muted'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? 'bg-accent-cyan animate-pulse' : 'bg-text-muted'}`} />
-                  Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
-                </button>
-                <button
-                  onClick={() => { setMatchesLoading(true); fetchMatches() }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border-subtle bg-surface-card text-text-secondary hover:bg-surface-hover transition-all"
-                >
-                  Refresh
-                </button>
-                <span className="text-[10px] text-text-muted font-mono ml-auto">
-                  Auto-refreshes every 30s
-                </span>
-              </div>
+              {/* Spacer */}
+              <div className="mb-3" />
 
               {matchesLoading ? (
                 <Loading />

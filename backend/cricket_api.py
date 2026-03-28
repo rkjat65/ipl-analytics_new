@@ -238,26 +238,21 @@ class SportmonksProvider(CricketAPIProvider):
 
         local_id = fixture.get("localteam_id")
         visitor_id = fixture.get("visitorteam_id")
-        local_team = self._team_name(
-            (fixture.get("localteam") or {}).get("data")
-            if isinstance(fixture.get("localteam"), dict)
-            else fixture.get("localteam")
-        )
-        visitor_team = self._team_name(
-            (fixture.get("visitorteam") or {}).get("data")
-            if isinstance(fixture.get("visitorteam"), dict)
-            else fixture.get("visitorteam")
-        )
+        local_team = self._team_name(self._extract_team(fixture, "localteam"))
+        visitor_team = self._team_name(self._extract_team(fixture, "visitorteam"))
 
         scores = []
-        for run in runs_list:
+        for run in sorted(runs_list, key=lambda r: r.get("inning", 1)):
             tid = run.get("team_id")
-            inning_label = local_team if tid == local_id else visitor_team
+            team_name = local_team if tid == local_id else visitor_team
             inning_num = run.get("inning", 1)
+            inning_label = team_name
             if inning_num and inning_num > 1:
-                inning_label = f"{inning_label} (2nd)"
+                inning_label = f"{team_name} (2nd)"
             scores.append({
                 "inning": inning_label,
+                "team": team_name,
+                "inningNumber": inning_num,
                 "r": run.get("score", 0),
                 "w": run.get("wickets", 0),
                 "o": run.get("overs", 0),
@@ -328,7 +323,7 @@ class SportmonksProvider(CricketAPIProvider):
     async def fetch_scorecard(self, match_id: str) -> dict:
         data = await self._call(
             f"fixtures/{match_id}",
-            include="localteam,visitorteam,runs,batting,bowling,venue,toss",
+            include="localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue",
         )
         m = data.get("data", {})
         local = self._extract_team(m, "localteam")
@@ -435,19 +430,27 @@ class SportmonksProvider(CricketAPIProvider):
                 "batsmen": [],
                 "bowlers": [],
             })
-            player = b.get("player") or {}
-            if isinstance(player, dict) and "data" in player:
-                player = player["data"]
+            batsman = b.get("batsman") or {}
+            if isinstance(batsman, dict) and "data" in batsman:
+                batsman = batsman["data"]
+            name = ""
+            if isinstance(batsman, dict):
+                name = batsman.get("fullname") or batsman.get("lastname") or ""
+            is_active = b.get("active", False)
+            has_fow = (b.get("fow_score") or 0) > 0 or (b.get("fow_balls") or 0) > 0
+            has_bowler_dismissal = b.get("bowling_player_id") is not None
+            is_out = (has_fow or has_bowler_dismissal) and not is_active
             entry["batsmen"].append({
-                "name": b.get("player_name") or (player.get("fullname") if isinstance(player, dict) else ""),
+                "name": name,
+                "fullName": name,
                 "runs": b.get("score", 0),
                 "balls": b.get("ball", 0),
                 "fours": b.get("four_x", 0),
                 "sixes": b.get("six_x", 0),
                 "sr": b.get("rate", 0),
-                "dismissal": b.get("catch_stump_player_id") and "out" or (
-                    "not out" if not b.get("out") else "out"
-                ),
+                "dismissal": "out" if is_out else "not out",
+                "active": is_active,
+                "image": batsman.get("image_path", "") if isinstance(batsman, dict) else "",
             })
 
         for bw in bowling_list:
@@ -462,21 +465,32 @@ class SportmonksProvider(CricketAPIProvider):
                 "batsmen": [],
                 "bowlers": [],
             })
-            player = bw.get("player") or {}
-            if isinstance(player, dict) and "data" in player:
-                player = player["data"]
+            bowler = bw.get("bowler") or {}
+            if isinstance(bowler, dict) and "data" in bowler:
+                bowler = bowler["data"]
+            bname = ""
+            if isinstance(bowler, dict):
+                bname = bowler.get("fullname") or bowler.get("lastname") or ""
             entry["bowlers"].append({
-                "name": bw.get("player_name") or (player.get("fullname") if isinstance(player, dict) else ""),
+                "name": bname,
+                "fullName": bname,
                 "overs": bw.get("overs", 0),
                 "maidens": bw.get("medians", 0),
                 "runs": bw.get("runs", 0),
                 "wickets": bw.get("wickets", 0),
                 "economy": bw.get("rate", 0),
+                "active": bw.get("active", False),
+                "image": bowler.get("image_path", "") if isinstance(bowler, dict) else "",
             })
 
         ordered = sorted(innings_map.values(), key=lambda x: x.get("scoreboard", "S1"))
         return [
-            {"inning": e["inning"], "batsmen": e["batsmen"], "bowlers": e["bowlers"]}
+            {
+                "inning": e["inning"],
+                "scoreboard": e.get("scoreboard", "S1"),
+                "batsmen": e["batsmen"],
+                "bowlers": e["bowlers"],
+            }
             for e in ordered
         ]
 

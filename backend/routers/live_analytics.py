@@ -1,5 +1,6 @@
 """Live analytics endpoints — combine live match context with historical DuckDB data."""
 
+import functools
 from fastapi import APIRouter, Query
 from ..database import query, normalize_venue, normalize_team, team_variants, VENUE_NAME_MAP
 
@@ -18,9 +19,63 @@ def _venue_variants(name):
     return list(variants)
 
 
+@functools.lru_cache(maxsize=256)
+def _resolve_player(name: str, role: str = "bat") -> str:
+    """Resolve a full player name (from live API) to the historical DB name.
+
+    Tries exact match first, then last-name match, then partial match.
+    """
+    col = "batter" if role == "bat" else "bowler"
+
+    exact = query(
+        f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",
+        [name],
+    )
+    if exact:
+        return exact[0][col]
+
+    parts = name.strip().split()
+    if len(parts) >= 2:
+        last = parts[-1]
+        first_initial = parts[0][0]
+        abbr = f"{first_initial} {last}"
+        abbr_rows = query(
+            f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",
+            [abbr],
+        )
+        if abbr_rows:
+            return abbr_rows[0][col]
+
+        if len(parts) >= 3:
+            mid_initial = parts[1][0] if len(parts[1]) > 0 else ""
+            abbr2 = f"{first_initial}{mid_initial} {last}"
+            abbr2_rows = query(
+                f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",
+                [abbr2],
+            )
+            if abbr2_rows:
+                return abbr2_rows[0][col]
+
+        like_rows = query(
+            f"SELECT DISTINCT {col} FROM deliveries WHERE {col} LIKE ? LIMIT 5",
+            [f"%{last}%"],
+        )
+        if len(like_rows) == 1:
+            return like_rows[0][col]
+        for row in like_rows:
+            val = row[col]
+            if val.endswith(last) or val.startswith(first_initial):
+                return val
+
+    return name
+
+
 @router.get("/matchup")
 def live_matchup(batter: str, bowler: str):
     """Head-to-head stats for a specific batter vs bowler from historical data."""
+    db_batter = _resolve_player(batter, "bat")
+    db_bowler = _resolve_player(bowler, "bowl")
+
     rows = query("""
         SELECT
             COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
@@ -36,7 +91,7 @@ def live_matchup(batter: str, bowler: str):
                 / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr
         FROM deliveries
         WHERE batter = ? AND bowler = ? AND is_super_over = false
-    """, [batter, bowler])
+    """, [db_batter, db_bowler])
 
     dismissal_kinds = query("""
         SELECT dismissal_kind, COUNT(*) AS count
@@ -45,7 +100,7 @@ def live_matchup(batter: str, bowler: str):
           AND player_dismissed = batter AND is_super_over = false
         GROUP BY dismissal_kind
         ORDER BY count DESC
-    """, [batter, bowler])
+    """, [db_batter, db_bowler])
 
     result = rows[0] if rows else {}
     if not result.get("balls"):
@@ -53,6 +108,8 @@ def live_matchup(batter: str, bowler: str):
 
     result["batter"] = batter
     result["bowler"] = bowler
+    result["db_batter"] = db_batter
+    result["db_bowler"] = db_bowler
     result["found"] = True
     result["dismissal_kinds"] = dismissal_kinds
     return result
@@ -128,10 +185,18 @@ def projected_score(
 
     remaining_overs = max(20 - current_overs, 0)
     crr = current_score / current_overs if current_overs > 0 else 0
+    venue_rpo = venue_avg_for_innings / 20 if venue_avg_for_innings else 8
 
-    projected_crr = round(crr * 20, 0) if current_overs > 0 else venue_avg_for_innings
-    projected_conservative = round(venue_avg_for_innings * 0.7 + projected_crr * 0.3, 0)
-    projected_accelerated = round(venue_avg_for_innings * 0.3 + projected_crr * 0.7, 0)
+    overs_weight = min(current_overs / 10, 1.0)
+    projected_rpo = overs_weight * crr + (1 - overs_weight) * venue_rpo
+    projected_crr = round(current_score + projected_rpo * remaining_overs, 0) if current_overs > 0 else venue_avg_for_innings
+
+    wicket_factor = max(0.75, 1 - current_wickets * 0.04)
+    conservative_rpo = projected_rpo * 0.85 * wicket_factor
+    projected_conservative = round(current_score + conservative_rpo * remaining_overs, 0)
+
+    accelerated_rpo = projected_rpo * 1.20
+    projected_accelerated = round(current_score + accelerated_rpo * remaining_overs, 0)
 
     balls_bowled = int(current_overs) * 6 + round((current_overs % 1) * 10)
     par_score = round(venue_avg_for_innings * balls_bowled / 120, 0) if venue_avg_for_innings else None
@@ -243,6 +308,7 @@ def venue_insights(venue: str):
 @router.get("/player-form")
 def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
     """Recent form and career context for a player."""
+    db_player = _resolve_player(player, role)
     if role == "bat":
         last_5 = query("""
             WITH batting AS (
@@ -261,7 +327,7 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
             FROM batting
             ORDER BY date DESC
             LIMIT 5
-        """, [player])
+        """, [db_player])
 
         career = query("""
             SELECT COUNT(DISTINCT match_id) AS matches,
@@ -271,14 +337,14 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
                        / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr
             FROM deliveries
             WHERE batter = ? AND is_super_over = false
-        """, [player])
+        """, [db_player])
 
         career_dismissals = query("""
             SELECT COUNT(*) AS outs
             FROM deliveries
             WHERE batter = ? AND is_wicket = true AND player_dismissed = batter
               AND is_super_over = false
-        """, [player])
+        """, [db_player])
 
         c = career[0] if career else {}
         outs = career_dismissals[0]["outs"] if career_dismissals else 0
@@ -323,7 +389,7 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
             FROM bowling
             ORDER BY date DESC
             LIMIT 5
-        """, [player])
+        """, [db_player])
 
         career = query("""
             SELECT COUNT(DISTINCT match_id) AS matches,
@@ -337,7 +403,7 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
                                       THEN 1 END), 0), 2) AS economy
             FROM deliveries
             WHERE bowler = ? AND is_super_over = false
-        """, [player])
+        """, [db_player])
 
         c = career[0] if career else {}
 
