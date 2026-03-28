@@ -655,18 +655,35 @@ function MatchupRivalryCard({ batters, bowler }) {
 
   if (loading) return <AnalyticsSkeleton />
 
-  const entries = batters.map(b => data[b]).filter(Boolean)
-  if (entries.length === 0 || entries.every(e => !e.found)) {
-    return (
-      <div className="text-center py-6 text-text-muted text-xs">
-        No historical matchup data for these players
-      </div>
-    )
-  }
+  const entries = batters.map(b => data[b] || { batter: b, bowler, found: false })
 
   return (
     <div className="space-y-5">
-      {entries.filter(e => e.found).map(m => {
+      {entries.map(m => {
+        if (!m.found) {
+          return (
+            <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
+              <div className="h-1 bg-gradient-to-r from-[#FFB800]/30 to-[#00E5FF]/30" />
+              <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
+                <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+                  <PlayerAvatar name={m.batter} size={48} showBorder />
+                  <span className="text-[9px] uppercase tracking-[0.15em] text-[#FFB800]/60 font-bold">Batsman</span>
+                  <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.batter}</p>
+                </div>
+                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-[#FFB80015] to-[#00E5FF15] border border-[#FFB80030] flex-shrink-0">
+                  <span className="text-[10px] font-black text-text-muted">VS</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+                  <PlayerAvatar name={m.bowler} size={48} showBorder />
+                  <span className="text-[9px] uppercase tracking-[0.15em] text-[#00E5FF]/60 font-bold">Bowler</span>
+                  <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
+                </div>
+              </div>
+              <div className="text-center pb-5 text-text-muted text-xs">No IPL history between these players</div>
+            </div>
+          )
+        }
+
         const statsGrid = [
           { label: 'BALLS', value: m.balls || 0 },
           { label: 'SR', value: m.sr || 0 },
@@ -677,10 +694,8 @@ function MatchupRivalryCard({ batters, bowler }) {
         ]
         return (
           <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
-            {/* Accent bar */}
             <div className="h-1 bg-gradient-to-r from-[#FFB800] to-[#00E5FF]" />
 
-            {/* Players header */}
             <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
               <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
                 <PlayerAvatar name={m.batter} size={56} showBorder />
@@ -699,13 +714,11 @@ function MatchupRivalryCard({ batters, bowler }) {
               </div>
             </div>
 
-            {/* Hero stat */}
             <div className="text-center py-3 mx-4 rounded-full bg-gradient-to-r from-[#FFB80008] to-[#00E5FF08] border border-[#FFB80015]">
               <p className="text-[10px] uppercase tracking-[0.1em] text-[#FFB800] font-semibold mb-0.5">Runs Scored</p>
               <p className="text-4xl font-black text-text-primary font-mono leading-none">{m.runs || 0}</p>
             </div>
 
-            {/* Stats grid */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 p-4">
               {statsGrid.map((s, i) => {
                 const c = MATCHUP_STAT_COLORS[i % MATCHUP_STAT_COLORS.length]
@@ -1275,7 +1288,7 @@ function LiveAnalyticsPanel({ scorecard }) {
   const analyticsCards = [
     {
       id: 'matchup',
-      title: 'Matchup Rivalry',
+      title: 'Live Matchup Rivalry',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
           <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v-2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
