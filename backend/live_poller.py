@@ -15,7 +15,6 @@ from datetime import datetime, timezone
 from .cricket_api import get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
-    clear_matches,
     get_setting,
     get_today_api_hits,
     get_tracked_match_ids,
@@ -27,7 +26,7 @@ from .live_db import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_POLL_INTERVAL_MS = 30_000   # 30 seconds
+DEFAULT_POLL_INTERVAL_MS = 15_000   # 15 seconds
 MIN_POLL_INTERVAL_MS = 5_000        # 5 seconds (floor)
 MAX_POLL_INTERVAL_MS = 900_000      # 15 minutes (ceiling)
 IDLE_CHECK_INTERVAL = 300           # seconds between checks outside match windows
@@ -38,7 +37,7 @@ DAILY_HIT_BUDGET = 9_500            # safety margin below 10 000
 class PollerState:
     """Observable state exposed to the /api/live/poller-status endpoint."""
     running: bool = False
-    paused: bool = True
+    paused: bool = False
     in_match_window: bool = False
     poll_interval_ms: int = DEFAULT_POLL_INTERVAL_MS
     last_poll_at: str | None = None
@@ -69,18 +68,28 @@ poller_state = PollerState()
 
 
 async def _poll_once() -> int:
-    """Run a single poll cycle — fetches scorecards for admin-selected matches only.
+    """Run a single poll cycle.
 
-    Does NOT call the match-list API; that is a separate admin action
-    (refresh_match_list) so each cycle costs exactly 1 API hit per tracked match.
+    1. Refresh the match list (1 API hit) so scores stay current.
+    2. Fetch scorecards for tracked matches (1 hit per match) for player details.
     """
     api = get_cricket_api()
     hits = 0
 
+    try:
+        matches = await api.fetch_matches()
+        hits += 1
+        upsert_matches(matches)
+        log_poll("matches", "success", hits=1)
+        logger.debug("Match list refreshed — %d matches", len(matches))
+    except Exception as exc:
+        logger.warning("Match list refresh failed: %s", exc)
+        log_poll("matches", "error", error_msg=str(exc)[:500])
+
     tracked_ids = get_tracked_match_ids()
     if not tracked_ids:
-        logger.debug("No matches tracked — skipping poll cycle")
-        return 0
+        logger.debug("No matches tracked — skipping scorecard fetch")
+        return hits
 
     for mid in tracked_ids:
         try:
@@ -98,13 +107,11 @@ async def _poll_once() -> int:
 async def refresh_match_list() -> int:
     """Fetch the current match list from the external API and cache it.
 
-    Clears all old match/scorecard data first so stale entries from
-    previous providers or sessions never appear.
-    Costs 1 API hit.  Called manually by admin — NOT part of the poll loop.
+    Uses upsert to preserve tracking settings and cached scorecards.
+    Costs 1 API hit.  Called manually by admin or automatically by the poller.
     """
     api = get_cricket_api()
     matches = await api.fetch_matches()
-    clear_matches()
     upsert_matches(matches)
     log_poll("matches", "success", hits=1)
     logger.info("Match list refreshed — %d matches cached", len(matches))

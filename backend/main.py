@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse
 from .auth_db import init_auth_db
 from .live_db import init_live_db
 from .live_poller import run_poller
-from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth, live
+from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth, live, live_analytics
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -76,6 +76,7 @@ app.include_router(advanced.router)
 app.include_router(pulse.router)
 app.include_router(auth.router)
 app.include_router(live.router)
+app.include_router(live_analytics.router)
 
 
 @app.get("/api/health")

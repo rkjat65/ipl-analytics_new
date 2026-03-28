@@ -204,6 +204,14 @@ export const getLiveScorecard = (id) => fetchAPI(`/live/scorecard/${encodeURICom
 export const getLiveMatchInfo = (id) => fetchAPI(`/live/info/${encodeURIComponent(id)}`)
 export const getIPLSchedule = () => fetchAPI('/live/schedule')
 
+// Live Analytics
+export const getLiveMatchup = (batter, bowler) => fetchAPI('/live/analytics/matchup', { batter, bowler })
+export const getLiveProjectedScore = (params) => fetchAPI('/live/analytics/projected-score', params)
+export const getLiveVenueInsights = (venue) => fetchAPI(`/live/analytics/venue-insights`, { venue })
+export const getLivePlayerForm = (player, role) => fetchAPI('/live/analytics/player-form', { player, role })
+export const getLivePhaseAnalysis = (team, current_over) => fetchAPI('/live/analytics/phase-analysis', { team, current_over })
+export const getLiveTeamH2H = (team1, team2) => fetchAPI('/live/analytics/team-h2h-context', { team1, team2 })
+
 // Live Scores Admin
 export const getLivePollerConfig = (token) => {
   return fetch(`${window.location.origin}/api/live/admin/config`, {
