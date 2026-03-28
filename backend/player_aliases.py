@@ -367,6 +367,10 @@ PLAYER_ALIASES: dict[str, str] = {
     "heinrich": "H Klaasen",
     "heinrich klaasen": "H Klaasen",
 
+    # ── Nithish Kumar Reddy (ball-by-ball data spells "Nithish"; feeds often say "Nitish")
+    "nitish kumar reddy": "Nithish Kumar Reddy",
+    "nitish reddy": "Nithish Kumar Reddy",
+
     # ── Extra popular players ────────────────────────────────────────
 
     # KD Jadhav

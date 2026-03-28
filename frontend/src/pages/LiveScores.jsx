@@ -10,6 +10,7 @@ import {
   getLiveStatus, getLiveMatches, getLiveScorecard, getIPLSchedule,
   getLiveMatchup, getLiveProjectedScore, getLiveVenueInsights,
   getLivePlayerForm, getLivePhaseAnalysis, getLiveTeamH2H,
+  batchLookupPlayers,
 } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
@@ -31,9 +32,55 @@ function fmtScore(s) {
   return parts.join('') || '—'
 }
 
-function playerLink(name) {
-  if (!name) return '/batting'
-  return `/players/${encodeURIComponent(name)}`
+/**
+ * Sportmonks often returns relative image_path; normalize for <img src>.
+ * Photos load straight from cdn.sportmonks.com in the browser — no call to our backend
+ * and no Sportmonks JSON API usage (static CDN only).
+ */
+function livePlayerImageUrl(path) {
+  if (!path || typeof path !== 'string') return undefined
+  const p = path.trim()
+  if (!p) return undefined
+  const lower = p.toLowerCase()
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return p
+  if (p.startsWith('//')) return `https:${p}`
+  if (p.startsWith('/')) return `https://cdn.sportmonks.com${p}`
+  return `https://cdn.sportmonks.com/${p.replace(/^\//, '')}`
+}
+
+function collectScorecardPlayerNames(scorecard) {
+  const s = new Set()
+  for (const inn of scorecard.scorecard || []) {
+    for (const b of inn.batsmen || inn.batting || []) {
+      const n = b.name || b.batsman?.name || b.batsman
+      if (n) s.add(n)
+    }
+    for (const bw of inn.bowlers || inn.bowling || []) {
+      const n = bw.name || bw.bowler?.name || bw.bowler
+      if (n) s.add(n)
+    }
+  }
+  return [...s]
+}
+
+/** Renders a profile link only when batch lookup found IPL data for this name. */
+function LiveScorePlayerName({ name, displayName, lookup, title, block, className = '' }) {
+  const label = displayName || name
+  if (!name) return null
+  const info = lookup[name]
+  const linkCls = `text-text-primary font-semibold hover:text-accent-cyan transition-colors truncate ${className}${block ? ' block' : ''}`.trim()
+  if (info?.slug) {
+    return (
+      <Link to={`/players/${encodeURIComponent(info.slug)}`} className={linkCls} title={title}>
+        {label}
+      </Link>
+    )
+  }
+  return (
+    <span className={`text-text-primary font-semibold truncate ${className}${block ? ' block' : ''}`.trim()} title={title}>
+      {label}
+    </span>
+  )
 }
 
 function teamLink(name) {
@@ -204,7 +251,30 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
   const [scorecard, setScorecard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [playerLookup, setPlayerLookup] = useState({})
   const intervalRef = useRef(null)
+
+  const playerNamesKey = useMemo(() => {
+    if (!scorecard?.scorecard?.length) return ''
+    return collectScorecardPlayerNames(scorecard).sort().join('\0')
+  }, [scorecard])
+
+  useEffect(() => {
+    if (!playerNamesKey) {
+      setPlayerLookup({})
+      return
+    }
+    const names = playerNamesKey.split('\0').filter(Boolean)
+    let cancelled = false
+    batchLookupPlayers(names)
+      .then(data => {
+        if (!cancelled) setPlayerLookup(data && typeof data === 'object' ? data : {})
+      })
+      .catch(() => {
+        if (!cancelled) setPlayerLookup({})
+      })
+    return () => { cancelled = true }
+  }, [playerNamesKey])
 
   const fetchData = useCallback(async () => {
     try {
@@ -354,15 +424,34 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
 
           {/* Active players inline */}
           {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
-            <ActivePlayersInline scorecard={scorecard} />
+            <ActivePlayersInline scorecard={scorecard} playerLookup={playerLookup} />
           )}
         </div>
       </div>
 
-      {/* Innings cards */}
-      {(scorecard.scorecard || []).map((inn, idx, arr) => (
-        <InningsCard key={idx} innings={inn} index={idx} isLive={isLive} isCurrentInnings={idx === arr.length - 1} />
-      ))}
+      {/* Innings cards — current (last) innings first */}
+      {(() => {
+        const sc = scorecard.scorecard || []
+        const n = sc.length
+        return [...sc.entries()]
+          .sort(([iA], [iB]) => {
+            if (n <= 1) return 0
+            const aCur = iA === n - 1
+            const bCur = iB === n - 1
+            if (aCur !== bCur) return aCur ? -1 : 1
+            return iA - iB
+          })
+          .map(([idx, inn]) => (
+            <InningsCard
+              key={idx}
+              innings={inn}
+              index={idx}
+              isLive={isLive}
+              isCurrentInnings={idx === n - 1}
+              playerLookup={playerLookup}
+            />
+          ))
+      })()}
 
       {/* Mobile-only: analytics right below live score */}
       {mobileAnalyticsSlot && (
@@ -374,7 +463,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
 
 
 /* ── Single Innings Card (Batting + Bowling side-by-side) ───── */
-function InningsCard({ innings, index, isLive, isCurrentInnings }) {
+function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = {} }) {
   const batsmen = innings.batsmen || innings.batting || []
   const bowlers = innings.bowlers || innings.bowling || []
 
@@ -429,17 +518,18 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
                       isNotOut && isLive ? 'bg-accent-lime/5' : ''
                     }`}>
                       <td className="py-1.5 px-3">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <PlayerAvatar name={displayName} imageUrl={livePlayerImageUrl(b.image)} size={26} showBorder />
                           {isNotOut && isLive && (
                             <span className="w-1.5 h-1.5 rounded-full bg-accent-lime animate-pulse flex-shrink-0" />
                           )}
-                          <Link
-                            to={playerLink(name)}
-                            className="text-text-primary font-semibold hover:text-accent-cyan transition-colors truncate"
+                          <LiveScorePlayerName
+                            name={name}
+                            displayName={displayName}
+                            lookup={playerLookup}
                             title={dismissal || 'not out'}
-                          >
-                            {displayName}
-                          </Link>
+                            className="text-sm"
+                          />
                         </div>
                       </td>
                       <td className={`text-center py-1.5 px-1 font-mono font-bold ${
@@ -487,12 +577,15 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
                   return (
                     <tr key={bwi} className="border-b border-border-subtle/30 hover:bg-surface-hover/50">
                       <td className="py-1.5 px-3">
-                        <Link
-                          to={playerLink(name)}
-                          className="text-text-primary font-semibold hover:text-accent-cyan transition-colors truncate block"
-                        >
-                          {displayName}
-                        </Link>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <PlayerAvatar name={displayName} imageUrl={livePlayerImageUrl(bw.image)} size={26} showBorder />
+                          <LiveScorePlayerName
+                            name={name}
+                            displayName={displayName}
+                            lookup={playerLookup}
+                            block
+                          />
+                        </div>
                       </td>
                       <td className="text-center py-1.5 px-1 font-mono text-text-muted">{overs}</td>
                       <td className="text-center py-1.5 px-1 font-mono text-text-muted">{maidens}</td>
@@ -517,7 +610,7 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
 
 
 /* ── Active Players Inline (inside hero card) ────────────────── */
-function ActivePlayersInline({ scorecard }) {
+function ActivePlayersInline({ scorecard, playerLookup = {} }) {
   const lastInnings = scorecard.scorecard[scorecard.scorecard.length - 1]
   const allBatsmen = lastInnings?.batsmen || lastInnings?.batting || []
   const notOutBatsmen = allBatsmen.filter(b => {
@@ -565,13 +658,11 @@ function ActivePlayersInline({ scorecard }) {
           const tagColor = isBat
             ? (p.isStriker ? 'bg-accent-lime/15 text-accent-lime border-accent-lime/30' : 'bg-accent-amber/15 text-accent-amber border-accent-amber/30')
             : 'bg-accent-magenta/15 text-accent-magenta border-accent-magenta/30'
-          return (
-            <Link
-              key={i}
-              to={playerLink(p.name)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-dark/60 hover:bg-surface-hover border border-border-subtle/40 transition-all group"
-            >
-              <PlayerAvatar name={p.fullName || p.name} size={36} showBorder />
+          const profile = p.name ? playerLookup[p.name] : null
+          const rowClass = 'flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-dark/60 hover:bg-surface-hover border border-border-subtle/40 transition-all group'
+          const inner = (
+            <>
+              <PlayerAvatar name={p.fullName || p.name} imageUrl={livePlayerImageUrl(p.image)} size={56} showBorder />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
                   <p className="text-sm font-bold text-text-primary truncate group-hover:text-accent-cyan transition-colors">
@@ -598,7 +689,19 @@ function ActivePlayersInline({ scorecard }) {
                   </p>
                 )}
               </div>
-            </Link>
+            </>
+          )
+          if (profile?.slug) {
+            return (
+              <Link key={i} to={`/players/${encodeURIComponent(profile.slug)}`} className={rowClass}>
+                {inner}
+              </Link>
+            )
+          }
+          return (
+            <div key={i} className={rowClass}>
+              {inner}
+            </div>
           )
         })}
       </div>
@@ -645,7 +748,7 @@ const MATCHUP_STAT_COLORS = [
   { bg: 'bg-[#1A0D1F]', border: 'border-[#FF2D7825]', text: 'text-[#FF2D78]' },
 ]
 
-function MatchupRivalryCard({ batters, bowler }) {
+function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
   const [data, setData] = useState({})
   const [initialLoad, setInitialLoad] = useState(true)
 
@@ -672,17 +775,17 @@ function MatchupRivalryCard({ batters, bowler }) {
           return (
             <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
               <div className="h-1 bg-gradient-to-r from-[#FFB800]/30 to-[#00E5FF]/30" />
-              <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
-                <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                  <PlayerAvatar name={m.batter} size={52} showBorder />
+              <div className="flex items-center justify-center gap-3 sm:gap-6 px-4 pt-5 pb-3">
+                <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                  <PlayerAvatar name={m.batter} imageUrl={playerImages[m.batter]} size={76} showBorder />
                   <span className="text-[10px] uppercase tracking-[0.15em] text-[#FFB800]/60 font-bold">Batsman</span>
                   <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.batter}</p>
                 </div>
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#FFB80015] to-[#00E5FF15] border border-[#FFB80030] flex-shrink-0">
-                  <span className="text-xs font-black text-text-muted">VS</span>
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#FFB80015] to-[#00E5FF15] border border-[#FFB80030] flex-shrink-0">
+                  <span className="text-sm font-black text-text-muted">VS</span>
                 </div>
-                <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                  <PlayerAvatar name={m.bowler} size={52} showBorder />
+                <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                  <PlayerAvatar name={m.bowler} imageUrl={playerImages[m.bowler]} size={76} showBorder />
                   <span className="text-[10px] uppercase tracking-[0.15em] text-[#00E5FF]/60 font-bold">Bowler</span>
                   <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
                 </div>
@@ -694,30 +797,33 @@ function MatchupRivalryCard({ batters, bowler }) {
 
         const sr = m.sr || 0
         const statsGrid = [
-          { label: 'BALLS', value: m.balls || 0 },
-          { label: 'SR', value: Math.round(sr) },
-          { label: '4s', value: m.fours || 0 },
-          { label: '6s', value: m.sixes || 0 },
-          { label: 'DOTS', value: m.dots || 0 },
-          { label: 'OUTS', value: m.dismissals || 0 },
-        ]
+          { label: 'BALLS', labelMobile: 'Balls faced', hint: 'Legal balls this batter faced from this bowler (all past IPL)' },
+          { label: 'SR', labelMobile: 'Strike rate', hint: 'Runs per 100 balls in this matchup (IPL)' },
+          { label: '4s', labelMobile: 'Fours', hint: 'Boundary fours in this matchup' },
+          { label: '6s', labelMobile: 'Sixes', hint: 'Sixes hit in this matchup' },
+          { label: 'DOTS', labelMobile: 'Dot balls', hint: 'Scoreless deliveries from this bowler to this batter' },
+          { label: 'OUTS', labelMobile: 'Dismissals', hint: 'Times this bowler dismissed this batter' },
+        ].map((row, i) => ({
+          ...row,
+          value: [m.balls || 0, Math.round(sr), m.fours || 0, m.sixes || 0, m.dots || 0, m.dismissals || 0][i] ?? 0,
+        }))
         return (
           <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
             <div className="h-1 bg-gradient-to-r from-[#FFB800] to-[#00E5FF]" />
 
-            <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
-              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                <PlayerAvatar name={m.batter} size={52} showBorder />
+            <div className="flex items-center justify-center gap-3 sm:gap-6 px-4 pt-5 pb-3">
+              <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                <PlayerAvatar name={m.batter} imageUrl={playerImages[m.batter]} size={76} showBorder />
                 <span className="text-[10px] uppercase tracking-[0.15em] text-[#FFB800] font-bold">Batsman</span>
                 <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.batter}</p>
               </div>
 
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#FFB80025] to-[#00E5FF25] border border-[#FFB80050] flex-shrink-0">
-                <span className="text-xs font-black text-[#FFB800]">VS</span>
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#FFB80025] to-[#00E5FF25] border border-[#FFB80050] flex-shrink-0">
+                <span className="text-sm font-black text-[#FFB800]">VS</span>
               </div>
 
-              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                <PlayerAvatar name={m.bowler} size={52} showBorder />
+              <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                <PlayerAvatar name={m.bowler} imageUrl={playerImages[m.bowler]} size={76} showBorder />
                 <span className="text-[10px] uppercase tracking-[0.15em] text-[#00E5FF] font-bold">Bowler</span>
                 <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
               </div>
@@ -728,12 +834,23 @@ function MatchupRivalryCard({ batters, bowler }) {
               <p className="text-4xl font-black text-text-primary font-mono leading-none">{m.runs || 0}</p>
             </div>
 
-            <div className="grid grid-cols-6 gap-1.5 p-3">
+            <p className="sm:hidden text-[10px] text-text-muted text-center leading-snug px-3 pt-2">
+              Past IPL only: totals for this batter against this bowler (not today’s live ball).
+            </p>
+
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-1.5 p-3 pt-2 sm:pt-3">
               {statsGrid.map((s, i) => {
                 const c = MATCHUP_STAT_COLORS[i % MATCHUP_STAT_COLORS.length]
                 return (
-                  <div key={i} className={`${c.bg} border ${c.border} rounded-lg py-2.5 px-1 text-center`}>
-                    <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1">{s.label}</p>
+                  <div
+                    key={i}
+                    className={`${c.bg} border ${c.border} rounded-lg py-2.5 px-1.5 sm:px-1 text-center`}
+                    title={s.hint}
+                  >
+                    <p className="sm:hidden text-[9px] text-text-muted leading-tight mb-1 font-medium">
+                      {s.labelMobile}
+                    </p>
+                    <p className="hidden sm:block text-[9px] text-text-muted uppercase tracking-wider mb-1">{s.label}</p>
                     <p className={`text-xl font-black font-mono leading-tight ${c.text}`}>{s.value}</p>
                   </div>
                 )
@@ -961,7 +1078,13 @@ function PlayerFormCard({ players }) {
 
   if (initialLoad && Object.keys(formData).length === 0) return <AnalyticsSkeleton />
 
-  const entries = players.map(p => formData[p.name]).filter(Boolean)
+  const entries = players
+    .map(p => {
+      const fd = formData[p.name]
+      if (!fd) return null
+      return { ...fd, imageUrl: p.imageUrl }
+    })
+    .filter(Boolean)
   if (entries.length === 0) {
     return <div className="text-center py-6 text-text-muted text-xs">No form data available</div>
   }
@@ -986,7 +1109,7 @@ function PlayerFormCard({ players }) {
           <div key={f.player} className="rounded-xl border border-border-subtle bg-surface-dark/30 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <PlayerAvatar name={f.player} size={28} showBorder />
+                <PlayerAvatar name={f.player} imageUrl={livePlayerImageUrl(f.imageUrl)} size={28} showBorder />
                 <div>
                   <p className="text-xs font-bold text-text-primary">{f.player}</p>
                   <p className="text-[9px] text-text-muted uppercase">{isBat ? 'Batting' : 'Bowling'}</p>
@@ -1280,11 +1403,37 @@ function LiveAnalyticsPanel({ scorecard }) {
     return teams[inningsNumber - 1] || teams[0] || ''
   }, [lastInnings, teams, inningsNumber])
 
+  const playerImages = useMemo(() => {
+    const map = {}
+    if (!lastInnings) return map
+    for (const b of lastInnings.batsmen || lastInnings.batting || []) {
+      const n = b.name || b.batsman?.name || b.batsman
+      const u = livePlayerImageUrl(b.image)
+      if (n && u) map[n] = u
+    }
+    for (const bw of lastInnings.bowlers || lastInnings.bowling || []) {
+      const n = bw.name || bw.bowler?.name || bw.bowler
+      const u = livePlayerImageUrl(bw.image)
+      if (n && u) map[n] = u
+    }
+    return map
+  }, [lastInnings])
+
   const formPlayers = useMemo(() => {
-    const list = activeBatters.map(name => ({ name, role: 'bat' }))
-    if (currentBowler) list.push({ name: currentBowler, role: 'bowl' })
+    const list = activeBatters.map(name => ({
+      name,
+      role: 'bat',
+      imageUrl: playerImages[name],
+    }))
+    if (currentBowler) {
+      list.push({
+        name: currentBowler,
+        role: 'bowl',
+        imageUrl: playerImages[currentBowler],
+      })
+    }
     return list
-  }, [activeBatters, currentBowler])
+  }, [activeBatters, currentBowler, playerImages])
 
   const analyticsCards = [
     {
@@ -1296,7 +1445,9 @@ function LiveAnalyticsPanel({ scorecard }) {
         </svg>
       ),
       show: activeBatters.length > 0 && !!currentBowler,
-      render: () => <MatchupRivalryCard batters={activeBatters} bowler={currentBowler} />,
+      render: () => (
+        <MatchupRivalryCard batters={activeBatters} bowler={currentBowler} playerImages={playerImages} />
+      ),
     },
     {
       id: 'projected',

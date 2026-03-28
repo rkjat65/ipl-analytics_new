@@ -1,8 +1,8 @@
 """Live analytics endpoints — combine live match context with historical DuckDB data."""
 
-import functools
 from fastapi import APIRouter, Query
 from ..database import query, normalize_venue, normalize_team, team_variants, VENUE_NAME_MAP
+from ..player_resolve import resolve_player_name as _resolve_player
 
 router = APIRouter(prefix="/api/live/analytics", tags=["live-analytics"])
 
@@ -17,57 +17,6 @@ def _venue_variants(name):
     variants.add(name)
     variants.add(canonical)
     return list(variants)
-
-
-@functools.lru_cache(maxsize=256)
-def _resolve_player(name: str, role: str = "bat") -> str:
-    """Resolve a full player name (from live API) to the historical DB name.
-
-    Tries exact match first, then last-name match, then partial match.
-    """
-    col = "batter" if role == "bat" else "bowler"
-
-    exact = query(
-        f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",
-        [name],
-    )
-    if exact:
-        return exact[0][col]
-
-    parts = name.strip().split()
-    if len(parts) >= 2:
-        last = parts[-1]
-        first_initial = parts[0][0]
-        abbr = f"{first_initial} {last}"
-        abbr_rows = query(
-            f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",
-            [abbr],
-        )
-        if abbr_rows:
-            return abbr_rows[0][col]
-
-        if len(parts) >= 3:
-            mid_initial = parts[1][0] if len(parts[1]) > 0 else ""
-            abbr2 = f"{first_initial}{mid_initial} {last}"
-            abbr2_rows = query(
-                f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",
-                [abbr2],
-            )
-            if abbr2_rows:
-                return abbr2_rows[0][col]
-
-        like_rows = query(
-            f"SELECT DISTINCT {col} FROM deliveries WHERE {col} LIKE ? LIMIT 5",
-            [f"%{last}%"],
-        )
-        if len(like_rows) == 1:
-            return like_rows[0][col]
-        for row in like_rows:
-            val = row[col]
-            if val.endswith(last) or val.startswith(first_initial):
-                return val
-
-    return name
 
 
 @router.get("/matchup")

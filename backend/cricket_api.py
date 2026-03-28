@@ -206,7 +206,22 @@ class SportmonksProvider(CricketAPIProvider):
     def _team_img(self, obj: dict | None) -> str:
         if not obj:
             return ""
-        return obj.get("image_path") or ""
+        return self._sportmonks_image_url(obj.get("image_path") or "")
+
+    @staticmethod
+    def _sportmonks_image_url(path: str | None) -> str:
+        """Turn Sportmonks image_path into a usable URL (often relative to CDN)."""
+        p = (path or "").strip()
+        if not p:
+            return ""
+        lower = p.lower()
+        if lower.startswith("http://") or lower.startswith("https://"):
+            return p
+        if p.startswith("//"):
+            return f"https:{p}"
+        if p.startswith("/"):
+            return f"https://cdn.sportmonks.com{p}"
+        return f"https://cdn.sportmonks.com/{p.lstrip('/')}"
 
     def _match_state(self, fixture: dict) -> tuple[bool, bool]:
         """Derive (matchStarted, matchEnded) from Sportmonks status fields."""
@@ -450,7 +465,9 @@ class SportmonksProvider(CricketAPIProvider):
                 "sr": b.get("rate", 0),
                 "dismissal": "out" if is_out else "not out",
                 "active": is_active,
-                "image": batsman.get("image_path", "") if isinstance(batsman, dict) else "",
+                "image": self._sportmonks_image_url(
+                    batsman.get("image_path", "") if isinstance(batsman, dict) else ""
+                ),
             })
 
         for bw in bowling_list:
@@ -480,7 +497,9 @@ class SportmonksProvider(CricketAPIProvider):
                 "wickets": bw.get("wickets", 0),
                 "economy": bw.get("rate", 0),
                 "active": bw.get("active", False),
-                "image": bowler.get("image_path", "") if isinstance(bowler, dict) else "",
+                "image": self._sportmonks_image_url(
+                    bowler.get("image_path", "") if isinstance(bowler, dict) else ""
+                ),
             })
 
         ordered = sorted(innings_map.values(), key=lambda x: x.get("scoreboard", "S1"))

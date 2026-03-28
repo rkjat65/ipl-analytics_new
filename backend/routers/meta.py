@@ -1,10 +1,17 @@
 """Meta endpoints: seasons, teams, players search."""
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
+
 from ..database import query, normalize_team
 from ..player_aliases import resolve_aliases
+from ..player_resolve import canonical_player_slug
 
 router = APIRouter(prefix="/api/meta", tags=["meta"])
+
+
+class BatchPlayerLookupBody(BaseModel):
+    names: list[str] = Field(default_factory=list, max_length=200)
 
 
 @router.get("/seasons")
@@ -61,3 +68,18 @@ def search_players(q: str = Query("", min_length=0)):
             results.append(name)
 
     return results[:50]
+
+
+@router.post("/players/batch-lookup")
+def batch_lookup_players(body: BatchPlayerLookupBody):
+    """Map display names (e.g. from live feed) to canonical profile slugs when IPL data exists."""
+    out: dict[str, dict] = {}
+    seen: set[str] = set()
+    for raw in body.names:
+        n = (raw or "").strip()
+        if not n or n in seen:
+            continue
+        seen.add(n)
+        slug = canonical_player_slug(n)
+        out[n] = {"hasProfile": slug is not None, "slug": slug}
+    return out

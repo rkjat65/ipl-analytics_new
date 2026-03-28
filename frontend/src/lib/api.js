@@ -15,10 +15,25 @@ async function fetchAPI(endpoint, params = {}) {
   return res.json()
 }
 
+async function postJSON(endpoint, body) {
+  const url = `${window.location.origin}${API_BASE}${endpoint}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
 // Meta
 export const getSeasons = () => fetchAPI('/meta/seasons')
 export const getTeams = () => fetchAPI('/meta/teams')
 export const searchPlayers = (q) => fetchAPI('/meta/players', { q })
+/** @param {string[]} names */
+export const batchLookupPlayers = (names) => postJSON('/meta/players/batch-lookup', { names })
 
 // Dashboard
 export const getKPIs = (season) => fetchAPI('/analytics/kpis', { season })
