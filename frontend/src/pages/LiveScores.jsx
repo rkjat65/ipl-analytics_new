@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { toPng } from 'html-to-image'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, LabelList,
 } from 'recharts'
 import { useFetch } from '../hooks/useFetch'
 import {
@@ -21,6 +22,82 @@ import SEO from '../components/SEO'
 const POLL_INTERVAL = 3_000
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** Fixes provider glitches like "6Bengaluru wickets" (matches backend sanitize). */
+function sanitizeResultStatus(text) {
+  if (!text || typeof text !== 'string') return text || ''
+  const cities =
+    'Bengaluru|Bangalore|Hyderabad|Mumbai|Chennai|Kolkata|Jaipur|Lucknow|Ahmedabad|Guwahati|Raipur|Delhi|Chandigarh|Dharamshala'
+  let t = text.replace(
+    new RegExp(`([0-9])(${cities})\\b`, 'gi'),
+    '$1 $2',
+  )
+  t = t.replace(
+    new RegExp(`([0-9])\\s+(?:${cities})\\s+wickets\\b`, 'gi'),
+    '$1 wickets',
+  )
+  return t
+}
+
+function collectInningsPlayers(scorecard) {
+  const innings = scorecard?.scorecard || []
+  const bats = []
+  const bowls = []
+  for (const inn of innings) {
+    const iname = inn.inning || ''
+    for (const b of inn.batsmen || inn.batting || []) {
+      bats.push({
+        name: b.name || b.fullName || '—',
+        runs: Number(b.runs) || 0,
+        balls: Number(b.balls) || 0,
+        fours: Number(b.fours) || 0,
+        sixes: Number(b.sixes) || 0,
+        sr: Number(b.sr) || 0,
+        inning: iname,
+        image: b.image || '',
+        dismissalDetail: b.dismissalDetail || b.dismissal || '',
+      })
+    }
+    for (const w of inn.bowlers || inn.bowling || []) {
+      bowls.push({
+        name: w.name || w.fullName || '—',
+        overs: Number(w.overs) || 0,
+        maidens: Number(w.maidens) || 0,
+        runs: Number(w.runs) || 0,
+        wickets: Number(w.wickets) || 0,
+        economy: Number(w.economy) || 0,
+        inning: iname,
+        image: w.image || '',
+      })
+    }
+  }
+  return { bats, bowls }
+}
+
+function buildMatchReportDerived(scorecard) {
+  const { bats, bowls } = collectInningsPlayers(scorecard)
+  const byRuns = [...bats].sort((a, b) => b.runs - a.runs)
+  const byWkts = [...bowls].sort((a, b) => b.wickets - a.wickets || a.runs - b.runs)
+  const byEco = [...bowls].filter((x) => x.overs >= 1).sort((a, b) => a.economy - b.economy)
+  const topBat = byRuns[0]
+  const topBowl = byWkts[0]
+  const bestEco = byEco[0]
+  const batChart = byRuns.slice(0, 8).map((b) => ({
+    name: b.name.length > 14 ? `${b.name.slice(0, 12)}…` : b.name,
+    runs: b.runs,
+    img: b.image,
+    fullName: b.name,
+  }))
+  const bowlChart = byWkts.slice(0, 8).map((b) => ({
+    name: b.name.length > 14 ? `${b.name.slice(0, 12)}…` : b.name,
+    wickets: b.wickets,
+    img: b.image,
+    fullName: b.name,
+  }))
+  const batStrip = byRuns.slice(0, 8)
+  const bowlStrip = byWkts.slice(0, 8)
+  return { topBat, topBowl, bestEco, batChart, bowlChart, bats, bowls, batStrip, bowlStrip }
+}
 
 function fmtScore(s) {
   if (!s) return '—'
@@ -217,7 +294,13 @@ function LiveScoreHero({ match, onClick, isSelected }) {
           <p className={`text-xs font-semibold text-center pt-2 border-t border-border-subtle/50 ${
             isLive ? 'text-accent-lime' : match.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
           }`}>
-            {match.status}
+            {sanitizeResultStatus(match.status)}
+          </p>
+        )}
+
+        {match.playerOfMatch?.name && (
+          <p className="text-[10px] sm:text-xs text-center text-accent-amber font-semibold">
+            Player of the match: <span className="text-text-primary">{match.playerOfMatch.name}</span>
           </p>
         )}
 
@@ -419,7 +502,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           <p className={`mt-3 text-sm sm:text-base font-bold text-center ${
             isLive ? 'text-accent-lime' : scorecard.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
           }`}>
-            {scorecard.status}
+            {sanitizeResultStatus(scorecard.status)}
           </p>
 
           {/* Runs needed in balls — shown only during 2nd innings chase */}
@@ -452,6 +535,12 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
               </div>
             )
           })()}
+          {scorecard.playerOfMatch?.name && (
+            <p className="mt-1.5 text-xs sm:text-sm text-center text-accent-amber font-semibold">
+              Player of the match:{' '}
+              <span className="text-text-primary">{scorecard.playerOfMatch.name}</span>
+            </p>
+          )}
 
           {/* Active players inline */}
           {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
@@ -525,6 +614,7 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
               <thead>
                 <tr className="text-text-muted border-b border-border-subtle">
                   <th className="text-left py-1.5 px-3 font-medium">Batter</th>
+                  <th className="text-left py-1.5 px-2 font-medium hidden md:table-cell min-w-[120px]">How out</th>
                   <th className="text-center py-1.5 px-1 font-medium">R</th>
                   <th className="text-center py-1.5 px-1 font-medium">B</th>
                   <th className="text-center py-1.5 px-1 font-medium">4s</th>
@@ -541,27 +631,35 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
                   const fours = b.fours ?? b['4s'] ?? 0
                   const sixes = b.sixes ?? b['6s'] ?? 0
                   const sr = b.sr ?? (balls > 0 ? ((runs / balls) * 100).toFixed(1) : '0.0')
-                  const dismissal = b.dismissal || ''
-                  const isNotOut = dismissal.toLowerCase().includes('not out') || dismissal === ''
+                  const howOut = (b.dismissalDetail || b.dismissal || '').trim()
+                  const isNotOut = !howOut || howOut.toLowerCase() === 'not out'
 
                   return (
                     <tr key={bi} className={`border-b border-border-subtle/30 hover:bg-surface-hover/50 ${
                       isNotOut && isLive ? 'bg-accent-lime/5' : ''
                     }`}>
                       <td className="py-1.5 px-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <PlayerAvatar name={displayName} imageUrl={livePlayerImageUrl(b.image)} size={26} showBorder />
-                          {isNotOut && isLive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-lime animate-pulse flex-shrink-0" />
-                          )}
-                          <LiveScorePlayerName
-                            name={name}
-                            displayName={displayName}
-                            lookup={playerLookup}
-                            title={dismissal || 'not out'}
-                            className="text-sm"
-                          />
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <PlayerAvatar name={displayName} imageUrl={livePlayerImageUrl(b.image)} size={26} showBorder />
+                            {isNotOut && isLive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-lime animate-pulse flex-shrink-0" />
+                            )}
+                            <LiveScorePlayerName
+                              name={name}
+                              displayName={displayName}
+                              lookup={playerLookup}
+                              title={howOut || 'not out'}
+                              className="text-sm"
+                            />
+                          </div>
+                          <p className="md:hidden text-[10px] text-text-muted leading-snug pl-8">
+                            {howOut || 'not out'}
+                          </p>
                         </div>
+                      </td>
+                      <td className="py-1.5 px-2 text-[10px] text-text-muted leading-snug hidden md:table-cell align-top max-w-[200px]">
+                        {howOut || '—'}
                       </td>
                       <td className={`text-center py-1.5 px-1 font-mono font-bold ${
                         runs >= 50 ? 'text-accent-lime' : runs >= 30 ? 'text-accent-cyan' : 'text-text-primary'
@@ -645,7 +743,7 @@ function ActivePlayersInline({ scorecard, playerLookup = {} }) {
   const lastInnings = scorecard.scorecard[scorecard.scorecard.length - 1]
   const allBatsmen = lastInnings?.batsmen || lastInnings?.batting || []
   const notOutBatsmen = allBatsmen.filter(b => {
-    const d = (b.dismissal || '').toLowerCase()
+    const d = (b.dismissalDetail || b.dismissal || '').toLowerCase()
     return d.includes('not out') || d === ''
   })
 
@@ -779,21 +877,21 @@ const MATCHUP_STAT_COLORS = [
   { bg: 'bg-[#1A0D1F]', border: 'border-[#FF2D7825]', text: 'text-[#FF2D78]' },
 ]
 
-function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
+function MatchupRivalryCard({ batters, bowler, playerImages = {}, matchId }) {
   const [data, setData] = useState({})
   const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
     if (!bowler || batters.length === 0) { setInitialLoad(false); return }
     Promise.all(
-      batters.map(b => getLiveMatchup(b, bowler).catch(() => ({ batter: b, bowler, found: false })))
+      batters.map(b => getLiveMatchup(b, bowler, matchId).catch(() => ({ batter: b, bowler, found: false })))
     ).then(results => {
       const map = {}
       results.forEach(r => { map[r.batter] = r })
       setData(map)
     }).finally(() => setInitialLoad(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batters.join(','), bowler])
+  }, [batters.join(','), bowler, matchId])
 
   if (initialLoad && Object.keys(data).length === 0) return <AnalyticsSkeleton />
 
@@ -803,6 +901,7 @@ function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
     <div className="space-y-5">
       {entries.map(m => {
         if (!m.found) {
+          const hasLive = m.this_match_batter || m.this_match_bowler
           return (
             <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
               <div className="h-1 bg-gradient-to-r from-[#FFB800]/30 to-[#00E5FF]/30" />
@@ -821,7 +920,24 @@ function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
                   <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
                 </div>
               </div>
-              <div className="text-center pb-4 text-text-muted text-sm">No IPL history between these players</div>
+              {hasLive && (
+                <div className="text-center py-3 mx-4 mb-3 rounded-xl bg-accent-lime/10 border border-accent-lime/20 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wider text-accent-lime font-bold">This match</p>
+                  {m.this_match_batter && (
+                    <p className="text-xl font-black font-mono text-text-primary">
+                      {m.this_match_batter.runs} ({m.this_match_batter.balls})
+                    </p>
+                  )}
+                  {m.this_match_bowler && (
+                    <p className="text-sm font-mono text-accent-cyan">
+                      {m.this_match_bowler.wickets}/{m.this_match_bowler.runs_conceded} ({m.this_match_bowler.overs} ov)
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="text-center pb-4 text-text-muted text-sm">
+                {hasLive ? 'No prior IPL ball-by-ball H2H in our database for this pair.' : 'No IPL history between these players'}
+              </div>
             </div>
           )
         }
@@ -860,13 +976,34 @@ function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
               </div>
             </div>
 
+            {(m.this_match_batter || m.this_match_bowler) && (
+              <div className="text-center py-3 mx-4 rounded-xl bg-gradient-to-r from-accent-lime/10 to-accent-cyan/10 border border-accent-lime/25 space-y-1">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-accent-lime font-bold">This match (scorecard)</p>
+                {m.this_match_batter && (
+                  <p className="text-lg font-black font-mono text-text-primary">
+                    {m.this_match_batter.runs}<span className="text-text-muted text-base font-bold"> ({m.this_match_batter.balls})</span>
+                    <span className="block text-[10px] font-normal text-text-muted normal-case">
+                      SR {m.this_match_batter.strike_rate ?? '—'}
+                      {m.this_match_batter.dismissal ? ` · ${m.this_match_batter.dismissal}` : ''}
+                    </span>
+                  </p>
+                )}
+                {m.this_match_bowler && (
+                  <p className="text-sm font-mono text-accent-cyan">
+                    Spell {m.this_match_bowler.wickets}/{m.this_match_bowler.runs_conceded} ({m.this_match_bowler.overs} ov)
+                    {m.this_match_bowler.economy != null ? ` · eco ${m.this_match_bowler.economy}` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="text-center py-3 mx-4 rounded-full bg-gradient-to-r from-[#FFB80008] to-[#00E5FF08] border border-[#FFB80015]">
-              <p className="text-[10px] uppercase tracking-[0.1em] text-[#FFB800] font-semibold mb-0.5">Runs Scored</p>
+              <p className="text-[10px] uppercase tracking-[0.1em] text-[#FFB800] font-semibold mb-0.5">IPL career (all balls vs this bowler)</p>
               <p className="text-4xl font-black text-text-primary font-mono leading-none">{m.runs || 0}</p>
             </div>
 
             <p className="sm:hidden text-[10px] text-text-muted text-center leading-snug px-3 pt-2">
-              Past IPL only: totals for this batter against this bowler (not today’s live ball).
+              Large total is historical IPL ball-by-ball data. “This match” is from the live scorecard.
             </p>
 
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-1.5 p-3 pt-2 sm:pt-3">
@@ -1089,7 +1226,7 @@ function VenueDNACard({ venue }) {
 }
 
 /* ── Card 4: Player Form Tracker ─────────────────────────────── */
-function PlayerFormCard({ players }) {
+function PlayerFormCard({ players, matchId }) {
   const [formData, setFormData] = useState({})
   const [initialLoad, setInitialLoad] = useState(true)
 
@@ -1097,7 +1234,7 @@ function PlayerFormCard({ players }) {
     if (!players || players.length === 0) { setInitialLoad(false); return }
     Promise.all(
       players.map(p =>
-        getLivePlayerForm(p.name, p.role).catch(() => ({ player: p.name, role: p.role, last_5: [] }))
+        getLivePlayerForm(p.name, p.role, matchId).catch(() => ({ player: p.name, role: p.role, last_5: [] }))
       )
     ).then(results => {
       const map = {}
@@ -1105,7 +1242,7 @@ function PlayerFormCard({ players }) {
       setFormData(map)
     }).finally(() => setInitialLoad(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players.map(p => `${p.name}-${p.role}`).join(',')])
+  }, [players.map(p => `${p.name}-${p.role}`).join(','), matchId])
 
   if (initialLoad && Object.keys(formData).length === 0) return <AnalyticsSkeleton />
 
@@ -1125,7 +1262,7 @@ function PlayerFormCard({ players }) {
       {entries.map(f => {
         const isBat = f.role === 'bat'
         const last5 = f.last_5 || []
-        if (last5.length === 0) return null
+        if (last5.length === 0 && !f.this_match) return null
 
         const chartData = last5.map((inn, i) => ({
           inn: `${i + 1}`,
@@ -1133,7 +1270,9 @@ function PlayerFormCard({ players }) {
           opponent: inn.opponent ? getTeamAbbr(inn.opponent) : '',
         })).reverse()
 
-        const refValue = isBat ? f.career_avg : f.career_economy
+        let refValue = isBat ? f.career_avg : f.career_economy
+        if (isBat && refValue != null && refValue > 150) refValue = null
+
         const primaryColor = isBat ? '#06d6a0' : '#f72585'
 
         return (
@@ -1146,39 +1285,73 @@ function PlayerFormCard({ players }) {
                   <p className="text-[9px] text-text-muted uppercase">{isBat ? 'Batting' : 'Bowling'}</p>
                 </div>
               </div>
-              <div className="text-right text-[10px] text-text-muted">
+              <div className="text-right text-[10px] text-text-muted max-w-[55%]">
                 {isBat ? (
                   <>
-                    <span>Last 5 Avg: <span className="font-mono text-accent-cyan">{f.avg_last_5 ?? '—'}</span></span>
-                    <span className="ml-2">Career: <span className="font-mono text-text-secondary">{f.career_avg ?? '—'}</span></span>
+                    <span>Last 5 avg: <span className="font-mono text-accent-cyan">{f.avg_last_5 ?? '—'}</span></span>
+                    <span className="ml-2">IPL DB avg: <span className="font-mono text-text-secondary">{f.career_avg ?? '—'}</span></span>
+                    <span className="block text-[8px] text-text-muted mt-0.5">DB = historical ball-by-ball, not this innings</span>
                   </>
                 ) : (
                   <>
-                    <span>Last 5 Econ: <span className="font-mono text-accent-magenta">{f.avg_econ_last_5 ?? '—'}</span></span>
-                    <span className="ml-2">Career: <span className="font-mono text-text-secondary">{f.career_economy ?? '—'}</span></span>
+                    <span>Last 5 econ: <span className="font-mono text-accent-magenta">{f.avg_econ_last_5 ?? '—'}</span></span>
+                    <span className="ml-2">IPL DB: <span className="font-mono text-text-secondary">{f.career_economy ?? '—'}</span></span>
                   </>
                 )}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={90}>
-              {isBat ? (
-                <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
-                  <Tooltip content={<AnalyticsTooltip />} />
-                  {refValue && <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'Avg', fontSize: 8, fill: '#8d99ae' }} />}
-                  <Bar dataKey="value" name="Runs" fill={primaryColor} radius={[4, 4, 0, 0]} barSize={24} />
-                </BarChart>
-              ) : (
-                <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
-                  <Tooltip content={<AnalyticsTooltip />} />
-                  {refValue && <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'Avg', fontSize: 8, fill: '#8d99ae' }} />}
-                  <Line type="monotone" dataKey="value" name="Economy" stroke={primaryColor} strokeWidth={2} dot={{ r: 3, fill: primaryColor }} />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
+
+            {f.this_match && (
+              <div className="mb-3 p-3 rounded-lg border border-accent-lime/35 bg-accent-lime/5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-accent-lime mb-1">This match (live scorecard)</p>
+                {isBat ? (
+                  <p className="text-2xl font-black font-mono text-text-primary">
+                    {f.this_match.runs}
+                    <span className="text-base text-text-muted font-bold"> ({f.this_match.balls})</span>
+                    <span className="ml-2 text-sm text-accent-cyan">SR {f.this_match.strike_rate ?? '—'}</span>
+                  </p>
+                ) : (
+                  <p className="text-2xl font-black font-mono text-text-primary">
+                    {f.this_match.wickets}/{f.this_match.runs_conceded}
+                    <span className="text-base text-text-muted font-bold"> ({f.this_match.overs} ov)</span>
+                    {f.this_match.economy != null && (
+                      <span className="ml-2 text-sm text-accent-magenta">eco {f.this_match.economy}</span>
+                    )}
+                  </p>
+                )}
+                {isBat && f.this_match.dismissal && (
+                  <p className="text-[10px] text-text-muted mt-1">{f.this_match.dismissal}</p>
+                )}
+              </div>
+            )}
+
+            {last5.length > 0 ? (
+              <ResponsiveContainer width="100%" height={90}>
+                {isBat ? (
+                  <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                    <Tooltip content={<AnalyticsTooltip />} />
+                    {refValue != null && (
+                      <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'DB avg', fontSize: 8, fill: '#8d99ae' }} />
+                    )}
+                    <Bar dataKey="value" name="Runs" fill={primaryColor} radius={[4, 4, 0, 0]} barSize={24} />
+                  </BarChart>
+                ) : (
+                  <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+                    <Tooltip content={<AnalyticsTooltip />} />
+                    {refValue != null && (
+                      <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'DB avg', fontSize: 8, fill: '#8d99ae' }} />
+                    )}
+                    <Line type="monotone" dataKey="value" name="Economy" stroke={primaryColor} strokeWidth={2} dot={{ r: 3, fill: primaryColor }} />
+                  </LineChart>
+                )}
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-[11px] text-text-muted py-2">No prior IPL innings in our database for this player.</p>
+            )}
           </div>
         )
       })}
@@ -1342,14 +1515,16 @@ function ScorecardWithAnalytics({ matchId }) {
   }, [])
 
   const isLive = liveScorecard?.matchStarted && !liveScorecard?.matchEnded
-  const hasScorecard = isLive
+  const hasScorecardData = Boolean(liveScorecard?.scorecard?.length)
 
-  const analyticsPanel = hasScorecard ? <LiveAnalyticsPanel scorecard={liveScorecard} /> : null
+  const analyticsPanel = hasScorecardData ? (
+    <LiveAnalyticsPanel scorecard={liveScorecard} isLive={isLive} matchId={matchId} />
+  ) : null
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
       {/* Scorecard — main column */}
-      <div className={hasScorecard ? 'xl:col-span-7' : 'xl:col-span-12'}>
+      <div className={hasScorecardData ? 'xl:col-span-7' : 'xl:col-span-12'}>
         <DetailedScorecard
           matchId={matchId}
           onScorecardUpdate={handleScorecardUpdate}
@@ -1358,7 +1533,7 @@ function ScorecardWithAnalytics({ matchId }) {
       </div>
 
       {/* Live Analytics — desktop side panel only (hidden on mobile since it appears inline) */}
-      {hasScorecard && (
+      {hasScorecardData && (
         <div className="hidden xl:block xl:col-span-5 xl:sticky xl:top-4 xl:self-start">
           {analyticsPanel}
         </div>
@@ -1369,7 +1544,7 @@ function ScorecardWithAnalytics({ matchId }) {
 
 
 /* ── Live Analytics Panel (Main Container) ───────────────────── */
-function LiveAnalyticsPanel({ scorecard }) {
+function LiveAnalyticsPanel({ scorecard, isLive, matchId }) {
   const [expanded, setExpanded] = useState(true)
 
   const lastInnings = scorecard.scorecard?.[scorecard.scorecard.length - 1]
@@ -1477,7 +1652,12 @@ function LiveAnalyticsPanel({ scorecard }) {
       ),
       show: activeBatters.length > 0 && !!currentBowler,
       render: () => (
-        <MatchupRivalryCard batters={activeBatters} bowler={currentBowler} playerImages={playerImages} />
+        <MatchupRivalryCard
+          batters={activeBatters}
+          bowler={currentBowler}
+          playerImages={playerImages}
+          matchId={matchId}
+        />
       ),
     },
     {
@@ -1520,7 +1700,7 @@ function LiveAnalyticsPanel({ scorecard }) {
         </svg>
       ),
       show: formPlayers.length > 0,
-      render: () => <PlayerFormCard players={formPlayers} />,
+      render: () => <PlayerFormCard players={formPlayers} matchId={matchId} />,
     },
     {
       id: 'phase',
@@ -1574,6 +1754,15 @@ function LiveAnalyticsPanel({ scorecard }) {
             </svg>
           </span>
           Analytics
+          {isLive ? (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-magenta/20 text-accent-magenta">
+              Live
+            </span>
+          ) : (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-hover text-text-muted">
+              Match card
+            </span>
+          )}
         </h3>
         <svg
           viewBox="0 0 24 24"
@@ -1623,10 +1812,253 @@ function LiveAnalyticsPanel({ scorecard }) {
 }
 
 
+/* ── Match report modal (cached live scorecard + Recharts + downloads) ─ */
+function MatchReportModal({ apiMatchId, title, onClose }) {
+  const chartRef = useRef(null)
+  const { data: sc, loading, error } = useFetch(
+    () => getLiveScorecard(apiMatchId),
+    [apiMatchId],
+  )
+
+  const derived = useMemo(() => (sc ? buildMatchReportDerived(sc) : null), [sc])
+
+  const downloadPng = async () => {
+    if (!chartRef.current) return
+    try {
+      const dataUrl = await toPng(chartRef.current, { pixelRatio: 2, backgroundColor: '#111118' })
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `ipl-match-report-${apiMatchId}.png`
+      a.click()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const downloadTxt = () => {
+    if (!sc || !derived) return
+    const lines = [
+      title || sc.name,
+      sc.venue ? `Venue: ${sc.venue}` : '',
+      `Date: ${sc.date || ''}`,
+      sanitizeResultStatus(sc.status || ''),
+      sc.matchWinner ? `Winner: ${sc.matchWinner}` : '',
+      sc.playerOfMatch?.name ? `Player of the match: ${sc.playerOfMatch.name}` : '',
+      '',
+      '--- Top batsman (runs) ---',
+      derived.topBat
+        ? `${derived.topBat.name}: ${derived.topBat.runs} (${derived.topBat.balls} balls, SR ${derived.topBat.sr || '—'})`
+        : '—',
+      '',
+      '--- Top bowler (wickets) ---',
+      derived.topBowl
+        ? `${derived.topBowl.name}: ${derived.topBowl.wickets}/${derived.topBowl.runs} (${derived.topBowl.overs} ov, eco ${derived.topBowl.economy})`
+        : '—',
+      '',
+      '--- All batsmen ---',
+      ...derived.bats.map((b) => {
+        const how = b.dismissalDetail ? ` · ${b.dismissalDetail}` : ''
+        return `${b.name} (${b.inning}): ${b.runs} (${b.balls}), ${b.fours}x4 ${b.sixes}x6${how}`
+      }),
+      '',
+      '--- All bowlers ---',
+      ...derived.bowls.map(
+        (b) => `${b.name} (${b.inning}): ${b.overs}-${b.maidens}-${b.runs}-${b.wickets}, eco ${b.economy}`,
+      ),
+    ]
+    const blob = new Blob([lines.filter(Boolean).join('\n')], { type: 'text/plain;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `ipl-match-report-${apiMatchId}.txt`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-3xl w-full max-h-[90vh] overflow-y-auto rounded-2xl border border-border-subtle bg-surface-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-border-subtle bg-surface-card/95 backdrop-blur">
+          <h3 className="text-lg font-bold text-text-primary pr-4">{title || 'Match report'}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-text-muted hover:text-text-primary hover:bg-surface-hover"
+          >
+            Close
+          </button>
+        </div>
+        <div className="p-5 space-y-6">
+          {loading && <Loading />}
+          {error && <p className="text-accent-magenta text-sm">{error}</p>}
+          {!loading && !error && sc && (
+            <>
+              <div className="text-sm text-text-secondary space-y-1">
+                <p className="text-text-primary font-semibold">{sc.name}</p>
+                {sc.venue && <p>Venue: {sc.venue}</p>}
+                {sc.date && <p>Date: {sc.date}</p>}
+                <p className="text-accent-cyan font-medium">{sanitizeResultStatus(sc.status)}</p>
+                {sc.matchWinner && (
+                  <p>
+                    <span className="text-text-muted">Winner: </span>
+                    <span className="text-accent-lime font-semibold">{sc.matchWinner}</span>
+                  </p>
+                )}
+                {sc.playerOfMatch?.name && (
+                  <p>
+                    <span className="text-text-muted">Player of the match: </span>
+                    <span className="text-accent-amber font-semibold">{sc.playerOfMatch.name}</span>
+                  </p>
+                )}
+              </div>
+
+              {derived && derived.topBat && (
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  <div className="rounded-xl border border-accent-cyan/20 bg-accent-cyan/5 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-accent-cyan font-bold mb-2">Highest scorer</p>
+                    <p className="text-text-primary font-bold text-lg">{derived.topBat.name}</p>
+                    <p className="text-text-muted font-mono mt-1">
+                      {derived.topBat.runs} ({derived.topBat.balls}) · SR {derived.topBat.sr || '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-accent-magenta/20 bg-accent-magenta/5 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-accent-magenta font-bold mb-2">Best bowling</p>
+                    <p className="text-text-primary font-bold text-lg">{derived.topBowl?.name || '—'}</p>
+                    <p className="text-text-muted font-mono mt-1">
+                      {derived.topBowl
+                        ? `${derived.topBowl.wickets} wickets · ${derived.topBowl.runs} runs · ${derived.topBowl.overs} ov · eco ${derived.topBowl.economy}`
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {derived && derived.batChart.length > 0 && (
+                <div ref={chartRef} className="space-y-6 rounded-xl border border-border-subtle bg-surface-dark/40 p-4">
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2">Batters — headshots & totals (always visible)</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      {derived.batStrip.map((b) => (
+                        <div
+                          key={`${b.name}-${b.inning}`}
+                          className="flex items-center gap-2 rounded-lg border border-border-subtle/70 bg-surface-card/90 p-2"
+                        >
+                          {livePlayerImageUrl(b.image) ? (
+                            <img
+                              src={livePlayerImageUrl(b.image)}
+                              alt=""
+                              className="w-11 h-11 rounded-full object-cover border border-border-subtle flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded-full bg-surface-hover flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-text-primary truncate leading-tight">{b.name}</p>
+                            <p className="text-sm font-mono font-black text-accent-cyan">{b.runs} runs</p>
+                            <p className="text-[9px] text-text-muted font-mono">{b.balls}b</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Runs — bar chart (values on bars)</p>
+                    <div className="h-56 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={derived.batChart} margin={{ top: 32, right: 12, left: 4, bottom: 4 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff18" />
+                          <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={48} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip contentStyle={{ background: '#111118', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <Bar dataKey="runs" fill="#00E5FF" radius={[4, 4, 0, 0]}>
+                            <LabelList dataKey="runs" position="top" fill="#e2e8f0" fontSize={11} formatter={(v) => `${v} runs`} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2">Bowlers — headshots & wickets</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      {derived.bowlStrip.map((b) => (
+                        <div
+                          key={`${b.name}-${b.inning}`}
+                          className="flex items-center gap-2 rounded-lg border border-border-subtle/70 bg-surface-card/90 p-2"
+                        >
+                          {livePlayerImageUrl(b.image) ? (
+                            <img
+                              src={livePlayerImageUrl(b.image)}
+                              alt=""
+                              className="w-11 h-11 rounded-full object-cover border border-border-subtle flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded-full bg-surface-hover flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-text-primary truncate leading-tight">{b.name}</p>
+                            <p className="text-sm font-mono font-black text-accent-magenta">{b.wickets} wkts</p>
+                            <p className="text-[9px] text-text-muted font-mono">{b.runs} runs · {b.overs} ov</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Wickets — bar chart (values on bars)</p>
+                    <div className="h-56 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={derived.bowlChart} margin={{ top: 32, right: 12, left: 4, bottom: 4 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff18" />
+                          <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={48} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip contentStyle={{ background: '#111118', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <Bar dataKey="wickets" fill="#FF2D78" radius={[4, 4, 0, 0]}>
+                            <LabelList dataKey="wickets" position="top" fill="#e2e8f0" fontSize={11} formatter={(v) => `${v} wkts`} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={downloadPng}
+                  disabled={!derived?.batChart?.length}
+                  className="rounded-lg px-4 py-2 text-xs font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/25 disabled:opacity-40"
+                >
+                  Download charts (PNG)
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadTxt}
+                  className="rounded-lg px-4 py-2 text-xs font-bold bg-accent-lime/15 text-accent-lime border border-accent-lime/30 hover:bg-accent-lime/25"
+                >
+                  Download full report (TXT)
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── IPL Schedule Tab ─────────────────────────────────────────── */
 function IPLScheduleView() {
   const { data: schedule, loading, error } = useFetch(() => getIPLSchedule(), [])
   const [teamFilter, setTeamFilter] = useState('all')
+  const [reportCtx, setReportCtx] = useState(null)
   const scrollRef = useRef(null)
   const countdown = useCountdown(schedule?.nextMatch?.dateTimeGMT)
 
@@ -1658,6 +2090,13 @@ function IPLScheduleView() {
 
   return (
     <div className="space-y-6">
+      {reportCtx && (
+        <MatchReportModal
+          apiMatchId={reportCtx.apiMatchId}
+          title={reportCtx.title}
+          onClose={() => setReportCtx(null)}
+        />
+      )}
       {nextM && countdown && (
         <div className="rounded-2xl border border-accent-cyan/20 bg-gradient-to-br from-accent-cyan/5 via-surface-card to-accent-magenta/5 p-6 sm:p-8">
           <div className="text-center">
@@ -1760,7 +2199,9 @@ function IPLScheduleView() {
                 <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Home</th>
                 <th className="text-center py-3 px-2 font-medium text-xs uppercase tracking-wider w-8"></th>
                 <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Away</th>
+                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider hidden lg:table-cell min-w-[140px]">Result</th>
                 <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Venue</th>
+                <th className="text-center py-3 px-2 font-medium text-xs uppercase tracking-wider w-24">Report</th>
               </tr>
             </thead>
             <tbody>
@@ -1772,12 +2213,18 @@ function IPLScheduleView() {
                 const isToday = m.date === new Date().toISOString().slice(0, 10)
                 const isCompleted = m.status === 'completed'
                 const isLive = m.status === 'live'
+                const winnerLine = m.matchWinner
+                  ? `${getTeamAbbr(m.matchWinner)} won`
+                  : isCompleted
+                    ? '—'
+                    : ''
 
                 let rowClass = 'border-b border-border-subtle/50 transition-colors'
                 if (isLive) rowClass += ' bg-accent-magenta/5 border-l-2 border-l-accent-magenta'
                 else if (isNext) rowClass += ' bg-accent-cyan/5 border-l-2 border-l-accent-cyan'
                 else if (isToday) rowClass += ' bg-accent-amber/5 border-l-2 border-l-accent-amber'
-                else if (isCompleted) rowClass += ' opacity-50'
+                else if (isCompleted && !m.matchWinner) rowClass += ' opacity-50'
+                else if (isCompleted) rowClass += ' bg-surface-hover/25'
                 else rowClass += ' hover:bg-surface-hover/50'
 
                 return (
@@ -1809,7 +2256,42 @@ function IPLScheduleView() {
                         <span className="text-xs font-semibold text-text-primary lg:hidden">{getTeamAbbr(m.away)}</span>
                       </div>
                     </td>
+                    <td className="py-3 px-3 text-[11px] text-text-secondary hidden lg:table-cell align-top max-w-[200px]">
+                      {isCompleted ? (
+                        <div className="space-y-1">
+                          <p className="font-bold text-accent-lime">{winnerLine}</p>
+                          {m.resultNote && (
+                            <p className="text-text-muted leading-snug line-clamp-2" title={m.resultNote}>
+                              {sanitizeResultStatus(m.resultNote)}
+                            </p>
+                          )}
+                          {m.playerOfMatch?.name && (
+                            <p className="text-accent-amber/90 text-[10px]">MOTM: {m.playerOfMatch.name}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-text-muted">—</span>
+                      )}
+                    </td>
                     <td className="py-3 px-3 text-xs text-text-secondary hidden md:table-cell">{m.venue}</td>
+                    <td className="py-3 px-2 text-center align-middle">
+                      {m.apiMatchId && (isCompleted || isLive) ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReportCtx({
+                              apiMatchId: m.apiMatchId,
+                              title: `Match ${m.match} · ${getTeamAbbr(m.home)} vs ${getTeamAbbr(m.away)}`,
+                            })
+                          }
+                          className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 whitespace-nowrap"
+                        >
+                          {isCompleted ? 'Report' : 'Live'}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-text-muted">—</span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}

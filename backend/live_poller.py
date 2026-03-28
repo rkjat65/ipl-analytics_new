@@ -23,6 +23,7 @@ from .live_db import (
     upsert_matches,
     upsert_scorecard,
 )
+from .sportmonks_history import try_promote_after_scorecard
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,8 @@ async def _poll_once() -> int:
             hits += 1
             upsert_scorecard(mid, sc)
             log_poll("scorecard", "success", match_id=mid, hits=1)
+            extra = await try_promote_after_scorecard(mid, sc)
+            hits += extra
         except Exception as exc:
             logger.warning("Scorecard fetch failed for %s: %s", mid, exc)
             log_poll("scorecard", "error", match_id=mid, error_msg=str(exc)[:500])

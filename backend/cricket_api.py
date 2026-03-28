@@ -27,6 +27,7 @@ Canonical scorecard shape (returned by fetch_scorecard):
     "date": str, "dateTimeGMT": str,
     "teams": list, "teamInfo": list, "score": list,
     "tossWinner": str, "tossChoice": str, "matchWinner": str,
+    "playerOfMatch": {"name": str, "image": str} | null,
     "scorecard": list,
     "matchStarted": bool, "matchEnded": bool,
   }
@@ -36,11 +37,35 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from abc import ABC, abstractmethod
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# Sportmonks (and some feeds) occasionally glue a wicket count to a city token,
+# e.g. "won by 6Bengaluru wickets" — insert a space before known venue/city tokens.
+_STATUS_CITY_GLUE = re.compile(
+    r"(\d)(Bengaluru|Bangalore|Hyderabad|Mumbai|Chennai|Kolkata|Jaipur|Lucknow|Ahmedabad|"
+    r"Guwahati|Raipur|Delhi|Chandigarh|Dharamshala)\b",
+    re.IGNORECASE,
+)
+# e.g. "won by 6 Bengaluru wickets" → "won by 6 wickets" (city duplicated from team name)
+_STATUS_CITY_BEFORE_WICKETS = re.compile(
+    r"(\d)\s+(?:Bengaluru|Bangalore|Hyderabad|Mumbai|Chennai|Kolkata|Jaipur|Lucknow|Ahmedabad|"
+    r"Guwahati|Raipur|Delhi|Chandigarh|Dharamshala)\s+wickets\b",
+    re.IGNORECASE,
+)
+
+
+def sanitize_match_status_text(text: str | None) -> str:
+    """Normalize provider result lines for display (fixes digit+city concatenation)."""
+    if not text or not isinstance(text, str):
+        return (text or "").strip()
+    t = _STATUS_CITY_GLUE.sub(r"\1 \2", text).strip()
+    t = _STATUS_CITY_BEFORE_WICKETS.sub(r"\1 wickets", t)
+    return t
 
 
 # ─── Abstract base ──────────────────────────────────────────────────
@@ -116,7 +141,7 @@ class CricAPIProvider(CricketAPIProvider):
             out.append({
                 "id": m.get("id", ""),
                 "name": f"{t1} vs {t2}",
-                "status": m.get("status", ""),
+                "status": sanitize_match_status_text(m.get("status", "") or ""),
                 "dateTimeGMT": m.get("dateTimeGMT", ""),
                 "matchType": m.get("matchType", ""),
                 "series": m.get("series", ""),
@@ -223,6 +248,38 @@ class SportmonksProvider(CricketAPIProvider):
             return f"https://cdn.sportmonks.com{p}"
         return f"https://cdn.sportmonks.com/{p.lstrip('/')}"
 
+    def _player_dict_from_embedded_player(self, player: dict | None) -> dict | None:
+        if not player or not isinstance(player, dict):
+            return None
+        name = player.get("fullname") or player.get("lastname") or ""
+        if not name:
+            return None
+        return {
+            "name": name,
+            "image": self._sportmonks_image_url(player.get("image_path", "")),
+        }
+
+    def _extract_player_of_match(self, fixture: dict) -> dict | None:
+        raw = fixture.get("manofmatch") or fixture.get("man_of_match") or fixture.get("player_of_match")
+        if not raw:
+            return None
+        if isinstance(raw, dict) and "data" in raw:
+            d = raw["data"]
+            if isinstance(d, list) and d:
+                d = d[0]
+            if not isinstance(d, dict):
+                return None
+            pl = d.get("player")
+            if isinstance(pl, dict):
+                inner = pl.get("data") if isinstance(pl.get("data"), dict) else pl
+                got = self._player_dict_from_embedded_player(inner if isinstance(inner, dict) else None)
+                if got:
+                    return got
+            return self._player_dict_from_embedded_player(d)
+        if isinstance(raw, dict):
+            return self._player_dict_from_embedded_player(raw)
+        return None
+
     def _match_state(self, fixture: dict) -> tuple[bool, bool]:
         """Derive (matchStarted, matchEnded) from Sportmonks status fields."""
         status = (fixture.get("status") or "").lower()
@@ -284,10 +341,92 @@ class SportmonksProvider(CricketAPIProvider):
             return raw["data"]
         return raw
 
+    @staticmethod
+    def _unwrap_sm(obj):
+        if isinstance(obj, dict) and isinstance(obj.get("data"), dict):
+            return obj["data"]
+        return obj
+
+    def _sm_player_fullname(self, obj) -> str:
+        o = self._unwrap_sm(obj)
+        if not isinstance(o, dict):
+            return ""
+        return (o.get("fullname") or o.get("lastname") or "").strip()
+
+    def _batting_dismissal_detail(self, b: dict) -> tuple[str, bool]:
+        """Build dismissal text from a Sportmonks batting row; return (text, is_not_out)."""
+        is_active = b.get("active", False)
+        sc = self._unwrap_sm(b.get("score"))
+        kind = (sc.get("name") or "").strip() if isinstance(sc, dict) else ""
+        is_out_score = bool(sc.get("out") or sc.get("is_wicket")) if isinstance(sc, dict) else False
+
+        bowler_name = self._sm_player_fullname(b.get("bowler"))
+        fielder_name = self._sm_player_fullname(
+            b.get("catchstump") or b.get("catch_stump") or b.get("catchstumpplayer")
+        )
+
+        has_fow = (b.get("fow_score") or 0) > 0 or (b.get("fow_balls") or 0) > 0
+        has_bowler_slot = b.get("bowling_player_id") is not None
+
+        if is_active:
+            return "not out", True
+
+        if not kind and not is_out_score and not has_fow and not has_bowler_slot:
+            return "not out", True
+
+        kl = kind.lower()
+        if "caught" in kl or "catch" in kl:
+            if fielder_name and bowler_name:
+                text = f"c {fielder_name} b {bowler_name}"
+            elif bowler_name:
+                text = f"c — b {bowler_name}"
+            elif fielder_name:
+                text = f"c {fielder_name}"
+            else:
+                text = kind or "caught"
+        elif "lbw" in kl:
+            text = f"lbw b {bowler_name}" if bowler_name else (kind or "lbw")
+        elif "bowled" in kl:
+            text = f"b {bowler_name}" if bowler_name else (kind or "bowled")
+        elif "run out" in kl or "runout" in kl.replace(" ", ""):
+            text = f"{kind or 'run out'}" + (f" ({fielder_name})" if fielder_name else "")
+        elif "stump" in kl:
+            if fielder_name and bowler_name:
+                text = f"st {fielder_name} b {bowler_name}"
+            elif bowler_name:
+                text = f"st — b {bowler_name}"
+            else:
+                text = kind or "stumped"
+        elif "hit wicket" in kl:
+            text = f"hit wicket b {bowler_name}" if bowler_name else (kind or "hit wicket")
+        elif bowler_name:
+            text = f"{kind + ' ' if kind else ''}b {bowler_name}".strip()
+        elif kind:
+            text = kind
+        elif has_fow or has_bowler_slot:
+            text = "out"
+        else:
+            return "not out", True
+
+        return text, False
+
     # ── public API ──
 
     async def fetch_matches(self) -> list[dict]:
-        data = await self._call("livescores", include="runs,localteam,visitorteam")
+        try:
+            data = await self._call(
+                "livescores",
+                include="runs,localteam,visitorteam,manofmatch",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in (400, 422):
+                logger.warning("livescores: manofmatch include rejected, retrying without (%s)", e)
+                data = await self._call(
+                    "livescores",
+                    include="runs,localteam,visitorteam",
+                )
+            else:
+                raise
         items = data.get("data", [])
         if not isinstance(items, list):
             items = []
@@ -312,10 +451,18 @@ class SportmonksProvider(CricketAPIProvider):
                 toss_winner = t1 if toss_won_id == m.get("localteam_id") else t2 if toss_won_id == m.get("visitorteam_id") else ""
             toss_choice = m.get("elected") or ""
 
+            winner_id = m.get("winner_team_id")
+            match_winner = (
+                t1 if winner_id == m.get("localteam_id")
+                else t2 if winner_id == m.get("visitorteam_id") else ""
+            )
+            raw_status = m.get("note") or m.get("status") or ""
+            pom = self._extract_player_of_match(m)
+
             entry = {
                 "id": str(m.get("id", "")),
                 "name": f"{t1} vs {t2}" if t1 and t2 else m.get("round", ""),
-                "status": m.get("note") or m.get("status") or "",
+                "status": sanitize_match_status_text(raw_status),
                 "dateTimeGMT": m.get("starting_at") or "",
                 "matchType": m.get("type") or "",
                 "series": league_name or ("IPL 2026" if is_ipl else ""),
@@ -329,6 +476,10 @@ class SportmonksProvider(CricketAPIProvider):
                 "matchEnded": ended,
                 "isIPL": is_ipl,
             }
+            if match_winner:
+                entry["matchWinner"] = match_winner
+            if pom:
+                entry["playerOfMatch"] = pom
             if toss_winner:
                 entry["tossWinner"] = toss_winner
                 entry["tossChoice"] = toss_choice
@@ -336,10 +487,30 @@ class SportmonksProvider(CricketAPIProvider):
         return out
 
     async def fetch_scorecard(self, match_id: str) -> dict:
-        data = await self._call(
-            f"fixtures/{match_id}",
-            include="localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue",
-        )
+        include_tiers = [
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
+            "batting.catchstump,bowling.bowler,venue,manofmatch",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
+            "batting.catchstump,bowling.bowler,venue",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue",
+            "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue",
+        ]
+        data: dict = {}
+        last_err: httpx.HTTPStatusError | None = None
+        for inc in include_tiers:
+            try:
+                data = await self._call(f"fixtures/{match_id}", include=inc)
+                break
+            except httpx.HTTPStatusError as e:
+                last_err = e
+                if e.response.status_code in (400, 422):
+                    logger.warning("fixtures/%s: include tier failed, trying simpler (%s)", match_id, inc[:60])
+                    continue
+                raise
+        else:
+            if last_err:
+                raise last_err
+            raise RuntimeError("fetch_scorecard: no include tier succeeded")
         m = data.get("data", {})
         local = self._extract_team(m, "localteam")
         visitor = self._extract_team(m, "visitorteam")
@@ -368,11 +539,13 @@ class SportmonksProvider(CricketAPIProvider):
         match_winner = t1 if winner_id == m.get("localteam_id") else t2 if winner_id == m.get("visitorteam_id") else ""
 
         scorecard = self._build_scorecard_array(m, local, visitor)
+        raw_status = m.get("note") or m.get("status") or ""
+        pom = self._extract_player_of_match(m)
 
-        return {
+        out_sc = {
             "id": str(m.get("id", match_id)),
             "name": f"{t1} vs {t2}",
-            "status": m.get("note") or m.get("status") or "",
+            "status": sanitize_match_status_text(raw_status),
             "venue": venue_name,
             "date": (m.get("starting_at") or "")[:10],
             "dateTimeGMT": m.get("starting_at") or "",
@@ -389,6 +562,55 @@ class SportmonksProvider(CricketAPIProvider):
             "matchStarted": started,
             "matchEnded": ended,
         }
+        if pom:
+            out_sc["playerOfMatch"] = pom
+        return out_sc
+
+    async def fetch_fixture_raw_for_ingest(self, match_id: str) -> dict:
+        """Fetch a fixture with ball-by-ball data for DuckDB / Cricsheet export.
+
+        Returns the inner ``data`` object (fixture dict) including a ``balls`` list.
+        Tries progressively smaller include sets if the API rejects nested includes.
+        """
+        include_tiers = [
+            "localteam,visitorteam,venue,runs,season,league,manofmatch,"
+            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
+            "localteam,visitorteam,venue,runs,season,league,"
+            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
+            "localteam,visitorteam,venue,runs,"
+            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
+            "localteam,visitorteam,venue,runs,balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,runs,balls.batsman,balls.bowler,balls.score",
+        ]
+        last_err: Exception | None = None
+        for inc in include_tiers:
+            try:
+                raw = await self._call(f"fixtures/{match_id}", include=inc)
+                m = raw.get("data")
+                if not isinstance(m, dict):
+                    continue
+                balls = m.get("balls")
+                ball_list: list = []
+                if isinstance(balls, list):
+                    ball_list = balls
+                elif isinstance(balls, dict) and isinstance(balls.get("data"), list):
+                    ball_list = balls["data"]
+                if ball_list:
+                    return m
+                last_err = RuntimeError("fixture has no balls (empty or missing)")
+            except httpx.HTTPStatusError as e:
+                last_err = e
+                if e.response.status_code in (400, 422):
+                    logger.warning(
+                        "fixtures/%s ingest include failed, trying simpler (%s)",
+                        match_id,
+                        inc[:70],
+                    )
+                    continue
+                raise
+        if last_err:
+            raise last_err
+        raise RuntimeError(f"fetch_fixture_raw_for_ingest: no tier succeeded for {match_id}")
 
     async def fetch_match_info(self, match_id: str) -> dict:
         data = await self._call(
@@ -401,11 +623,17 @@ class SportmonksProvider(CricketAPIProvider):
         t1 = self._team_name(local)
         t2 = self._team_name(visitor)
         started, ended = self._match_state(m)
+        winner_id = m.get("winner_team_id")
+        match_winner = (
+            t1 if winner_id == m.get("localteam_id")
+            else t2 if winner_id == m.get("visitorteam_id") else ""
+        )
+        raw_status = m.get("note") or m.get("status") or ""
 
         return {
             "id": str(m.get("id", match_id)),
             "name": f"{t1} vs {t2}",
-            "status": m.get("note") or m.get("status") or "",
+            "status": sanitize_match_status_text(raw_status),
             "venue": "",
             "teams": [t1, t2],
             "teamInfo": [
@@ -415,7 +643,7 @@ class SportmonksProvider(CricketAPIProvider):
             "score": self._build_scores(m),
             "tossWinner": "",
             "tossChoice": "",
-            "matchWinner": "",
+            "matchWinner": match_winner,
             "matchStarted": started,
             "matchEnded": ended,
         }
@@ -452,9 +680,7 @@ class SportmonksProvider(CricketAPIProvider):
             if isinstance(batsman, dict):
                 name = batsman.get("fullname") or batsman.get("lastname") or ""
             is_active = b.get("active", False)
-            has_fow = (b.get("fow_score") or 0) > 0 or (b.get("fow_balls") or 0) > 0
-            has_bowler_dismissal = b.get("bowling_player_id") is not None
-            is_out = (has_fow or has_bowler_dismissal) and not is_active
+            dismiss_text, is_not_out = self._batting_dismissal_detail(b)
             entry["batsmen"].append({
                 "name": name,
                 "fullName": name,
@@ -463,7 +689,8 @@ class SportmonksProvider(CricketAPIProvider):
                 "fours": b.get("four_x", 0),
                 "sixes": b.get("six_x", 0),
                 "sr": b.get("rate", 0),
-                "dismissal": "out" if is_out else "not out",
+                "dismissal": "not out" if is_not_out else "out",
+                "dismissalDetail": dismiss_text,
                 "active": is_active,
                 "image": self._sportmonks_image_url(
                     batsman.get("image_path", "") if isinstance(batsman, dict) else ""

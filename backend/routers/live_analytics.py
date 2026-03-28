@@ -1,10 +1,88 @@
 """Live analytics endpoints — combine live match context with historical DuckDB data."""
 
+import re
+
 from fastapi import APIRouter, Query
+
 from ..database import query, normalize_venue, normalize_team, team_variants, VENUE_NAME_MAP
+from ..live_db import get_scorecard
 from ..player_resolve import resolve_player_name as _resolve_player
 
 router = APIRouter(prefix="/api/live/analytics", tags=["live-analytics"])
+
+
+def _norm_player_key(s: str) -> str:
+    return re.sub(r"\s+", " ", (s or "").strip().lower())
+
+
+def _loose_name_match(display_key: str, row_name: str) -> bool:
+    if not display_key or not row_name:
+        return False
+    a, b = display_key, _norm_player_key(row_name)
+    if a == b:
+        return True
+    if a in b or b in a:
+        return True
+    pa, pb = a.split(), b.split()
+    if pa and pb and pa[-1] == pb[-1] and pa[0][:1] == pb[0][:1]:
+        return True
+    return False
+
+
+def _live_batting_from_scorecard(scorecard: dict | None, display_name: str) -> dict | None:
+    if not scorecard or not display_name:
+        return None
+    key = _norm_player_key(display_name)
+    best = None
+    best_runs = -1
+    for inn in scorecard.get("scorecard") or []:
+        label = inn.get("inning") or ""
+        for b in inn.get("batsmen") or inn.get("batting") or []:
+            nm = b.get("name") or b.get("fullName") or ""
+            if not _loose_name_match(key, nm):
+                continue
+            runs = int(b.get("runs") or 0)
+            if runs >= best_runs:
+                best_runs = runs
+                balls = int(b.get("balls") or 0)
+                sr = b.get("sr")
+                if sr is None and balls:
+                    sr = round(runs * 100.0 / balls, 2)
+                best = {
+                    "runs": runs,
+                    "balls": balls,
+                    "strike_rate": sr,
+                    "dismissal": b.get("dismissalDetail") or b.get("dismissal"),
+                    "inning_label": label,
+                }
+    return best
+
+
+def _live_bowling_from_scorecard(scorecard: dict | None, display_name: str) -> dict | None:
+    if not scorecard or not display_name:
+        return None
+    key = _norm_player_key(display_name)
+    agg_w, agg_r = 0, 0
+    agg_o = 0.0
+    found = False
+    for inn in scorecard.get("scorecard") or []:
+        for bw in inn.get("bowlers") or inn.get("bowling") or []:
+            nm = bw.get("name") or bw.get("fullName") or ""
+            if not _loose_name_match(key, nm):
+                continue
+            found = True
+            agg_w += int(bw.get("wickets") or 0)
+            agg_r += int(bw.get("runs") or 0)
+            agg_o += float(bw.get("overs") or 0)
+    if not found:
+        return None
+    econ = round(agg_r * 6.0 / agg_o, 2) if agg_o else None
+    return {
+        "wickets": agg_w,
+        "runs_conceded": agg_r,
+        "overs": agg_o,
+        "economy": econ,
+    }
 
 
 def _venue_variants(name):
@@ -20,10 +98,21 @@ def _venue_variants(name):
 
 
 @router.get("/matchup")
-def live_matchup(batter: str, bowler: str):
+def live_matchup(
+    batter: str,
+    bowler: str,
+    match_id: str | None = None,
+):
     """Head-to-head stats for a specific batter vs bowler from historical data."""
     db_batter = _resolve_player(batter, "bat")
     db_bowler = _resolve_player(bowler, "bowl")
+
+    this_batter = this_bowler = None
+    if match_id:
+        sc = get_scorecard(match_id)
+        if sc:
+            this_batter = _live_batting_from_scorecard(sc, batter)
+            this_bowler = _live_bowling_from_scorecard(sc, bowler)
 
     rows = query("""
         SELECT
@@ -53,7 +142,18 @@ def live_matchup(batter: str, bowler: str):
 
     result = rows[0] if rows else {}
     if not result.get("balls"):
-        return {"batter": batter, "bowler": bowler, "found": False}
+        out = {
+            "batter": batter,
+            "bowler": bowler,
+            "found": False,
+            "db_batter": db_batter,
+            "db_bowler": db_bowler,
+        }
+        if this_batter:
+            out["this_match_batter"] = this_batter
+        if this_bowler:
+            out["this_match_bowler"] = this_bowler
+        return out
 
     result["batter"] = batter
     result["bowler"] = bowler
@@ -61,6 +161,10 @@ def live_matchup(batter: str, bowler: str):
     result["db_bowler"] = db_bowler
     result["found"] = True
     result["dismissal_kinds"] = dismissal_kinds
+    if this_batter:
+        result["this_match_batter"] = this_batter
+    if this_bowler:
+        result["this_match_bowler"] = this_bowler
     return result
 
 
@@ -255,7 +359,11 @@ def venue_insights(venue: str):
 
 
 @router.get("/player-form")
-def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
+def player_form(
+    player: str,
+    role: str = Query("bat", pattern="^(bat|bowl)$"),
+    match_id: str | None = None,
+):
     """Recent form and career context for a player."""
     db_player = _resolve_player(player, role)
     if role == "bat":
@@ -307,7 +415,7 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
         sr_last_5_balls = sum(r["balls"] for r in last_5)
         sr_last_5 = round(sum(r["runs"] for r in last_5) * 100.0 / sr_last_5_balls, 2) if sr_last_5_balls else None
 
-        return {
+        payload = {
             "player": player,
             "role": "bat",
             "last_5": last_5,
@@ -318,6 +426,13 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
             "career_runs": c.get("runs"),
             "career_matches": c.get("matches"),
         }
+        if match_id:
+            sc = get_scorecard(match_id)
+            if sc:
+                tm = _live_batting_from_scorecard(sc, player)
+                if tm:
+                    payload["this_match"] = tm
+        return payload
     else:
         last_5 = query("""
             WITH bowling AS (
@@ -364,7 +479,7 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
             sum(r["economy"] for r in last_5 if r.get("economy")) / len(last_5), 2
         ) if last_5 else None
 
-        return {
+        payload = {
             "player": player,
             "role": "bowl",
             "last_5": last_5,
@@ -373,6 +488,13 @@ def player_form(player: str, role: str = Query("bat", pattern="^(bat|bowl)$")):
             "career_wickets": c.get("wickets"),
             "career_matches": c.get("matches"),
         }
+        if match_id:
+            sc = get_scorecard(match_id)
+            if sc:
+                tm = _live_bowling_from_scorecard(sc, player)
+                if tm:
+                    payload["this_match"] = tm
+        return payload
 
 
 @router.get("/phase-analysis")

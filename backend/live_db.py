@@ -8,7 +8,7 @@ import json
 import os
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 _default_path = os.path.join(os.path.dirname(__file__), "data", "live_scores.db")
 LIVE_DB_PATH = os.environ.get("LIVE_DB_PATH", _default_path)
@@ -216,16 +216,45 @@ def get_tracked_match_ids() -> list[str]:
 
     Tracking logic (3-state):
       is_tracked = 1    → always tracked (admin pinned)
-      is_tracked = NULL  → auto: tracked if IPL and live
+      is_tracked = NULL  → auto: IPL and (live or recently completed, for MOTM/final card)
       is_tracked = 0    → never tracked (admin disabled)
     """
     conn = get_live_db()
     rows = conn.execute(
-        """SELECT match_id FROM live_matches
-           WHERE is_tracked = 1
-              OR (is_tracked IS NULL AND is_ipl = 1 AND match_status = 'live')"""
+        """SELECT match_id, is_tracked, is_ipl, match_status, updated_at
+           FROM live_matches"""
     ).fetchall()
-    return [r["match_id"] for r in rows]
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=18)
+    out: list[str] = []
+    seen: set[str] = set()
+
+    for r in rows:
+        mid = r["match_id"]
+        tracked = r["is_tracked"]
+        if tracked == 0:
+            continue
+        if tracked == 1:
+            if mid not in seen:
+                seen.add(mid)
+                out.append(mid)
+            continue
+        if not r["is_ipl"]:
+            continue
+        st = r["match_status"]
+        if st == "live":
+            if mid not in seen:
+                seen.add(mid)
+                out.append(mid)
+        elif st == "completed":
+            raw_u = r["updated_at"] or ""
+            try:
+                u = datetime.fromisoformat(raw_u.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if u >= cutoff and mid not in seen:
+                seen.add(mid)
+                out.append(mid)
+    return out
 
 
 def set_match_tracking(match_id: str, tracked: bool | None):

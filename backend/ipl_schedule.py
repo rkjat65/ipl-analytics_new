@@ -2,6 +2,9 @@
 
 from datetime import datetime, timedelta, timezone
 
+from .cricket_api import sanitize_match_status_text
+from .live_db import get_all_matches, get_scorecard
+
 IPL_2026_SCHEDULE = [
     {"match": 1,  "date": "2026-03-28", "time": "19:30", "home": "Royal Challengers Bengaluru", "away": "Sunrisers Hyderabad", "venue": "Bengaluru"},
     {"match": 2,  "date": "2026-03-29", "time": "19:30", "home": "Mumbai Indians", "away": "Kolkata Knight Riders", "venue": "Mumbai"},
@@ -100,6 +103,36 @@ def is_match_window(now: datetime | None = None) -> bool:
     return False
 
 
+def _cached_row_for_schedule_row(
+    cached: list[dict],
+    date_str: str,
+    home: str,
+    away: str,
+) -> dict | None:
+    """Find a cached IPL live row that matches this schedule fixture (date + teams)."""
+    want = {home, away}
+    for lm in cached:
+        if not lm.get("isIPL"):
+            continue
+        teams = lm.get("teams") or []
+        if len(teams) < 2:
+            continue
+        if {teams[0], teams[1]} != want:
+            continue
+        lm_date = (lm.get("dateTimeGMT") or lm.get("date") or "")[:10]
+        if lm_date == date_str:
+            return lm
+    return None
+
+
+def _time_derived_status(utc_dt: datetime, now: datetime) -> str:
+    if now > utc_dt + timedelta(hours=4):
+        return "completed"
+    if now >= utc_dt:
+        return "live"
+    return "upcoming"
+
+
 def next_match_window(now: datetime | None = None) -> datetime | None:
     """Return the start of the next match window, or None if season is over."""
     if now is None:
@@ -115,32 +148,65 @@ def next_match_window(now: datetime | None = None) -> datetime | None:
 def compute_schedule_with_status() -> dict:
     """Build the full schedule response with computed status per match."""
     now = datetime.now(timezone.utc)
+    cached = get_all_matches()
     matches = []
     next_match = None
 
     for m in IPL_2026_SCHEDULE:
         utc_dt = _parse_ist_to_utc(m["date"], m["time"])
-        if now > utc_dt + timedelta(hours=4):
-            status = "completed"
-        elif now >= utc_dt:
-            status = "live"
-        else:
-            status = "upcoming"
-            if next_match is None:
-                next_match = {
-                    **m,
-                    "dateTimeGMT": utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "status": status,
-                }
+        base_status = _time_derived_status(utc_dt, now)
+        live_row = _cached_row_for_schedule_row(cached, m["date"], m["home"], m["away"])
 
-        matches.append({
+        status = base_status
+        api_match_id: str | None = None
+        result_note = ""
+        match_winner = ""
+        player_of_match: dict | None = None
+
+        if live_row:
+            api_match_id = live_row.get("id") or None
+            if live_row.get("matchEnded"):
+                status = "completed"
+                result_note = (live_row.get("status") or "").strip()
+                match_winner = (live_row.get("matchWinner") or "").strip()
+                player_of_match = live_row.get("playerOfMatch")
+            elif live_row.get("matchStarted"):
+                status = "live"
+                result_note = (live_row.get("status") or "").strip()
+
+        row: dict = {
             **m,
             "dateTimeGMT": utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "status": status,
-        })
+            "seasonYear": 2026,
+        }
+        if api_match_id:
+            row["apiMatchId"] = str(api_match_id)
+        if match_winner:
+            row["matchWinner"] = match_winner
+        if result_note:
+            row["resultNote"] = sanitize_match_status_text(result_note)
+        if player_of_match:
+            row["playerOfMatch"] = player_of_match
+
+        if live_row and live_row.get("matchEnded") and api_match_id:
+            sc = get_scorecard(str(api_match_id))
+            if isinstance(sc, dict):
+                if not row.get("resultNote") and sc.get("status"):
+                    row["resultNote"] = sanitize_match_status_text(sc["status"])
+                if not row.get("matchWinner") and sc.get("matchWinner"):
+                    row["matchWinner"] = sc["matchWinner"]
+                if not row.get("playerOfMatch") and sc.get("playerOfMatch"):
+                    row["playerOfMatch"] = sc["playerOfMatch"]
+
+        if status == "upcoming" and next_match is None:
+            next_match = {**row}
+
+        matches.append(row)
 
     return {
         "season": "IPL 2026",
+        "seasonYear": 2026,
         "totalMatches": len(matches),
         "matches": matches,
         "nextMatch": next_match,
