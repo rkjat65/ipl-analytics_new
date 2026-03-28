@@ -257,14 +257,14 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
         }`}>
           <div className="flex items-center gap-3">
             {isLive && (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-magenta/20 text-accent-magenta text-[10px] font-bold uppercase tracking-wider">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-magenta/20 text-accent-magenta text-xs font-bold uppercase tracking-wider">
                 <span className="w-2 h-2 rounded-full bg-accent-magenta animate-pulse" />
                 Live
               </span>
             )}
-            <span className="text-xs text-text-muted">{scorecard.series || 'IPL 2026'}</span>
+            <span className="text-sm text-text-muted">{scorecard.series || 'IPL 2026'}</span>
           </div>
-          <span className="text-[10px] text-text-muted">
+          <span className="text-xs text-text-muted">
             {scorecard.date && (() => {
               const d = new Date(scorecard.date + 'T00:00:00')
               return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
@@ -300,22 +300,22 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
                         <TeamLogo team={team} size={40} />
                       )}
                       <div className="min-w-0">
-                        <p className="text-sm sm:text-base font-bold text-text-primary group-hover:text-accent-cyan transition-colors">{getTeamAbbr(team)}</p>
-                        <p className="text-[10px] text-text-muted truncate hidden sm:block">{team}</p>
+                        <p className="text-base sm:text-lg font-bold text-text-primary group-hover:text-accent-cyan transition-colors">{getTeamAbbr(team)}</p>
+                        <p className="text-xs text-text-muted truncate hidden sm:block">{team}</p>
                       </div>
                     </Link>
                     {score ? (
                       <div className={i === 1 ? 'text-right' : 'text-left'}>
-                        <span className="text-2xl sm:text-3xl font-mono font-black" style={{ color }}>
+                        <span className="text-3xl sm:text-4xl font-mono font-black" style={{ color }}>
                           {score.r !== undefined ? score.r : ''}
-                          <span className="text-base sm:text-lg text-text-muted">/{score.w !== undefined ? score.w : ''}</span>
+                          <span className="text-lg sm:text-xl text-text-muted">/{score.w !== undefined ? score.w : ''}</span>
                         </span>
                         {score.o !== undefined && (
-                          <span className="text-xs sm:text-sm text-text-secondary ml-1 sm:ml-2">({score.o} ov)</span>
+                          <span className="text-sm text-text-secondary ml-1.5 sm:ml-2">({score.o} ov)</span>
                         )}
                       </div>
                     ) : scoreArr.length > 0 ? (
-                      <span className="text-xs font-medium text-text-muted italic">Yet to bat</span>
+                      <span className="text-sm font-medium text-text-muted italic">Yet to bat</span>
                     ) : (
                       <span className="text-xl font-mono text-text-muted">—</span>
                     )}
@@ -326,7 +326,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           </div>
 
           {/* Match info row */}
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-[11px] sm:text-xs text-text-secondary border-t border-border-subtle/50 pt-3">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary border-t border-border-subtle/50 pt-3">
             {scorecard.venue && (
               <Link to={venueLink(scorecard.venue)} className="flex items-center gap-1.5 hover:text-accent-cyan transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
@@ -346,27 +346,27 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           </div>
 
           {/* Status */}
-          <p className={`mt-3 text-xs sm:text-sm font-bold text-center ${
+          <p className={`mt-3 text-sm sm:text-base font-bold text-center ${
             isLive ? 'text-accent-lime' : scorecard.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
           }`}>
             {scorecard.status}
           </p>
+
+          {/* Active players inline */}
+          {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
+            <ActivePlayersInline scorecard={scorecard} />
+          )}
         </div>
       </div>
-
-      {/* Mobile-only: analytics right below live score */}
-      {mobileAnalyticsSlot && (
-        <div className="xl:hidden">{mobileAnalyticsSlot}</div>
-      )}
 
       {/* Innings cards */}
       {(scorecard.scorecard || []).map((inn, idx, arr) => (
         <InningsCard key={idx} innings={inn} index={idx} isLive={isLive} isCurrentInnings={idx === arr.length - 1} />
       ))}
 
-      {/* Active players info (from the batting side of the current innings) */}
-      {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
-        <ActivePlayersSection scorecard={scorecard} />
+      {/* Mobile-only: analytics right below live score */}
+      {mobileAnalyticsSlot && (
+        <div className="xl:hidden">{mobileAnalyticsSlot}</div>
       )}
     </div>
   )
@@ -382,14 +382,14 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
       {/* Innings header */}
       <div className="px-4 py-2.5 bg-surface-hover border-b border-border-subtle flex items-center justify-between">
-        <h3 className="text-xs font-bold text-text-primary tracking-wide uppercase flex items-center gap-2">
+        <h3 className="text-sm font-bold text-text-primary tracking-wide uppercase flex items-center gap-2">
           <span className="w-5 h-5 rounded-md bg-accent-cyan/20 text-accent-cyan text-[10px] font-black flex items-center justify-center">
             {index + 1}
           </span>
           {innings.inning || `Innings ${index + 1}`}
         </h3>
         {isLive && isCurrentInnings && (
-          <span className="text-[9px] uppercase tracking-widest text-accent-magenta font-bold">Current</span>
+          <span className="text-[10px] uppercase tracking-widest text-accent-magenta font-bold">Current</span>
         )}
       </div>
 
@@ -399,9 +399,9 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
         {batsmen.length > 0 && (
           <div className="overflow-x-auto">
             <div className="px-3 py-1.5 bg-surface-dark/30 border-b border-border-subtle">
-              <span className="text-[10px] uppercase tracking-wider text-accent-cyan font-bold">Batting</span>
+              <span className="text-xs uppercase tracking-wider text-accent-cyan font-bold">Batting</span>
             </div>
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="text-text-muted border-b border-border-subtle">
                   <th className="text-left py-1.5 px-3 font-medium">Batter</th>
@@ -461,9 +461,9 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
         {bowlers.length > 0 && (
           <div className="overflow-x-auto">
             <div className="px-3 py-1.5 bg-surface-dark/30 border-b border-border-subtle">
-              <span className="text-[10px] uppercase tracking-wider text-accent-magenta font-bold">Bowling</span>
+              <span className="text-xs uppercase tracking-wider text-accent-magenta font-bold">Bowling</span>
             </div>
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="text-text-muted border-b border-border-subtle">
                   <th className="text-left py-1.5 px-3 font-medium">Bowler</th>
@@ -516,8 +516,8 @@ function InningsCard({ innings, index, isLive, isCurrentInnings }) {
 }
 
 
-/* ── Active Players Section ──────────────────────────────────── */
-function ActivePlayersSection({ scorecard }) {
+/* ── Active Players Inline (inside hero card) ────────────────── */
+function ActivePlayersInline({ scorecard }) {
   const lastInnings = scorecard.scorecard[scorecard.scorecard.length - 1]
   const allBatsmen = lastInnings?.batsmen || lastInnings?.batting || []
   const notOutBatsmen = allBatsmen.filter(b => {
@@ -535,7 +535,7 @@ function ActivePlayersSection({ scorecard }) {
   const activePlayers = [
     ...battingPair.map(b => ({
       ...b,
-      role: b.active ? 'Batting' : 'Batting',
+      role: 'Batting',
       isStriker: !!b.active,
       name: b.name || b.batsman?.name || b.batsman || '',
       fullName: b.fullName || '',
@@ -551,49 +551,56 @@ function ActivePlayersSection({ scorecard }) {
   if (activePlayers.length === 0) return null
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface-card p-5">
-      <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
+    <div className="mt-4 pt-3 border-t border-border-subtle/50">
+      <div className="flex items-center gap-1.5 mb-3">
         <span className="w-2 h-2 rounded-full bg-accent-lime animate-pulse" />
-        Active Players
-      </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {activePlayers.map((p, i) => (
-          <Link
-            key={i}
-            to={playerLink(p.name)}
-            className="flex items-center gap-3 p-3 rounded-xl bg-surface-dark hover:bg-surface-hover border border-border-subtle/50 transition-all group"
-          >
-            <PlayerAvatar name={p.fullName || p.name} size={40} showBorder />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-text-primary truncate group-hover:text-accent-cyan transition-colors">
-                {p.fullName || p.name}
-              </p>
-              <p className="text-[10px] text-text-muted uppercase tracking-wider">
-                {p.role}{p.isStriker ? ' *' : ''}
-              </p>
-              <div className="flex gap-2 mt-0.5">
-                {p.role === 'Batting' ? (
-                  <>
-                    <span className="text-xs font-mono text-accent-cyan">{p.runs ?? p.r ?? 0}({p.balls ?? p.b ?? 0})</span>
-                    <span className="text-[10px] text-text-muted">
-                      4s: {p.fours ?? p['4s'] ?? 0} · 6s: {p.sixes ?? p['6s'] ?? 0}
+        <span className="text-xs font-bold text-text-muted uppercase tracking-wider">At the Crease</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {activePlayers.map((p, i) => {
+          const isBat = p.role === 'Batting'
+          const roleTag = isBat
+            ? (p.isStriker ? 'On Strike' : 'Off Strike')
+            : 'Bowler'
+          const tagColor = isBat
+            ? (p.isStriker ? 'bg-accent-lime/15 text-accent-lime border-accent-lime/30' : 'bg-accent-amber/15 text-accent-amber border-accent-amber/30')
+            : 'bg-accent-magenta/15 text-accent-magenta border-accent-magenta/30'
+          return (
+            <Link
+              key={i}
+              to={playerLink(p.name)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-dark/60 hover:bg-surface-hover border border-border-subtle/40 transition-all group"
+            >
+              <PlayerAvatar name={p.fullName || p.name} size={36} showBorder />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-sm font-bold text-text-primary truncate group-hover:text-accent-cyan transition-colors">
+                    {p.fullName || p.name}
+                  </p>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0 ${tagColor}`}>
+                    {roleTag}
+                  </span>
+                </div>
+                {isBat ? (
+                  <p className="text-xs font-mono">
+                    <span className="text-accent-cyan font-bold">{p.runs ?? p.r ?? 0}</span>
+                    <span className="text-text-muted">({p.balls ?? p.b ?? 0})</span>
+                    <span className="text-text-muted ml-1.5 text-[11px]">
+                      {p.fours ?? p['4s'] ?? 0}×4 · {p.sixes ?? p['6s'] ?? 0}×6
                     </span>
-                  </>
+                  </p>
                 ) : (
-                  <>
-                    <span className="text-xs font-mono text-accent-magenta">{p.wickets ?? p.w ?? 0}/{p.runs ?? p.r ?? 0}</span>
-                    <span className="text-[10px] text-text-muted">
-                      {p.overs ?? p.o ?? 0} ov · Econ {p.economy ?? p.eco ?? '—'}
+                  <p className="text-xs font-mono">
+                    <span className="text-accent-magenta font-bold">{p.wickets ?? p.w ?? 0}/{p.runs ?? p.r ?? 0}</span>
+                    <span className="text-text-muted ml-1.5 text-[11px]">
+                      {p.overs ?? p.o ?? 0}ov · Eco {p.economy ?? p.eco ?? '—'}
                     </span>
-                  </>
+                  </p>
                 )}
               </div>
-            </div>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-text-muted group-hover:text-accent-cyan transition-colors flex-shrink-0">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </Link>
-        ))}
+            </Link>
+          )
+        })}
       </div>
     </div>
   )
@@ -618,10 +625,12 @@ function AnalyticsTooltip({ active, payload, label, extra }) {
 /* ── Skeleton Loader ─────────────────────────────────────────── */
 function AnalyticsSkeleton() {
   return (
-    <div className="animate-pulse space-y-3 p-4">
-      <div className="h-4 bg-surface-hover rounded w-1/3" />
-      <div className="h-24 bg-surface-hover rounded" />
-      <div className="h-4 bg-surface-hover rounded w-1/2" />
+    <div className="flex flex-col items-center justify-center py-10 gap-3">
+      <div className="relative w-10 h-10">
+        <div className="absolute inset-0 rounded-full border-2 border-accent-cyan/20" />
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent-cyan animate-spin" />
+      </div>
+      <p className="text-[10px] uppercase tracking-widest text-text-muted animate-pulse">Loading analytics…</p>
     </div>
   )
 }
@@ -638,22 +647,21 @@ const MATCHUP_STAT_COLORS = [
 
 function MatchupRivalryCard({ batters, bowler }) {
   const [data, setData] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    if (!bowler || batters.length === 0) { setLoading(false); return }
-    setLoading(true)
+    if (!bowler || batters.length === 0) { setInitialLoad(false); return }
     Promise.all(
       batters.map(b => getLiveMatchup(b, bowler).catch(() => ({ batter: b, bowler, found: false })))
     ).then(results => {
       const map = {}
       results.forEach(r => { map[r.batter] = r })
       setData(map)
-    }).finally(() => setLoading(false))
+    }).finally(() => setInitialLoad(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batters.join(','), bowler])
 
-  if (loading) return <AnalyticsSkeleton />
+  if (initialLoad && Object.keys(data).length === 0) return <AnalyticsSkeleton />
 
   const entries = batters.map(b => data[b] || { batter: b, bowler, found: false })
 
@@ -666,27 +674,28 @@ function MatchupRivalryCard({ batters, bowler }) {
               <div className="h-1 bg-gradient-to-r from-[#FFB800]/30 to-[#00E5FF]/30" />
               <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
                 <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                  <PlayerAvatar name={m.batter} size={48} showBorder />
-                  <span className="text-[9px] uppercase tracking-[0.15em] text-[#FFB800]/60 font-bold">Batsman</span>
+                  <PlayerAvatar name={m.batter} size={52} showBorder />
+                  <span className="text-[10px] uppercase tracking-[0.15em] text-[#FFB800]/60 font-bold">Batsman</span>
                   <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.batter}</p>
                 </div>
-                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-[#FFB80015] to-[#00E5FF15] border border-[#FFB80030] flex-shrink-0">
-                  <span className="text-[10px] font-black text-text-muted">VS</span>
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#FFB80015] to-[#00E5FF15] border border-[#FFB80030] flex-shrink-0">
+                  <span className="text-xs font-black text-text-muted">VS</span>
                 </div>
                 <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                  <PlayerAvatar name={m.bowler} size={48} showBorder />
-                  <span className="text-[9px] uppercase tracking-[0.15em] text-[#00E5FF]/60 font-bold">Bowler</span>
+                  <PlayerAvatar name={m.bowler} size={52} showBorder />
+                  <span className="text-[10px] uppercase tracking-[0.15em] text-[#00E5FF]/60 font-bold">Bowler</span>
                   <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
                 </div>
               </div>
-              <div className="text-center pb-5 text-text-muted text-xs">No IPL history between these players</div>
+              <div className="text-center pb-4 text-text-muted text-sm">No IPL history between these players</div>
             </div>
           )
         }
 
+        const sr = m.sr || 0
         const statsGrid = [
           { label: 'BALLS', value: m.balls || 0 },
-          { label: 'SR', value: m.sr || 0 },
+          { label: 'SR', value: Math.round(sr) },
           { label: '4s', value: m.fours || 0 },
           { label: '6s', value: m.sixes || 0 },
           { label: 'DOTS', value: m.dots || 0 },
@@ -698,8 +707,8 @@ function MatchupRivalryCard({ batters, bowler }) {
 
             <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
               <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                <PlayerAvatar name={m.batter} size={56} showBorder />
-                <span className="text-[9px] uppercase tracking-[0.15em] text-[#FFB800] font-bold">Batsman</span>
+                <PlayerAvatar name={m.batter} size={52} showBorder />
+                <span className="text-[10px] uppercase tracking-[0.15em] text-[#FFB800] font-bold">Batsman</span>
                 <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.batter}</p>
               </div>
 
@@ -708,8 +717,8 @@ function MatchupRivalryCard({ batters, bowler }) {
               </div>
 
               <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-                <PlayerAvatar name={m.bowler} size={56} showBorder />
-                <span className="text-[9px] uppercase tracking-[0.15em] text-[#00E5FF] font-bold">Bowler</span>
+                <PlayerAvatar name={m.bowler} size={52} showBorder />
+                <span className="text-[10px] uppercase tracking-[0.15em] text-[#00E5FF] font-bold">Bowler</span>
                 <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
               </div>
             </div>
@@ -719,13 +728,13 @@ function MatchupRivalryCard({ batters, bowler }) {
               <p className="text-4xl font-black text-text-primary font-mono leading-none">{m.runs || 0}</p>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 p-4">
+            <div className="grid grid-cols-6 gap-1.5 p-3">
               {statsGrid.map((s, i) => {
                 const c = MATCHUP_STAT_COLORS[i % MATCHUP_STAT_COLORS.length]
                 return (
-                  <div key={i} className={`${c.bg} border ${c.border} rounded-xl py-3 px-2 text-center`}>
-                    <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">{s.label}</p>
-                    <p className={`text-xl sm:text-2xl font-black font-mono ${c.text}`}>{s.value}</p>
+                  <div key={i} className={`${c.bg} border ${c.border} rounded-lg py-2.5 px-1 text-center`}>
+                    <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1">{s.label}</p>
+                    <p className={`text-xl font-black font-mono leading-tight ${c.text}`}>{s.value}</p>
                   </div>
                 )
               })}
@@ -734,7 +743,7 @@ function MatchupRivalryCard({ batters, bowler }) {
             {m.dismissal_kinds && m.dismissal_kinds.length > 0 && (
               <div className="px-4 pb-3 flex gap-2 flex-wrap">
                 {m.dismissal_kinds.map((dk, i) => (
-                  <span key={i} className="text-[9px] px-2 py-0.5 rounded-full bg-accent-magenta/10 text-accent-magenta border border-accent-magenta/20">
+                  <span key={i} className="text-[10px] px-2.5 py-0.5 rounded-full bg-accent-magenta/10 text-accent-magenta border border-accent-magenta/20">
                     {dk.dismissal_kind} x{dk.count}
                   </span>
                 ))}
@@ -750,19 +759,18 @@ function MatchupRivalryCard({ batters, bowler }) {
 /* ── Card 2: Projected Score ─────────────────────────────────── */
 function ProjectedScoreCard({ venue, currentScore, currentOvers, currentWickets, inningsNumber, target }) {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    if (!venue || currentOvers <= 0) { setLoading(false); return }
-    setLoading(true)
+    if (!venue || currentOvers <= 0) { setInitialLoad(false); return }
     getLiveProjectedScore({
       venue, current_score: currentScore, current_overs: currentOvers,
       current_wickets: currentWickets, innings_number: inningsNumber,
       target: target || undefined,
-    }).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+    }).then(setData).catch(() => {}).finally(() => setInitialLoad(false))
   }, [venue, currentScore, currentOvers, currentWickets, inningsNumber, target])
 
-  if (loading) return <AnalyticsSkeleton />
+  if (initialLoad && !data) return <AnalyticsSkeleton />
   if (!data) return <div className="text-center py-6 text-text-muted text-xs">No venue data available</div>
 
   const projectionBars = [
@@ -803,20 +811,20 @@ function ProjectedScoreCard({ venue, currentScore, currentOvers, currentWickets,
           { label: 'Accelerated', value: data.projected_accelerated, color: 'text-accent-magenta' },
         ].map((p, i) => (
           <div key={i} className="text-center p-3 rounded-xl bg-surface-dark/50 border border-border-subtle/50">
-            <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{p.label}</p>
-            <p className={`text-2xl font-mono font-black ${p.color}`}>{p.value || '—'}</p>
+            <p className="text-xs text-text-muted uppercase tracking-wider mb-1">{p.label}</p>
+            <p className={`text-3xl font-mono font-black ${p.color}`}>{p.value || '—'}</p>
           </div>
         ))}
       </div>
 
       {data.required_rate && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-accent-amber/5 border border-accent-amber/20">
-          <span className="text-xs text-text-secondary">Required Rate</span>
-          <span className="text-lg font-mono font-bold text-accent-amber">{data.required_rate}</span>
+          <span className="text-sm text-text-secondary">Required Rate</span>
+          <span className="text-xl font-mono font-bold text-accent-amber">{data.required_rate}</span>
         </div>
       )}
 
-      <div className="flex items-center gap-4 text-xs text-text-muted">
+      <div className="flex items-center gap-4 text-sm text-text-muted">
         <span>CRR: <span className="font-mono text-text-primary">{data.current_rr}</span></span>
         <span>Par: <span className="font-mono text-text-primary">{data.par_score_at_over || '—'}</span></span>
         <span>Venue Avg: <span className="font-mono text-text-primary">{data.venue_avg_score || '—'}</span></span>
@@ -858,15 +866,14 @@ function ProjectedScoreCard({ venue, currentScore, currentOvers, currentWickets,
 /* ── Card 3: Venue DNA ───────────────────────────────────────── */
 function VenueDNACard({ venue }) {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    if (!venue) { setLoading(false); return }
-    setLoading(true)
-    getLiveVenueInsights(venue).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+    if (!venue) { setInitialLoad(false); return }
+    getLiveVenueInsights(venue).then(setData).catch(() => {}).finally(() => setInitialLoad(false))
   }, [venue])
 
-  if (loading) return <AnalyticsSkeleton />
+  if (initialLoad && !data) return <AnalyticsSkeleton />
   if (!data?.stats) return <div className="text-center py-6 text-text-muted text-xs">No venue data available</div>
 
   const s = data.stats
@@ -936,11 +943,10 @@ function VenueDNACard({ venue }) {
 /* ── Card 4: Player Form Tracker ─────────────────────────────── */
 function PlayerFormCard({ players }) {
   const [formData, setFormData] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    if (!players || players.length === 0) { setLoading(false); return }
-    setLoading(true)
+    if (!players || players.length === 0) { setInitialLoad(false); return }
     Promise.all(
       players.map(p =>
         getLivePlayerForm(p.name, p.role).catch(() => ({ player: p.name, role: p.role, last_5: [] }))
@@ -949,11 +955,11 @@ function PlayerFormCard({ players }) {
       const map = {}
       results.forEach(r => { map[r.player] = r })
       setFormData(map)
-    }).finally(() => setLoading(false))
+    }).finally(() => setInitialLoad(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players.map(p => `${p.name}-${p.role}`).join(',')])
 
-  if (loading) return <AnalyticsSkeleton />
+  if (initialLoad && Object.keys(formData).length === 0) return <AnalyticsSkeleton />
 
   const entries = players.map(p => formData[p.name]).filter(Boolean)
   if (entries.length === 0) {
@@ -1029,15 +1035,14 @@ function PlayerFormCard({ players }) {
 /* ── Card 5: Phase Analysis ──────────────────────────────────── */
 function PhaseAnalysisCard({ team, currentOver }) {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    if (!team) { setLoading(false); return }
-    setLoading(true)
-    getLivePhaseAnalysis(team, currentOver).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+    if (!team) { setInitialLoad(false); return }
+    getLivePhaseAnalysis(team, currentOver).then(setData).catch(() => {}).finally(() => setInitialLoad(false))
   }, [team, currentOver])
 
-  if (loading) return <AnalyticsSkeleton />
+  if (initialLoad && !data) return <AnalyticsSkeleton />
   if (!data?.phases?.length) return <div className="text-center py-6 text-text-muted text-xs">No phase data available</div>
 
   const phaseColors = { powerplay: '#4cc9f0', middle: '#06d6a0', death: '#f72585' }
@@ -1106,15 +1111,14 @@ function PhaseAnalysisCard({ team, currentOver }) {
 /* ── Card 6: Team H2H Context ────────────────────────────────── */
 function TeamH2HCard({ team1, team2 }) {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    if (!team1 || !team2) { setLoading(false); return }
-    setLoading(true)
-    getLiveTeamH2H(team1, team2).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+    if (!team1 || !team2) { setInitialLoad(false); return }
+    getLiveTeamH2H(team1, team2).then(setData).catch(() => {}).finally(() => setInitialLoad(false))
   }, [team1, team2])
 
-  if (loading) return <AnalyticsSkeleton />
+  if (initialLoad && !data) return <AnalyticsSkeleton />
   if (!data || data.total_matches === 0) return <div className="text-center py-6 text-text-muted text-xs">No H2H data available</div>
 
   const pieData = [
@@ -1179,7 +1183,6 @@ function TeamH2HCard({ team1, team2 }) {
 /* ── Scorecard + Analytics Side-by-Side Wrapper ──────────────── */
 function ScorecardWithAnalytics({ matchId }) {
   const [liveScorecard, setLiveScorecard] = useState(null)
-
   const handleScorecardUpdate = useCallback((data) => {
     setLiveScorecard(data)
   }, [])
@@ -1187,9 +1190,7 @@ function ScorecardWithAnalytics({ matchId }) {
   const isLive = liveScorecard?.matchStarted && !liveScorecard?.matchEnded
   const hasScorecard = isLive
 
-  const mobileSlot = hasScorecard
-    ? <LiveAnalyticsPanel scorecard={liveScorecard} />
-    : null
+  const analyticsPanel = hasScorecard ? <LiveAnalyticsPanel scorecard={liveScorecard} /> : null
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -1198,14 +1199,14 @@ function ScorecardWithAnalytics({ matchId }) {
         <DetailedScorecard
           matchId={matchId}
           onScorecardUpdate={handleScorecardUpdate}
-          mobileAnalyticsSlot={mobileSlot}
+          mobileAnalyticsSlot={analyticsPanel}
         />
       </div>
 
-      {/* Live Analytics — desktop side panel only */}
+      {/* Live Analytics — desktop side panel only (hidden on mobile since it appears inline) */}
       {hasScorecard && (
-        <div className="hidden xl:block xl:col-span-5">
-          <LiveAnalyticsPanel scorecard={liveScorecard} />
+        <div className="hidden xl:block xl:col-span-5 xl:sticky xl:top-4 xl:self-start">
+          {analyticsPanel}
         </div>
       )}
     </div>
@@ -1288,7 +1289,7 @@ function LiveAnalyticsPanel({ scorecard }) {
   const analyticsCards = [
     {
       id: 'matchup',
-      title: 'Live Matchup Rivalry',
+      title: 'Matchup Rivalry',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
           <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v-2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
@@ -1364,7 +1365,18 @@ function LiveAnalyticsPanel({ scorecard }) {
   ]
 
   const visibleCards = analyticsCards.filter(c => c.show)
+  const visibleIds = visibleCards.map(c => c.id).join(',')
+  const [activeTab, setActiveTab] = useState(visibleCards[0]?.id || '')
+
+  useEffect(() => {
+    if (visibleCards.length > 0 && !visibleCards.find(c => c.id === activeTab)) {
+      setActiveTab(visibleCards[0].id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleIds])
+
   if (visibleCards.length === 0) return null
+  const activeCard = visibleCards.find(c => c.id === activeTab) || visibleCards[0]
 
   return (
     <div className="rounded-2xl border border-accent-cyan/20 bg-gradient-to-br from-accent-cyan/[0.02] via-surface-card to-accent-magenta/[0.02] overflow-hidden">
@@ -1373,9 +1385,9 @@ function LiveAnalyticsPanel({ scorecard }) {
         onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-hover/50 transition-colors"
       >
-        <h3 className="text-sm font-bold text-text-primary tracking-wide flex items-center gap-2">
-          <span className="w-6 h-6 rounded-lg bg-accent-cyan/20 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
+        <h3 className="text-base font-bold text-text-primary tracking-wide flex items-center gap-2">
+          <span className="w-7 h-7 rounded-lg bg-accent-cyan/20 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent-cyan">
               <path d="M3 3v18h18" /><path d="M18 17l-5-5-4 4-3-3" />
             </svg>
           </span>
@@ -1393,18 +1405,35 @@ function LiveAnalyticsPanel({ scorecard }) {
       </button>
 
       {expanded && (
-        <div className="px-3 pb-4 space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto scrollbar-thin">
-          {visibleCards.map(card => (
-            <div key={card.id} className="rounded-xl border border-border-subtle bg-surface-card overflow-hidden">
-              <div className="px-3 py-2 border-b border-border-subtle bg-surface-hover/50 flex items-center gap-2">
-                <span className="text-accent-cyan">{card.icon}</span>
-                <h4 className="text-[11px] font-bold text-text-primary uppercase tracking-wider">{card.title}</h4>
-              </div>
-              <div className="p-3">
-                {card.render()}
+        <div className="pb-3">
+          {/* Tab navigation */}
+          <div className="px-3 pb-3 overflow-x-auto scrollbar-thin">
+            <div className="flex gap-1.5 min-w-max">
+              {visibleCards.map(card => (
+                <button
+                  key={card.id}
+                  onClick={() => setActiveTab(card.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                    activeTab === card.id
+                      ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30'
+                      : 'bg-surface-hover/50 text-text-muted border border-transparent hover:bg-surface-hover hover:text-text-secondary'
+                  }`}
+                >
+                  <span className={activeTab === card.id ? 'text-accent-cyan' : 'text-text-muted'}>{card.icon}</span>
+                  {card.title}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active card content */}
+          <div className="px-3">
+            <div className="rounded-xl border border-border-subtle bg-surface-card overflow-hidden">
+              <div className="p-3 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-thin">
+                {activeCard.render()}
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
