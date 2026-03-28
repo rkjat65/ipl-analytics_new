@@ -24,7 +24,7 @@ except ImportError:
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "rkdevanda65@gmail.com").lower()
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "rkdevanda65@gmail.com", "kshamaj150896@gmail.com").lower()
 SESSION_EXPIRY_DAYS = 7
 RESET_TOKEN_EXPIRY_HOURS = 1
 
