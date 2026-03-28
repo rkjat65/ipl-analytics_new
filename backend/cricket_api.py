@@ -217,6 +217,7 @@ class SportmonksProvider(CricketAPIProvider):
         in_progress = {
             "1st innings", "2nd innings", "innings break",
             "stumps", "lunch", "tea", "dinner", "drinks",
+            "toss", "delayed", "rain delay", "super over",
         }
 
         if status in finished_statuses:
@@ -295,7 +296,13 @@ class SportmonksProvider(CricketAPIProvider):
             if isinstance(league, dict):
                 league_name = (league.get("data") or league).get("name", "") if isinstance(league.get("data"), dict) else league.get("name", "")
 
-            out.append({
+            toss_won_id = m.get("toss_won_team_id")
+            toss_winner = ""
+            if toss_won_id:
+                toss_winner = t1 if toss_won_id == m.get("localteam_id") else t2 if toss_won_id == m.get("visitorteam_id") else ""
+            toss_choice = m.get("elected") or ""
+
+            entry = {
                 "id": str(m.get("id", "")),
                 "name": f"{t1} vs {t2}" if t1 and t2 else m.get("round", ""),
                 "status": m.get("note") or m.get("status") or "",
@@ -311,7 +318,11 @@ class SportmonksProvider(CricketAPIProvider):
                 "matchStarted": started,
                 "matchEnded": ended,
                 "isIPL": is_ipl,
-            })
+            }
+            if toss_winner:
+                entry["tossWinner"] = toss_winner
+                entry["tossChoice"] = toss_choice
+            out.append(entry)
         return out
 
     async def fetch_scorecard(self, match_id: str) -> dict:
@@ -332,11 +343,16 @@ class SportmonksProvider(CricketAPIProvider):
 
         toss_raw = m.get("toss") or {}
         toss_obj = toss_raw.get("data") if isinstance(toss_raw, dict) and "data" in toss_raw else toss_raw
-        toss_won_id = (toss_obj or {}).get("winner_team_id") if isinstance(toss_obj, dict) else m.get("toss_won_team_id")
+        toss_won_id = (
+            ((toss_obj or {}).get("winner_team_id") if isinstance(toss_obj, dict) else None)
+            or m.get("toss_won_team_id")
+        )
         toss_winner = t1 if toss_won_id == m.get("localteam_id") else t2 if toss_won_id == m.get("visitorteam_id") else ""
         toss_choice = ""
         if isinstance(toss_obj, dict):
             toss_choice = toss_obj.get("elected") or ""
+        if not toss_choice:
+            toss_choice = m.get("elected") or ""
 
         winner_id = m.get("winner_team_id")
         match_winner = t1 if winner_id == m.get("localteam_id") else t2 if winner_id == m.get("visitorteam_id") else ""
