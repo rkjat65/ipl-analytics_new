@@ -415,7 +415,7 @@ export default function Landing() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0F]/80 backdrop-blur-xl border-b border-white/[0.04]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <img src="/logo.png" alt="Crickrida" className="w-9 h-9 rounded-xl object-cover" />
+            <img src="/logo.png" alt="Crickrida logo" className="w-9 h-9 rounded-xl object-cover" />
             <div>
               <span className="font-heading font-bold text-lg text-white tracking-tight">Crickrida</span>
               <span className="hidden sm:inline text-[10px] text-text-muted font-mono ml-2 uppercase tracking-widest">Cricket via Stats</span>
@@ -841,7 +841,7 @@ export default function Landing() {
       <footer className="border-t border-white/[0.04] py-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Crickrida" className="w-7 h-7 rounded-lg object-cover" />
+            <img src="/logo.png" alt="Crickrida logo" className="w-7 h-7 rounded-lg object-cover" />
             <span className="font-heading font-bold text-sm text-text-primary">Crickrida</span>
             <span className="text-text-muted text-xs font-mono">Cricket via Stats</span>
           </div>

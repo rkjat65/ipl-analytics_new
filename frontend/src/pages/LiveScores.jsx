@@ -128,7 +128,7 @@ function LiveScoreHero({ match, onClick, isSelected }) {
                 className="flex items-center gap-3 min-w-0 flex-1 group/team"
               >
                 {teamImg ? (
-                  <img src={teamImg} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-border-subtle" />
+                  <img src={teamImg} alt={`${team} team logo`} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-border-subtle" />
                 ) : (
                   <TeamLogo team={team} size={32} />
                 )}
@@ -262,7 +262,7 @@ function DetailedScorecard({ matchId }) {
                 <div key={i} className={`flex-1 min-w-0 ${i === 1 ? 'text-right' : 'text-left'}`}>
                   <Link to={teamLink(team)} className={`flex items-center gap-2 sm:gap-3 ${i === 1 ? 'flex-row-reverse' : ''} mb-2 group`}>
                     {img ? (
-                      <img src={img} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-border-subtle flex-shrink-0" />
+                      <img src={img} alt={`${team} team logo`} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-border-subtle flex-shrink-0" />
                     ) : (
                       <TeamLogo team={team} size={40} />
                     )}
@@ -831,9 +831,50 @@ export default function LiveScores() {
     return aUp - bUp
   })
 
+  const liveMatchNames = sortedMatches
+    .filter(m => m.matchStarted && !m.matchEnded)
+    .map(m => (m.teams || []).join(' vs '))
+
+  const seoDescription = liveCount > 0
+    ? `Watch ${liveCount} live IPL 2026 match${liveCount > 1 ? 'es' : ''}: ${liveMatchNames.join(', ')}. Ball-by-ball scores, batting & bowling scorecards, and real-time updates on Crickrida.`
+    : 'IPL 2026 live cricket scores, ball-by-ball updates, full scorecards, match schedule & countdown. Follow every IPL match in real-time on Crickrida.'
+
+  const seoJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'IPL 2026 Live Scores & Schedule — Crickrida',
+    description: seoDescription,
+    url: 'https://crickrida.rkjat.in/live',
+    inLanguage: 'en',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'Crickrida',
+      url: 'https://crickrida.rkjat.in',
+    },
+    about: {
+      '@type': 'SportsEvent',
+      name: 'Indian Premier League 2026',
+      sport: 'Cricket',
+      location: { '@type': 'Country', name: 'India' },
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://crickrida.rkjat.in' },
+        { '@type': 'ListItem', position: 2, name: 'Live Scores', item: 'https://crickrida.rkjat.in/live' },
+      ],
+    },
+  }
+
   return (
     <div className="min-h-screen">
-      <SEO title="Live Scores | Crickrida" />
+      <SEO
+        title="IPL 2026 Live Scores & Schedule — Crickrida"
+        description={seoDescription}
+        url="https://crickrida.rkjat.in/live"
+        keywords="IPL 2026 live score, IPL live cricket score, IPL scorecard, IPL schedule 2026, cricket live score today, IPL match today, ball by ball score, IPL points table, T20 live score, Indian Premier League 2026"
+        jsonLd={seoJsonLd}
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

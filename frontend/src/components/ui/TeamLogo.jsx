@@ -16,10 +16,11 @@ export default function TeamLogo({ team, size = 24, className = '' }) {
     )
   }
 
+  const altText = team ? `${team} logo` : 'Team logo'
   return (
     <img
       src={logo}
-      alt={team}
+      alt={altText}
       className={`rounded-md object-contain shrink-0 ${className}`}
       style={{ width: size, height: size }}
       onError={(e) => {

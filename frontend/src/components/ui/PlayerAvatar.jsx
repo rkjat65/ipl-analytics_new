@@ -129,7 +129,7 @@ export default function PlayerAvatar({
         {showImage && (
           <img
             src={resolvedUrl}
-            alt={name}
+            alt={name ? `${name} profile photo` : 'Player avatar'}
             onError={() => setImgError(true)}
             onLoad={() => setImgLoaded(true)}
             style={{
@@ -187,7 +187,7 @@ export default function PlayerAvatar({
       {showImage && (
         <img
           src={resolvedUrl}
-          alt={name}
+          alt={name ? `${name} profile photo` : 'Player avatar'}
           onError={() => setImgError(true)}
           onLoad={() => setImgLoaded(true)}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"

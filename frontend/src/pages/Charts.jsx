@@ -444,8 +444,12 @@ export default function Charts() {
                       return (
                         <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
                           <div className="flex items-center gap-2 mb-1">
-                            <img src={realPlayerImageUrl(d?.player)} alt="" className="w-6 h-6 rounded-full border border-border-subtle object-cover"
-                              onError={(e) => { e.target.src = playerAvatarUrl(d?.player, 24) }} />
+                            <img
+                              src={realPlayerImageUrl(d?.player)}
+                              alt={d?.player ? `${d.player} — player photo` : 'Player photo'}
+                              className="w-6 h-6 rounded-full border border-border-subtle object-cover"
+                              onError={(e) => { e.target.src = playerAvatarUrl(d?.player, 24) }}
+                            />
                             <p className="text-text-primary font-semibold">{d?.player}</p>
                           </div>
                           <p style={{ color: '#B8FF00' }}>Runs: <span className="font-mono font-bold">{formatNumber(d?.runs)}</span></p>
@@ -480,8 +484,11 @@ export default function Charts() {
                             width={r * 2} height={r * 2}
                             clipPath={`url(#${clipId})`}
                             preserveAspectRatio="xMidYMid slice"
+                            aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
                             onError={(e) => { e.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(r * 3))) }}
-                          />
+                          >
+                            <title>{payload.player || 'Player'}</title>
+                          </image>
                           {showLabel && (
                             <text x={cx} y={cy - r - 7} textAnchor="middle" fill="#E8E8F0" fontSize={10} fontWeight={600} fontFamily="monospace">
                               {payload.shortName}
@@ -632,8 +639,12 @@ export default function Charts() {
                     return (
                       <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
                         <div className="flex items-center gap-2 mb-1">
-                          <img src={realPlayerImageUrl(d?.player)} alt="" className="w-6 h-6 rounded-full border border-border-subtle object-cover"
-                            onError={(e) => { e.target.src = playerAvatarUrl(d?.player, 24) }} />
+                          <img
+                            src={realPlayerImageUrl(d?.player)}
+                            alt={d?.player ? `${d.player} — player photo` : 'Player photo'}
+                            className="w-6 h-6 rounded-full border border-border-subtle object-cover"
+                            onError={(e) => { e.target.src = playerAvatarUrl(d?.player, 24) }}
+                          />
                           <p className="text-text-primary font-semibold">{d?.player}</p>
                         </div>
                         <p style={{ color: '#FF2D78' }}>Wickets: <span className="font-mono font-bold">{formatNumber(d?.wickets)}</span></p>
@@ -668,8 +679,11 @@ export default function Charts() {
                           width={r * 2} height={r * 2}
                           clipPath={`url(#${clipId})`}
                           preserveAspectRatio="xMidYMid slice"
+                          aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
                           onError={(e) => { e.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(r * 3))) }}
-                        />
+                        >
+                          <title>{payload.player || 'Player'}</title>
+                        </image>
                         {showLabel && (
                           <text x={cx} y={cy - r - 7} textAnchor="middle" fill="#E8E8F0" fontSize={10} fontWeight={600} fontFamily="monospace">
                             {payload.shortName}

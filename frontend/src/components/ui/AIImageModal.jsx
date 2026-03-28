@@ -119,7 +119,7 @@ export default function AIImageModal({ question, insight, data, onClose, onImage
           {image && !generating && (
             <div className="space-y-4">
               <div className="rounded-xl overflow-hidden border border-border-subtle bg-bg-elevated shadow-xl">
-                <img src={image} alt="AI Generated Infographic" className="w-full h-auto" />
+                <img src={image} alt="AI-generated cricket infographic" className="w-full h-auto" />
               </div>
 
               <div className="flex gap-2">

@@ -241,15 +241,6 @@ export const setLivePollerInterval = (token, intervalMs) => {
     return res.json()
   })
 }
-export const forcePollLive = (token) => {
-  return fetch(`${window.location.origin}/api/live/admin/force-poll`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
-    return res.json()
-  })
-}
 export const refreshLiveMatches = (token) => {
   return fetch(`${window.location.origin}/api/live/admin/refresh-matches`, {
     method: 'POST',

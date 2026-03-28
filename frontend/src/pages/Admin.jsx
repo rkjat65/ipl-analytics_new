@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, forcePollLive, refreshLiveMatches, getAdminLiveMatches, setMatchTracking } from '../lib/api'
+import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking } from '../lib/api'
 import SEO from '../components/SEO'
 
 function LiveScorePanel({ token }) {
@@ -172,16 +172,6 @@ function LiveScorePanel({ token }) {
               Pause Poller
             </button>
           )}
-
-          <button
-            onClick={() => act(() => forcePollLive(token), 'Force poll triggered')}
-            disabled={busy}
-            className="px-4 py-2 rounded-lg bg-accent-cyan/20 border border-accent-cyan/30 text-accent-cyan text-xs font-semibold
-              hover:bg-accent-cyan/30 transition-all disabled:opacity-50 flex items-center gap-2"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-            Poll Now
-          </button>
 
           <button
             onClick={handleRefresh}
@@ -441,7 +431,20 @@ export default function Admin() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <SEO title="Admin Panel" />
+      <SEO
+        title="Admin Panel — Crickrida"
+        description="Crickrida platform administration: user accounts, live score poller controls, and IPL match tracking. Authorized admin access only."
+        url="https://crickrida.rkjat.in/admin"
+        keywords="Crickrida admin, platform administration, live score poller"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'WebPage',
+          name: 'Admin Panel — Crickrida',
+          description: 'Platform administration for Crickrida IPL analytics.',
+          url: 'https://crickrida.rkjat.in/admin',
+          isPartOf: { '@type': 'WebSite', name: 'Crickrida', url: 'https://crickrida.rkjat.in' },
+        }}
+      />
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -509,7 +512,11 @@ export default function Admin() {
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       {u.avatar_url ? (
-                        <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border-subtle" />
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name ? `${u.name} profile photo` : 'User profile photo'}
+                          className="w-8 h-8 rounded-full object-cover border border-border-subtle"
+                        />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-cyan to-accent-magenta flex items-center justify-center text-white text-xs font-bold">
                           {u.name?.[0]?.toUpperCase() || '?'}

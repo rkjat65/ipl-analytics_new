@@ -554,7 +554,7 @@ export default function AskCricket() {
                     <p className="text-xs text-text-muted font-mono truncate">{"💬 \""}{msg.question}{"\""}</p>
                   )}
                   <div className="rounded-xl overflow-hidden border border-border-subtle bg-bg-elevated">
-                    <img src={msg.image} alt="AI Generated" className="w-full h-auto max-w-lg" />
+                    <img src={msg.image} alt="AI-generated cricket answer image" className="w-full h-auto max-w-lg" />
                   </div>
                   <div className="flex gap-2">
                     <button
