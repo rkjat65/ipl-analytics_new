@@ -1,0 +1,9 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Admin and auth flows should not be crawled
+Disallow: /admin
+Disallow: /login
+
+Sitemap: https://crickrida.rkjat.in/sitemap.xml

@@ -229,7 +229,7 @@ export default function SocialCompose() {
           {/* Image preview */}
           {imageData && (
             <div className="relative">
-              <img src={imageData} alt="Attached" className="w-full max-h-48 object-cover rounded-xl border border-border-subtle" />
+              <img src={imageData} alt="Preview of image attached to social post" className="w-full max-h-48 object-cover rounded-xl border border-border-subtle" />
               <button
                 onClick={() => setImageData(null)}
                 className="absolute top-2 right-2 w-6 h-6 bg-bg-primary/80 rounded-full text-text-muted hover:text-red-400 flex items-center justify-center text-xs"

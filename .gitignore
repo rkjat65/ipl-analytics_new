@@ -27,6 +27,9 @@ backend/data/
 *.swp
 *.swo
 
+# Test-only seed script (never deploy)
+backend/seed_mock_data.py
+
 # OS
 .DS_Store
 Thumbs.db

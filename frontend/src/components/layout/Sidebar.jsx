@@ -219,7 +219,7 @@ export default function Sidebar({ open, onToggle }) {
             onClick={onToggle}
             className="shrink-0 w-8 h-8 rounded-lg overflow-hidden hover:ring-2 hover:ring-accent-cyan/30 transition-all"
           >
-            <img src="/logo.png" alt="Crickrida" className="w-full h-full object-cover" />
+            <img src="/logo.png" alt="Crickrida — home" className="w-full h-full object-cover" />
           </button>
           {open && (
             <div className="overflow-hidden">
@@ -281,7 +281,7 @@ export default function Sidebar({ open, onToggle }) {
                 {user?.picture ? (
                   <img
                     src={user.picture}
-                    alt={user.name || 'User'}
+                    alt={user?.name ? `${user.name} profile photo` : 'Signed-in user profile photo'}
                     className="w-8 h-8 rounded-full border border-border-subtle object-cover shrink-0"
                   />
                 ) : (
