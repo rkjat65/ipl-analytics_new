@@ -1,7 +1,6 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
-import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Matches from './pages/Matches'
@@ -29,8 +28,8 @@ import Admin from './pages/Admin'
 export default function App() {
   return (
     <Routes>
-      {/* Public: Landing page (no sidebar/header) */}
-      <Route path="/" element={<Landing />} />
+      {/* Default: redirect to live scores */}
+      <Route path="/" element={<Navigate to="/live" replace />} />
       <Route path="/login" element={<Login />} />
 
       {/* App routes (with sidebar/header layout) */}

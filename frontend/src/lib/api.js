@@ -204,6 +204,80 @@ export const getLiveScorecard = (id) => fetchAPI(`/live/scorecard/${encodeURICom
 export const getLiveMatchInfo = (id) => fetchAPI(`/live/info/${encodeURIComponent(id)}`)
 export const getIPLSchedule = () => fetchAPI('/live/schedule')
 
+// Live Scores Admin
+export const getLivePollerConfig = (token) => {
+  return fetch(`${window.location.origin}/api/live/admin/config`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
+    return res.json()
+  })
+}
+export const startLivePoller = (token) => {
+  return fetch(`${window.location.origin}/api/live/admin/start`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
+    return res.json()
+  })
+}
+export const stopLivePoller = (token) => {
+  return fetch(`${window.location.origin}/api/live/admin/stop`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
+    return res.json()
+  })
+}
+export const setLivePollerInterval = (token, intervalMs) => {
+  return fetch(`${window.location.origin}/api/live/admin/interval`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ interval_ms: intervalMs }),
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
+    return res.json()
+  })
+}
+export const forcePollLive = (token) => {
+  return fetch(`${window.location.origin}/api/live/admin/force-poll`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
+    return res.json()
+  })
+}
+export const refreshLiveMatches = (token) => {
+  return fetch(`${window.location.origin}/api/live/admin/refresh-matches`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
+    return res.json()
+  })
+}
+export const getAdminLiveMatches = (token) => {
+  return fetch(`${window.location.origin}/api/live/admin/matches`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
+    return res.json()
+  })
+}
+export const setMatchTracking = (token, matchId, tracked) => {
+  return fetch(`${window.location.origin}/api/live/admin/matches/track`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ match_id: matchId, tracked }),
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
+    return res.json()
+  })
+}
+
 // Admin
 export const getAdminUsers = (token) => {
   return fetch(`${window.location.origin}/api/auth/admin/users`, {
