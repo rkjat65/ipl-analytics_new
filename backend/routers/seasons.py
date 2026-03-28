@@ -153,32 +153,40 @@ def points_table(season: str):
             FROM resolved
             GROUP BY team
         ),
-        nrr_data AS (
-            SELECT
-                i.batting_team AS team,
-                SUM(i.total_runs) AS runs_scored,
-                SUM(CASE WHEN i.total_wickets = 10 THEN 120
-                         ELSE i.total_balls END) AS balls_faced,
-                0 AS runs_conceded,
-                0 AS balls_bowled
+        legal_balls_per_innings AS (
+            SELECT i.match_id, i.innings_number, i.batting_team, i.bowling_team,
+                   i.total_runs, i.total_wickets,
+                   COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS legal_balls
             FROM innings i
+            LEFT JOIN deliveries d
+                ON i.match_id = d.match_id AND i.innings_number = d.innings_number
             JOIN matches m ON i.match_id = m.match_id
             WHERE m.season = ? AND i.is_super_over = false AND m.result = 'win'
-            GROUP BY i.batting_team
+            GROUP BY i.match_id, i.innings_number, i.batting_team, i.bowling_team,
+                     i.total_runs, i.total_wickets
+        ),
+        nrr_data AS (
+            SELECT
+                batting_team AS team,
+                SUM(total_runs) AS runs_scored,
+                SUM(CASE WHEN total_wickets = 10 THEN 120
+                         ELSE legal_balls END) AS balls_faced,
+                0 AS runs_conceded,
+                0 AS balls_bowled
+            FROM legal_balls_per_innings
+            GROUP BY batting_team
 
             UNION ALL
 
             SELECT
-                i.bowling_team AS team,
+                bowling_team AS team,
                 0 AS runs_scored,
                 0 AS balls_faced,
-                SUM(i.total_runs) AS runs_conceded,
-                SUM(CASE WHEN i.total_wickets = 10 THEN 120
-                         ELSE i.total_balls END) AS balls_bowled
-            FROM innings i
-            JOIN matches m ON i.match_id = m.match_id
-            WHERE m.season = ? AND i.is_super_over = false AND m.result = 'win'
-            GROUP BY i.bowling_team
+                SUM(total_runs) AS runs_conceded,
+                SUM(CASE WHEN total_wickets = 10 THEN 120
+                         ELSE legal_balls END) AS balls_bowled
+            FROM legal_balls_per_innings
+            GROUP BY bowling_team
         ),
         nrr_agg AS (
             SELECT team,
@@ -197,7 +205,7 @@ def points_table(season: str):
         FROM standings s
         LEFT JOIN nrr_agg n ON s.team = n.team
         ORDER BY s.points DESC, nrr DESC
-    """, [season, season, season, season, season])
+    """, [season, season, season, season])
 
     # Normalize team names
     for row in rows:
