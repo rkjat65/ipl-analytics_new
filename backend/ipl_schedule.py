@@ -3,7 +3,12 @@
 from datetime import datetime, timedelta, timezone
 
 from .cricket_api import sanitize_match_status_text
-from .live_db import get_all_matches, get_scorecard
+from .database import normalize_team
+from .live_db import (
+    find_scorecard_for_schedule_fixture,
+    get_all_matches,
+    get_scorecard,
+)
 
 IPL_2026_SCHEDULE = [
     {"match": 1,  "date": "2026-03-28", "time": "19:30", "home": "Royal Challengers Bengaluru", "away": "Sunrisers Hyderabad", "venue": "Bengaluru"},
@@ -110,19 +115,35 @@ def _cached_row_for_schedule_row(
     away: str,
 ) -> dict | None:
     """Find a cached IPL live row that matches this schedule fixture (date + teams)."""
-    want = {home, away}
+    want = {normalize_team(home), normalize_team(away)}
     for lm in cached:
         if not lm.get("isIPL"):
             continue
         teams = lm.get("teams") or []
         if len(teams) < 2:
             continue
-        if {teams[0], teams[1]} != want:
+        got = {normalize_team(teams[0]), normalize_team(teams[1])}
+        if got != want:
             continue
         lm_date = (lm.get("dateTimeGMT") or lm.get("date") or "")[:10]
-        if lm_date == date_str:
+        if lm_date == date_str or _dates_close_for_fixture(date_str, lm_date):
             return lm
     return None
+
+
+def _dates_close_for_fixture(schedule_date: str, api_date: str) -> bool:
+    if not api_date or len(api_date) < 10:
+        return False
+    if api_date[:10] == schedule_date:
+        return True
+    try:
+        from datetime import datetime
+
+        s = datetime.strptime(schedule_date, "%Y-%m-%d").date()
+        a = datetime.strptime(api_date[:10], "%Y-%m-%d").date()
+        return abs((s - a).days) <= 1
+    except ValueError:
+        return False
 
 
 def _time_derived_status(utc_dt: datetime, now: datetime) -> str:
@@ -198,6 +219,28 @@ def compute_schedule_with_status() -> dict:
                     row["matchWinner"] = sc["matchWinner"]
                 if not row.get("playerOfMatch") and sc.get("playerOfMatch"):
                     row["playerOfMatch"] = sc["playerOfMatch"]
+
+        # Fallback: match list may use "Bangalore" vs "Bengaluru", or live row dropped after finish —
+        # scan cached scorecards by normalized teams + date.
+        if not row.get("apiMatchId") or not row.get("matchWinner") or not row.get("resultNote"):
+            mid_fb, sc_fb = find_scorecard_for_schedule_fixture(
+                m["date"], m["home"], m["away"]
+            )
+            if isinstance(sc_fb, dict):
+                if mid_fb and not row.get("apiMatchId"):
+                    row["apiMatchId"] = str(mid_fb)
+                if sc_fb.get("matchEnded"):
+                    status = "completed"
+                    row["status"] = "completed"
+                elif sc_fb.get("matchStarted") and not sc_fb.get("matchEnded"):
+                    status = "live"
+                    row["status"] = "live"
+                if not row.get("matchWinner") and sc_fb.get("matchWinner"):
+                    row["matchWinner"] = sc_fb["matchWinner"]
+                if not row.get("resultNote") and sc_fb.get("status"):
+                    row["resultNote"] = sanitize_match_status_text(sc_fb["status"])
+                if not row.get("playerOfMatch") and sc_fb.get("playerOfMatch"):
+                    row["playerOfMatch"] = sc_fb["playerOfMatch"]
 
         if status == "upcoming" and next_match is None:
             next_match = {**row}

@@ -2215,15 +2215,17 @@ function IPLScheduleView() {
                 const isLive = m.status === 'live'
                 const winnerLine = m.matchWinner
                   ? `${getTeamAbbr(m.matchWinner)} won`
-                  : isCompleted
-                    ? '—'
-                    : ''
+                  : isCompleted && m.resultNote
+                    ? sanitizeResultStatus(m.resultNote).slice(0, 120)
+                    : isCompleted
+                      ? '—'
+                      : ''
 
                 let rowClass = 'border-b border-border-subtle/50 transition-colors'
                 if (isLive) rowClass += ' bg-accent-magenta/5 border-l-2 border-l-accent-magenta'
                 else if (isNext) rowClass += ' bg-accent-cyan/5 border-l-2 border-l-accent-cyan'
                 else if (isToday) rowClass += ' bg-accent-amber/5 border-l-2 border-l-accent-amber'
-                else if (isCompleted && !m.matchWinner) rowClass += ' opacity-50'
+                else if (isCompleted && !m.matchWinner && !m.resultNote) rowClass += ' opacity-50'
                 else if (isCompleted) rowClass += ' bg-surface-hover/25'
                 else rowClass += ' hover:bg-surface-hover/50'
 
@@ -2260,7 +2262,7 @@ function IPLScheduleView() {
                       {isCompleted ? (
                         <div className="space-y-1">
                           <p className="font-bold text-accent-lime">{winnerLine}</p>
-                          {m.resultNote && (
+                          {m.resultNote && m.matchWinner && (
                             <p className="text-text-muted leading-snug line-clamp-2" title={m.resultNote}>
                               {sanitizeResultStatus(m.resultNote)}
                             </p>
@@ -2284,9 +2286,9 @@ function IPLScheduleView() {
                               title: `Match ${m.match} · ${getTeamAbbr(m.home)} vs ${getTeamAbbr(m.away)}`,
                             })
                           }
-                          className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 whitespace-nowrap"
+                          className="text-[10px] font-bold px-2 py-1.5 rounded-md border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 whitespace-nowrap leading-tight text-center max-w-[9rem]"
                         >
-                          {isCompleted ? 'Report' : 'Live'}
+                          {isCompleted ? 'Download match report' : 'Live match report'}
                         </button>
                       ) : (
                         <span className="text-[10px] text-text-muted">—</span>

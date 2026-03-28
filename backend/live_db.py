@@ -181,6 +181,46 @@ def get_scorecard(match_id: str) -> dict | None:
     return json.loads(row["data"]) if row else None
 
 
+def _schedule_dates_close(schedule_date: str, api_date_prefix: str) -> bool:
+    """True if API date string (YYYY-MM-DD…) matches schedule day or adjacent (IST vs UTC)."""
+    if not api_date_prefix or len(api_date_prefix) < 10:
+        return False
+    api_d = api_date_prefix[:10]
+    if api_d == schedule_date:
+        return True
+    try:
+        from datetime import datetime, timedelta
+
+        s = datetime.strptime(schedule_date, "%Y-%m-%d").date()
+        a = datetime.strptime(api_d, "%Y-%m-%d").date()
+        return abs((s - a).days) <= 1
+    except ValueError:
+        return False
+
+
+def find_scorecard_for_schedule_fixture(
+    date_str: str, home: str, away: str,
+) -> tuple[str | None, dict | None]:
+    """Find cached scorecard by normalized team names + date (for schedule RESULT / REPORT)."""
+    from .database import normalize_team
+
+    want = {normalize_team(home), normalize_team(away)}
+    conn = get_live_db()
+    rows = conn.execute("SELECT match_id, data FROM live_scorecards").fetchall()
+    for r in rows:
+        sc = json.loads(r["data"])
+        teams = sc.get("teams") or []
+        if len(teams) < 2:
+            continue
+        got = {normalize_team(teams[0]), normalize_team(teams[1])}
+        if got != want:
+            continue
+        api_date = (sc.get("dateTimeGMT") or sc.get("date") or "")[:10]
+        if _schedule_dates_close(date_str, api_date):
+            return (r["match_id"], sc)
+    return (None, None)
+
+
 def get_match(match_id: str) -> dict | None:
     conn = get_live_db()
     row = conn.execute(
