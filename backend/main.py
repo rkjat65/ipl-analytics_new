@@ -1,6 +1,9 @@
 """FastAPI application for IPL Analytics Dashboard."""
 
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Load .env BEFORE any router imports so all env vars are available
@@ -16,15 +19,37 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .auth_db import init_auth_db
+from .live_db import init_live_db
+from .live_poller import run_poller
 from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth, live
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 # Team images directory
 TEAM_IMAGES_DIR = Path(__file__).resolve().parent / "team_images"
 
-app = FastAPI(title="IPL Analytics API", version="1.0.0")
 
-# Initialise the SQLite auth database tables on startup
-init_auth_db()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup / shutdown lifecycle for the application."""
+    init_auth_db()
+    init_live_db()
+
+    poller_task = asyncio.create_task(run_poller())
+    logger.info("Live-score poller task launched")
+
+    yield
+
+    poller_task.cancel()
+    try:
+        await poller_task
+    except asyncio.CancelledError:
+        pass
+    logger.info("Live-score poller task stopped")
+
+
+app = FastAPI(title="IPL Analytics API", version="1.0.0", lifespan=lifespan)
 
 # CORS — allow frontend origins
 ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

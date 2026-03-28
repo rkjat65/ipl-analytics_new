@@ -83,13 +83,19 @@ def match_detail(match_id: str):
     if info.get("venue"):
         info["venue"] = normalize_venue(info["venue"])
 
-    # Innings summary
+    # Innings summary (compute legal balls from deliveries to get correct overs)
     innings_summary = query("""
-        SELECT innings_number, batting_team, bowling_team,
-               total_runs, total_wickets, total_balls
-        FROM innings
-        WHERE match_id = ? AND is_super_over = false
-        ORDER BY innings_number
+        SELECT i.innings_number, i.batting_team, i.bowling_team,
+               i.total_runs, i.total_wickets,
+               COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS total_balls
+        FROM innings i
+        LEFT JOIN deliveries d
+            ON i.match_id = d.match_id
+            AND i.innings_number = d.innings_number
+        WHERE i.match_id = ? AND i.is_super_over = false
+        GROUP BY i.innings_number, i.batting_team, i.bowling_team,
+                 i.total_runs, i.total_wickets
+        ORDER BY i.innings_number
     """, [match_id])
 
     # Batting scorecards

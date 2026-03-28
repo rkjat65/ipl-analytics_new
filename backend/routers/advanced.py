@@ -880,13 +880,17 @@ def season_projections(
     if not season_matches:
         raise HTTPException(404, f"No matches found for season '{season}'")
 
-    # Gather innings data for NRR calculation
+    # Gather innings data for NRR calculation (legal balls only, excluding wides/no-balls)
     innings_data = query("""
         SELECT i.match_id, i.innings_number, i.batting_team, i.total_runs,
-               i.total_wickets, i.total_balls
+               i.total_wickets,
+               COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS total_balls
         FROM innings i
+        LEFT JOIN deliveries d
+            ON i.match_id = d.match_id AND i.innings_number = d.innings_number
         JOIN matches m ON i.match_id = m.match_id
         WHERE m.season = ? AND i.is_super_over = false
+        GROUP BY i.match_id, i.innings_number, i.batting_team, i.total_runs, i.total_wickets
         ORDER BY i.match_id, i.innings_number
     """, [season])
 

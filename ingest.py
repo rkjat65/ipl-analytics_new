@@ -248,7 +248,8 @@ class MatchExtractor:
                     runs_total  = runs.get("total", 0)
 
                     total_runs += runs_total
-                    ball_count += 1
+                    if extras.get("wides", 0) == 0 and extras.get("noballs", 0) == 0:
+                        ball_count += 1
 
                     is_wicket   = bool(wickets)
                     player_out  = None
