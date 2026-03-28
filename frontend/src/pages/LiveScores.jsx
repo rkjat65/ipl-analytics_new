@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, ReferenceLine,
+} from 'recharts'
 import { useFetch } from '../hooks/useFetch'
-import { getLiveStatus, getLiveMatches, getLiveScorecard, getIPLSchedule } from '../lib/api'
+import {
+  getLiveStatus, getLiveMatches, getLiveScorecard, getIPLSchedule,
+  getLiveMatchup, getLiveProjectedScore, getLiveVenueInsights,
+  getLivePlayerForm, getLivePhaseAnalysis, getLiveTeamH2H,
+} from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
@@ -190,7 +199,7 @@ function LiveScoreHero({ match, onClick, isSelected }) {
    1. Match summary hero (scores, toss, venue)
    2. Full batting/bowling tables per innings
 */
-function DetailedScorecard({ matchId }) {
+function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) {
   const [scorecard, setScorecard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -200,13 +209,14 @@ function DetailedScorecard({ matchId }) {
     try {
       const data = await getLiveScorecard(matchId)
       setScorecard(data)
+      if (onScorecardUpdate) onScorecardUpdate(data)
       setError(null)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [matchId])
+  }, [matchId, onScorecardUpdate])
 
   useEffect(() => {
     setLoading(true)
@@ -322,6 +332,11 @@ function DetailedScorecard({ matchId }) {
           </p>
         </div>
       </div>
+
+      {/* Mobile-only: analytics right below live score */}
+      {mobileAnalyticsSlot && (
+        <div className="xl:hidden">{mobileAnalyticsSlot}</div>
+      )}
 
       {/* Innings cards */}
       {(scorecard.scorecard || []).map((inn, idx) => (
@@ -541,6 +556,804 @@ function ActivePlayersSection({ scorecard }) {
           </Link>
         ))}
       </div>
+    </div>
+  )
+}
+
+
+/* ── Analytics Tooltip ────────────────────────────────────────── */
+function AnalyticsTooltip({ active, payload, label, extra }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 shadow-lg">
+      <p className="text-text-secondary text-xs font-mono mb-1">{extra || label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} className="text-xs" style={{ color: entry.color }}>
+          {entry.name}: <span className="font-mono font-semibold">{entry.value}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/* ── Skeleton Loader ─────────────────────────────────────────── */
+function AnalyticsSkeleton() {
+  return (
+    <div className="animate-pulse space-y-3 p-4">
+      <div className="h-4 bg-surface-hover rounded w-1/3" />
+      <div className="h-24 bg-surface-hover rounded" />
+      <div className="h-4 bg-surface-hover rounded w-1/2" />
+    </div>
+  )
+}
+
+/* ── Card 1: Batsman vs Bowler Matchup (Content Studio style) ── */
+const MATCHUP_STAT_COLORS = [
+  { bg: 'bg-[#0D1A1A]', border: 'border-[#22D3EE25]', text: 'text-[#22D3EE]' },
+  { bg: 'bg-[#1A1508]', border: 'border-[#FFB80025]', text: 'text-[#FFB800]' },
+  { bg: 'bg-[#0D1A12]', border: 'border-[#B8FF0025]', text: 'text-[#B8FF00]' },
+  { bg: 'bg-[#120D1F]', border: 'border-[#8B5CF625]', text: 'text-[#8B5CF6]' },
+  { bg: 'bg-[#0D1B2A]', border: 'border-[#00E5FF25]', text: 'text-[#00E5FF]' },
+  { bg: 'bg-[#1A0D1F]', border: 'border-[#FF2D7825]', text: 'text-[#FF2D78]' },
+]
+
+function MatchupRivalryCard({ batters, bowler }) {
+  const [data, setData] = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!bowler || batters.length === 0) { setLoading(false); return }
+    setLoading(true)
+    Promise.all(
+      batters.map(b => getLiveMatchup(b, bowler).catch(() => ({ batter: b, bowler, found: false })))
+    ).then(results => {
+      const map = {}
+      results.forEach(r => { map[r.batter] = r })
+      setData(map)
+    }).finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batters.join(','), bowler])
+
+  if (loading) return <AnalyticsSkeleton />
+
+  const entries = batters.map(b => data[b]).filter(Boolean)
+  if (entries.length === 0 || entries.every(e => !e.found)) {
+    return (
+      <div className="text-center py-6 text-text-muted text-xs">
+        No historical matchup data for these players
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {entries.filter(e => e.found).map(m => {
+        const statsGrid = [
+          { label: 'BALLS', value: m.balls || 0 },
+          { label: 'SR', value: m.sr || 0 },
+          { label: '4s', value: m.fours || 0 },
+          { label: '6s', value: m.sixes || 0 },
+          { label: 'DOTS', value: m.dots || 0 },
+          { label: 'OUTS', value: m.dismissals || 0 },
+        ]
+        return (
+          <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
+            {/* Accent bar */}
+            <div className="h-1 bg-gradient-to-r from-[#FFB800] to-[#00E5FF]" />
+
+            {/* Players header */}
+            <div className="flex items-center justify-center gap-3 sm:gap-5 px-4 pt-5 pb-3">
+              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+                <PlayerAvatar name={m.batter} size={56} showBorder />
+                <span className="text-[9px] uppercase tracking-[0.15em] text-[#FFB800] font-bold">Batsman</span>
+                <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.batter}</p>
+              </div>
+
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#FFB80025] to-[#00E5FF25] border border-[#FFB80050] flex-shrink-0">
+                <span className="text-xs font-black text-[#FFB800]">VS</span>
+              </div>
+
+              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+                <PlayerAvatar name={m.bowler} size={56} showBorder />
+                <span className="text-[9px] uppercase tracking-[0.15em] text-[#00E5FF] font-bold">Bowler</span>
+                <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
+              </div>
+            </div>
+
+            {/* Hero stat */}
+            <div className="text-center py-3 mx-4 rounded-full bg-gradient-to-r from-[#FFB80008] to-[#00E5FF08] border border-[#FFB80015]">
+              <p className="text-[10px] uppercase tracking-[0.1em] text-[#FFB800] font-semibold mb-0.5">Runs Scored</p>
+              <p className="text-4xl font-black text-text-primary font-mono leading-none">{m.runs || 0}</p>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 p-4">
+              {statsGrid.map((s, i) => {
+                const c = MATCHUP_STAT_COLORS[i % MATCHUP_STAT_COLORS.length]
+                return (
+                  <div key={i} className={`${c.bg} border ${c.border} rounded-xl py-3 px-2 text-center`}>
+                    <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">{s.label}</p>
+                    <p className={`text-xl sm:text-2xl font-black font-mono ${c.text}`}>{s.value}</p>
+                  </div>
+                )
+              })}
+            </div>
+
+            {m.dismissal_kinds && m.dismissal_kinds.length > 0 && (
+              <div className="px-4 pb-3 flex gap-2 flex-wrap">
+                {m.dismissal_kinds.map((dk, i) => (
+                  <span key={i} className="text-[9px] px-2 py-0.5 rounded-full bg-accent-magenta/10 text-accent-magenta border border-accent-magenta/20">
+                    {dk.dismissal_kind} x{dk.count}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── Card 2: Projected Score ─────────────────────────────────── */
+function ProjectedScoreCard({ venue, currentScore, currentOvers, currentWickets, inningsNumber, target }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!venue || currentOvers <= 0) { setLoading(false); return }
+    setLoading(true)
+    getLiveProjectedScore({
+      venue, current_score: currentScore, current_overs: currentOvers,
+      current_wickets: currentWickets, innings_number: inningsNumber,
+      target: target || undefined,
+    }).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+  }, [venue, currentScore, currentOvers, currentWickets, inningsNumber, target])
+
+  if (loading) return <AnalyticsSkeleton />
+  if (!data) return <div className="text-center py-6 text-text-muted text-xs">No venue data available</div>
+
+  const projectionBars = [
+    { name: 'Conservative', score: data.projected_conservative, fill: '#4cc9f0' },
+    { name: 'Current RR', score: data.projected_current_rr, fill: '#06d6a0' },
+    { name: 'Accelerated', score: data.projected_accelerated, fill: '#f72585' },
+  ].filter(b => b.score)
+
+  if (data.venue_avg_1st || data.venue_avg_2nd) {
+    projectionBars.unshift({
+      name: `Venue Avg ${inningsNumber === 1 ? '1st' : '2nd'}`,
+      score: inningsNumber === 1 ? data.venue_avg_1st : data.venue_avg_2nd,
+      fill: '#8d99ae',
+    })
+  }
+  if (data.par_score_at_over) {
+    projectionBars.push({ name: 'Par Score', score: data.par_score_at_over, fill: '#ffd166' })
+  }
+
+  const overAvg = data.over_by_over_avg || []
+  const currentOverInt = Math.floor(currentOvers)
+  let cumAvg = 0
+  const cumulativeAvg = overAvg.map(o => {
+    cumAvg += o.avg_runs
+    return { over: o.over_num, venue_avg: Math.round(cumAvg) }
+  })
+  if (currentOverInt > 0) {
+    const currentPoint = cumulativeAvg.find(c => c.over === currentOverInt)
+    if (currentPoint) currentPoint.current = currentScore
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Conservative', value: data.projected_conservative, color: 'text-accent-cyan' },
+          { label: 'Projected', value: data.projected_current_rr, color: 'text-accent-lime' },
+          { label: 'Accelerated', value: data.projected_accelerated, color: 'text-accent-magenta' },
+        ].map((p, i) => (
+          <div key={i} className="text-center p-3 rounded-xl bg-surface-dark/50 border border-border-subtle/50">
+            <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{p.label}</p>
+            <p className={`text-2xl font-mono font-black ${p.color}`}>{p.value || '—'}</p>
+          </div>
+        ))}
+      </div>
+
+      {data.required_rate && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-accent-amber/5 border border-accent-amber/20">
+          <span className="text-xs text-text-secondary">Required Rate</span>
+          <span className="text-lg font-mono font-bold text-accent-amber">{data.required_rate}</span>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 text-xs text-text-muted">
+        <span>CRR: <span className="font-mono text-text-primary">{data.current_rr}</span></span>
+        <span>Par: <span className="font-mono text-text-primary">{data.par_score_at_over || '—'}</span></span>
+        <span>Venue Avg: <span className="font-mono text-text-primary">{data.venue_avg_score || '—'}</span></span>
+        {data.last_3_avg && <span>Last 3: <span className="font-mono text-text-primary">{data.last_3_avg}</span></span>}
+      </div>
+
+      {cumulativeAvg.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Score Curve vs Venue Avg</p>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={cumulativeAvg} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1a1a2e" />
+              <XAxis dataKey="over" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+              <Tooltip content={<AnalyticsTooltip extra="Over" />} />
+              <Line type="monotone" dataKey="venue_avg" stroke="#8d99ae" strokeWidth={2} dot={false} name="Venue Avg" strokeDasharray="4 4" />
+              {currentOverInt > 0 && (
+                <ReferenceLine x={currentOverInt} stroke="#f72585" strokeDasharray="3 3" label={{ value: 'Now', fontSize: 9, fill: '#f72585' }} />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <ResponsiveContainer width="100%" height={160}>
+        <BarChart data={projectionBars} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+          <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+          <Tooltip content={<AnalyticsTooltip />} />
+          <Bar dataKey="score" radius={[6, 6, 0, 0]} barSize={36}>
+            {projectionBars.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+/* ── Card 3: Venue DNA ───────────────────────────────────────── */
+function VenueDNACard({ venue }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!venue) { setLoading(false); return }
+    setLoading(true)
+    getLiveVenueInsights(venue).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+  }, [venue])
+
+  if (loading) return <AnalyticsSkeleton />
+  if (!data?.stats) return <div className="text-center py-6 text-text-muted text-xs">No venue data available</div>
+
+  const s = data.stats
+  const kpis = [
+    { label: 'Avg 1st Inn', value: s.avg_1st, color: 'text-accent-cyan' },
+    { label: 'Avg 2nd Inn', value: s.avg_2nd, color: 'text-accent-lime' },
+    { label: 'Bat 1st Win%', value: s.bat_first_win_pct ? `${s.bat_first_win_pct}%` : '—', color: 'text-accent-amber' },
+    { label: 'Highest', value: s.highest, color: 'text-accent-magenta' },
+  ]
+
+  const phaseData = (data.phase_stats || []).map(p => ({
+    phase: p.phase === 'powerplay' ? 'PP' : p.phase === 'middle' ? 'Mid' : 'Death',
+    avg_rr: p.avg_rr,
+  }))
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-4 gap-2">
+        {kpis.map((k, i) => (
+          <div key={i} className="text-center p-2 rounded-lg bg-surface-dark/50 border border-border-subtle/30">
+            <p className="text-[9px] text-text-muted uppercase tracking-wider">{k.label}</p>
+            <p className={`text-base font-mono font-bold ${k.color}`}>{k.value ?? '—'}</p>
+          </div>
+        ))}
+      </div>
+
+      {phaseData.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Phase-wise Run Rate</p>
+          <ResponsiveContainer width="100%" height={100}>
+            <BarChart data={phaseData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <XAxis dataKey="phase" tick={{ fontSize: 10, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+              <Tooltip content={<AnalyticsTooltip />} />
+              <Bar dataKey="avg_rr" name="Run Rate" radius={[6, 6, 0, 0]} barSize={32}>
+                <Cell fill="#4cc9f0" />
+                <Cell fill="#06d6a0" />
+                <Cell fill="#f72585" />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {data.recent_matches && data.recent_matches.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Recent at this venue</p>
+          <div className="space-y-1.5">
+            {data.recent_matches.map((r, i) => (
+              <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg bg-surface-dark/30">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-text-primary font-medium truncate">{getTeamAbbr(r.team1)} vs {getTeamAbbr(r.team2)}</span>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className="font-mono text-text-muted">{r.inn1_score}/{r.inn1_wickets} - {r.inn2_score}/{r.inn2_wickets}</span>
+                  <span className="text-accent-cyan font-semibold">{getTeamAbbr(r.winner || '')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Card 4: Player Form Tracker ─────────────────────────────── */
+function PlayerFormCard({ players }) {
+  const [formData, setFormData] = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!players || players.length === 0) { setLoading(false); return }
+    setLoading(true)
+    Promise.all(
+      players.map(p =>
+        getLivePlayerForm(p.name, p.role).catch(() => ({ player: p.name, role: p.role, last_5: [] }))
+      )
+    ).then(results => {
+      const map = {}
+      results.forEach(r => { map[r.player] = r })
+      setFormData(map)
+    }).finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players.map(p => `${p.name}-${p.role}`).join(',')])
+
+  if (loading) return <AnalyticsSkeleton />
+
+  const entries = players.map(p => formData[p.name]).filter(Boolean)
+  if (entries.length === 0) {
+    return <div className="text-center py-6 text-text-muted text-xs">No form data available</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {entries.map(f => {
+        const isBat = f.role === 'bat'
+        const last5 = f.last_5 || []
+        if (last5.length === 0) return null
+
+        const chartData = last5.map((inn, i) => ({
+          inn: `${i + 1}`,
+          value: isBat ? inn.runs : inn.economy,
+          opponent: inn.opponent ? getTeamAbbr(inn.opponent) : '',
+        })).reverse()
+
+        const refValue = isBat ? f.career_avg : f.career_economy
+        const primaryColor = isBat ? '#06d6a0' : '#f72585'
+
+        return (
+          <div key={f.player} className="rounded-xl border border-border-subtle bg-surface-dark/30 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <PlayerAvatar name={f.player} size={28} showBorder />
+                <div>
+                  <p className="text-xs font-bold text-text-primary">{f.player}</p>
+                  <p className="text-[9px] text-text-muted uppercase">{isBat ? 'Batting' : 'Bowling'}</p>
+                </div>
+              </div>
+              <div className="text-right text-[10px] text-text-muted">
+                {isBat ? (
+                  <>
+                    <span>Last 5 Avg: <span className="font-mono text-accent-cyan">{f.avg_last_5 ?? '—'}</span></span>
+                    <span className="ml-2">Career: <span className="font-mono text-text-secondary">{f.career_avg ?? '—'}</span></span>
+                  </>
+                ) : (
+                  <>
+                    <span>Last 5 Econ: <span className="font-mono text-accent-magenta">{f.avg_econ_last_5 ?? '—'}</span></span>
+                    <span className="ml-2">Career: <span className="font-mono text-text-secondary">{f.career_economy ?? '—'}</span></span>
+                  </>
+                )}
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={90}>
+              {isBat ? (
+                <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<AnalyticsTooltip />} />
+                  {refValue && <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'Avg', fontSize: 8, fill: '#8d99ae' }} />}
+                  <Bar dataKey="value" name="Runs" fill={primaryColor} radius={[4, 4, 0, 0]} barSize={24} />
+                </BarChart>
+              ) : (
+                <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+                  <Tooltip content={<AnalyticsTooltip />} />
+                  {refValue && <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'Avg', fontSize: 8, fill: '#8d99ae' }} />}
+                  <Line type="monotone" dataKey="value" name="Economy" stroke={primaryColor} strokeWidth={2} dot={{ r: 3, fill: primaryColor }} />
+                </LineChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── Card 5: Phase Analysis ──────────────────────────────────── */
+function PhaseAnalysisCard({ team, currentOver }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!team) { setLoading(false); return }
+    setLoading(true)
+    getLivePhaseAnalysis(team, currentOver).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+  }, [team, currentOver])
+
+  if (loading) return <AnalyticsSkeleton />
+  if (!data?.phases?.length) return <div className="text-center py-6 text-text-muted text-xs">No phase data available</div>
+
+  const phaseColors = { powerplay: '#4cc9f0', middle: '#06d6a0', death: '#f72585' }
+  const phaseLabels = { powerplay: 'Powerplay (1-6)', middle: 'Middle (7-15)', death: 'Death (16-20)' }
+
+  const chartData = data.phases.map(p => ({
+    phase: p.phase === 'powerplay' ? 'PP' : p.phase === 'middle' ? 'Mid' : 'Death',
+    team_rr: p.team_rr,
+    league_rr: p.league_rr,
+    rawPhase: p.phase,
+  }))
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-text-muted">Current Phase:</span>
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{
+          background: `${phaseColors[data.current_phase]}20`,
+          color: phaseColors[data.current_phase],
+          border: `1px solid ${phaseColors[data.current_phase]}40`,
+        }}>
+          {phaseLabels[data.current_phase] || data.current_phase}
+        </span>
+      </div>
+
+      <ResponsiveContainer width="100%" height={140}>
+        <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1a1a2e" />
+          <XAxis dataKey="phase" tick={{ fontSize: 10, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+          <Tooltip content={<AnalyticsTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Bar dataKey="team_rr" name={getTeamAbbr(data.team)} fill="#06d6a0" radius={[4, 4, 0, 0]} barSize={20} />
+          <Bar dataKey="league_rr" name="League Avg" fill="#8d99ae" radius={[4, 4, 0, 0]} barSize={20} />
+        </BarChart>
+      </ResponsiveContainer>
+
+      <div className="space-y-1.5">
+        {data.phases.map((p, i) => {
+          const diff = p.team_rr && p.league_rr ? (p.team_rr - p.league_rr).toFixed(2) : null
+          const isCurrent = p.phase === data.current_phase
+          return (
+            <div key={i} className={`flex items-center justify-between text-[11px] px-3 py-2 rounded-lg ${
+              isCurrent ? 'bg-accent-cyan/5 border border-accent-cyan/20' : 'bg-surface-dark/30'
+            }`}>
+              <span className="font-medium" style={{ color: phaseColors[p.phase] }}>
+                {phaseLabels[p.phase]}
+                {isCurrent && <span className="ml-1 text-[9px] text-accent-cyan">(NOW)</span>}
+              </span>
+              <span className="font-mono text-text-secondary">
+                {p.team_rr} RPO
+                {diff && (
+                  <span className={`ml-1 ${parseFloat(diff) > 0 ? 'text-accent-lime' : 'text-accent-magenta'}`}>
+                    ({parseFloat(diff) > 0 ? '+' : ''}{diff})
+                  </span>
+                )}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── Card 6: Team H2H Context ────────────────────────────────── */
+function TeamH2HCard({ team1, team2 }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!team1 || !team2) { setLoading(false); return }
+    setLoading(true)
+    getLiveTeamH2H(team1, team2).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+  }, [team1, team2])
+
+  if (loading) return <AnalyticsSkeleton />
+  if (!data || data.total_matches === 0) return <div className="text-center py-6 text-text-muted text-xs">No H2H data available</div>
+
+  const pieData = [
+    { name: getTeamAbbr(data.team1), value: data.team1_wins, fill: getTeamColor(data.team1) || '#4cc9f0' },
+    { name: getTeamAbbr(data.team2), value: data.team2_wins, fill: getTeamColor(data.team2) || '#f72585' },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-center gap-6">
+        <div className="text-center">
+          <TeamLogo team={data.team1} size={36} />
+          <p className="text-xs font-bold text-text-primary mt-1">{getTeamAbbr(data.team1)}</p>
+          <p className="text-2xl font-mono font-black text-accent-cyan">{data.team1_wins}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-text-muted uppercase tracking-wider">Matches</p>
+          <p className="text-lg font-mono font-bold text-text-secondary">{data.total_matches}</p>
+        </div>
+        <div className="text-center">
+          <TeamLogo team={data.team2} size={36} />
+          <p className="text-xs font-bold text-text-primary mt-1">{getTeamAbbr(data.team2)}</p>
+          <p className="text-2xl font-mono font-black text-accent-magenta">{data.team2_wins}</p>
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={110}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            innerRadius={30}
+            outerRadius={48}
+            paddingAngle={3}
+            dataKey="value"
+          >
+            {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+          </Pie>
+          <Tooltip content={<AnalyticsTooltip />} />
+        </PieChart>
+      </ResponsiveContainer>
+
+      {data.last_5 && data.last_5.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Recent Meetings</p>
+          <div className="space-y-1.5">
+            {data.last_5.map((m, i) => (
+              <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg bg-surface-dark/30">
+                <span className="text-text-muted font-mono">{m.date}</span>
+                <span className="text-text-primary font-semibold">{getTeamAbbr(m.winner)}</span>
+                <span className="text-text-muted">by {m.margin}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Scorecard + Analytics Side-by-Side Wrapper ──────────────── */
+function ScorecardWithAnalytics({ matchId }) {
+  const [liveScorecard, setLiveScorecard] = useState(null)
+
+  const handleScorecardUpdate = useCallback((data) => {
+    setLiveScorecard(data)
+  }, [])
+
+  const isLive = liveScorecard?.matchStarted && !liveScorecard?.matchEnded
+  const hasScorecard = isLive && liveScorecard?.scorecard?.length > 0
+
+  const mobileSlot = hasScorecard
+    ? <LiveAnalyticsPanel scorecard={liveScorecard} />
+    : null
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      {/* Scorecard — main column */}
+      <div className={hasScorecard ? 'xl:col-span-7' : 'xl:col-span-12'}>
+        <DetailedScorecard
+          matchId={matchId}
+          onScorecardUpdate={handleScorecardUpdate}
+          mobileAnalyticsSlot={mobileSlot}
+        />
+      </div>
+
+      {/* Live Analytics — desktop side panel only */}
+      {hasScorecard && (
+        <div className="hidden xl:block xl:col-span-5">
+          <LiveAnalyticsPanel scorecard={liveScorecard} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+/* ── Live Analytics Panel (Main Container) ───────────────────── */
+function LiveAnalyticsPanel({ scorecard }) {
+  const [expanded, setExpanded] = useState(true)
+
+  const lastInnings = scorecard.scorecard?.[scorecard.scorecard.length - 1]
+  const teams = scorecard.teams || []
+
+  const activeBatters = useMemo(() => {
+    if (!lastInnings) return []
+    const batsmen = lastInnings.batsmen || lastInnings.batting || []
+    return batsmen
+      .filter(b => {
+        const d = (b.dismissal || '').toLowerCase()
+        return d.includes('not out') || d === ''
+      })
+      .slice(0, 2)
+      .map(b => b.name || b.batsman?.name || b.batsman || '')
+      .filter(Boolean)
+  }, [lastInnings])
+
+  const currentBowler = useMemo(() => {
+    if (!lastInnings) return ''
+    const bowlers = lastInnings.bowlers || lastInnings.bowling || []
+    const last = bowlers[bowlers.length - 1]
+    return last ? (last.name || last.bowler?.name || last.bowler || '') : ''
+  }, [lastInnings])
+
+  const currentScore = useMemo(() => {
+    const scores = scorecard.score || []
+    const lastScore = scores[scores.length - 1]
+    return lastScore?.r ?? 0
+  }, [scorecard])
+
+  const currentOvers = useMemo(() => {
+    const scores = scorecard.score || []
+    const lastScore = scores[scores.length - 1]
+    return lastScore?.o ? parseFloat(lastScore.o) : 0
+  }, [scorecard])
+
+  const currentWickets = useMemo(() => {
+    const scores = scorecard.score || []
+    const lastScore = scores[scores.length - 1]
+    return lastScore?.w ?? 0
+  }, [scorecard])
+
+  const inningsNumber = scorecard.scorecard?.length || 1
+
+  const target = useMemo(() => {
+    if (inningsNumber < 2) return null
+    const scores = scorecard.score || []
+    if (scores.length >= 2) return (scores[0]?.r ?? 0) + 1
+    return null
+  }, [scorecard, inningsNumber])
+
+  const venue = scorecard.venue || ''
+
+  const battingTeam = useMemo(() => {
+    if (!lastInnings) return teams[0] || ''
+    const inning = lastInnings.inning || ''
+    for (const t of teams) {
+      if (inning.toLowerCase().includes(t.toLowerCase().split(' ')[0])) return t
+    }
+    return teams[inningsNumber - 1] || teams[0] || ''
+  }, [lastInnings, teams, inningsNumber])
+
+  const formPlayers = useMemo(() => {
+    const list = activeBatters.map(name => ({ name, role: 'bat' }))
+    if (currentBowler) list.push({ name: currentBowler, role: 'bowl' })
+    return list
+  }, [activeBatters, currentBowler])
+
+  const analyticsCards = [
+    {
+      id: 'matchup',
+      title: 'Live Matchup Rivalry',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+          <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v-2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+        </svg>
+      ),
+      show: activeBatters.length > 0 && !!currentBowler,
+      render: () => <MatchupRivalryCard batters={activeBatters} bowler={currentBowler} />,
+    },
+    {
+      id: 'projected',
+      title: 'Projected Score',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      ),
+      show: !!venue && currentOvers > 0,
+      render: () => (
+        <ProjectedScoreCard
+          venue={venue}
+          currentScore={currentScore}
+          currentOvers={currentOvers}
+          currentWickets={currentWickets}
+          inningsNumber={inningsNumber}
+          target={target}
+        />
+      ),
+    },
+    {
+      id: 'venue',
+      title: 'Venue DNA',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+        </svg>
+      ),
+      show: !!venue,
+      render: () => <VenueDNACard venue={venue} />,
+    },
+    {
+      id: 'form',
+      title: 'Player Form',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+          <path d="M3 3v18h18" /><path d="M18 17l-5-5-4 4-3-3" />
+        </svg>
+      ),
+      show: formPlayers.length > 0,
+      render: () => <PlayerFormCard players={formPlayers} />,
+    },
+    {
+      id: 'phase',
+      title: 'Phase Analysis',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+          <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
+        </svg>
+      ),
+      show: !!battingTeam,
+      render: () => <PhaseAnalysisCard team={battingTeam} currentOver={Math.floor(currentOvers)} />,
+    },
+    {
+      id: 'h2h',
+      title: 'Head to Head',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      ),
+      show: teams.length === 2,
+      render: () => <TeamH2HCard team1={teams[0]} team2={teams[1]} />,
+    },
+  ]
+
+  const visibleCards = analyticsCards.filter(c => c.show)
+  if (visibleCards.length === 0) return null
+
+  return (
+    <div className="rounded-2xl border border-accent-cyan/20 bg-gradient-to-br from-accent-cyan/[0.02] via-surface-card to-accent-magenta/[0.02] overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-hover/50 transition-colors"
+      >
+        <h3 className="text-sm font-bold text-text-primary tracking-wide flex items-center gap-2">
+          <span className="w-6 h-6 rounded-lg bg-accent-cyan/20 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
+              <path d="M3 3v18h18" /><path d="M18 17l-5-5-4 4-3-3" />
+            </svg>
+          </span>
+          Live Analytics
+        </h3>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`w-4 h-4 text-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-4 space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto scrollbar-thin">
+          {visibleCards.map(card => (
+            <div key={card.id} className="rounded-xl border border-border-subtle bg-surface-card overflow-hidden">
+              <div className="px-3 py-2 border-b border-border-subtle bg-surface-hover/50 flex items-center gap-2">
+                <span className="text-accent-cyan">{card.icon}</span>
+                <h4 className="text-[11px] font-bold text-text-primary uppercase tracking-wider">{card.title}</h4>
+              </div>
+              <div className="p-3">
+                {card.render()}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -977,8 +1790,8 @@ export default function LiveScores() {
                 </div>
               ) : (
                 <>
-                  {/* Mobile: compact match switcher (horizontal scroll) */}
-                  <div className="lg:hidden mb-4">
+                  {/* Match selector chips (always visible) */}
+                  <div className="mb-5">
                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
                       {sortedMatches.map(m => {
                         const mLive = m.matchStarted && !m.matchEnded
@@ -990,7 +1803,7 @@ export default function LiveScores() {
                             className={`flex-shrink-0 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
                               sel
                                 ? 'border-accent-cyan bg-accent-cyan/10 text-accent-cyan'
-                                : 'border-border-subtle bg-surface-card text-text-secondary'
+                                : 'border-border-subtle bg-surface-card text-text-secondary hover:bg-surface-hover'
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -1003,39 +1816,40 @@ export default function LiveScores() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Scorecard first on mobile (order-1 on mobile, order-2 on lg) */}
-                    <div className="lg:col-span-8 xl:col-span-9 order-1 lg:order-2">
-                      {selectedMatch ? (
-                        <DetailedScorecard matchId={selectedMatch} />
-                      ) : (
-                        <div className="rounded-2xl border border-border-subtle bg-surface-card p-12 text-center">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12 text-text-muted mx-auto mb-4">
-                            <rect x="2" y="3" width="20" height="18" rx="2" /><path d="M8 7h8M8 11h5M8 15h7" />
-                          </svg>
-                          <p className="text-sm text-text-secondary">Select a match to view the scorecard</p>
-                        </div>
-                      )}
+                  {/* Row 1: Scorecard + Live Analytics side by side */}
+                  {selectedMatch ? (
+                    <ScorecardWithAnalytics matchId={selectedMatch} />
+                  ) : (
+                    <div className="rounded-2xl border border-border-subtle bg-surface-card p-12 text-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12 text-text-muted mx-auto mb-4">
+                        <rect x="2" y="3" width="20" height="18" rx="2" /><path d="M8 7h8M8 11h5M8 15h7" />
+                      </svg>
+                      <p className="text-sm text-text-secondary">Select a match to view the scorecard</p>
                     </div>
+                  )}
 
-                    {/* Match list sidebar — hidden on mobile, visible on lg+ */}
-                    <div className="hidden lg:block lg:col-span-4 xl:col-span-3 order-2 lg:order-1 space-y-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-sm font-bold text-text-muted uppercase tracking-wider">Matches</h2>
-                        <span className="text-[10px] text-text-muted font-mono">
-                          {liveCount} live · {matches.length} total
-                        </span>
-                      </div>
-                      <div className="space-y-3 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1 scrollbar-thin">
-                        {sortedMatches.map(m => (
-                          <LiveScoreHero
-                            key={m.id}
-                            match={m}
-                            isSelected={selectedMatch === m.id}
-                            onClick={() => setSelectedMatch(m.id)}
-                          />
-                        ))}
-                      </div>
+                  {/* Row 2: Matches list below */}
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-sm font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-text-muted">
+                          <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                        </svg>
+                        All Matches
+                      </h2>
+                      <span className="text-[10px] text-text-muted font-mono">
+                        {liveCount} live · {matches.length} total
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {sortedMatches.map(m => (
+                        <LiveScoreHero
+                          key={m.id}
+                          match={m}
+                          isSelected={selectedMatch === m.id}
+                          onClick={() => setSelectedMatch(m.id)}
+                        />
+                      ))}
                     </div>
                   </div>
                 </>
