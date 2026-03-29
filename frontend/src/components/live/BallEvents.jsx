@@ -221,41 +221,60 @@ export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
 
   // The "next" ball position = first empty slot
   const nextPos = slots.findIndex(s => s === null)
-  // How many balls are filled (for progress bar)
-  const filledCount = slots.filter(Boolean).length
+
+  const overLabelEl = (
+    <div className="flex-shrink-0 text-center min-w-[48px] sm:min-w-[56px]">
+      <p className="text-lg sm:text-xl font-black text-text-primary font-mono leading-none">{ordinal(displayOver)}</p>
+      <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold mt-0.5">Over</p>
+    </div>
+  )
+
+  const runsSummaryEl = (
+    <div className="flex-shrink-0 text-center min-w-[40px] sm:min-w-[44px]">
+      <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Runs</p>
+      <p className={`text-xl sm:text-2xl font-black font-mono leading-none mt-0.5 ${
+        totalRuns >= 15 ? 'text-accent-amber' : totalRuns >= 8 ? 'text-accent-cyan' : 'text-text-primary'
+      }`}>{totalRuns}</p>
+    </div>
+  )
+
+  const extrasEl = extras.length > 0 && (
+    <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-full sm:w-auto">
+      <div className="flex flex-wrap justify-center gap-1">
+        {extras.map((e, i) => (
+          <div key={i} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan animate-ball-pop">
+            {e.result}
+          </div>
+        ))}
+      </div>
+      <span className="text-[8px] text-text-muted uppercase tracking-wider">Extras</span>
+    </div>
+  )
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
-      <div className="px-4 py-3 flex items-center gap-4">
-        {/* Over label */}
-        <div className="flex-shrink-0 text-center min-w-[56px]">
-          <p className="text-xl font-black text-text-primary font-mono leading-none">{ordinal(displayOver)}</p>
-          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold mt-0.5">Over</p>
+      <div className="px-3 py-2.5 flex flex-col gap-2.5 min-w-0 sm:px-4 sm:py-3 sm:flex-row sm:items-center sm:gap-4">
+        {/* Mobile: over + runs on one row; desktop: only over + divider here */}
+        <div className="flex items-center justify-between gap-3 sm:justify-start sm:contents">
+          <div className="flex items-center gap-3 shrink-0">
+            {overLabelEl}
+            <div className="hidden sm:block h-10 w-px bg-border-subtle flex-shrink-0" />
+          </div>
+          <div className="sm:hidden">{runsSummaryEl}</div>
         </div>
 
-        <div className="h-10 w-px bg-border-subtle flex-shrink-0" />
-
-        {/* Ball circles with connecting line */}
-        <div className="flex-1 flex items-center gap-0 relative">
-          {/* Connecting track */}
-          <div className="absolute top-1/2 left-3 right-3 h-0.5 bg-white/[0.04] -translate-y-1/2 rounded-full" />
-          {/* Progress fill */}
-          <div
-            className="absolute top-1/2 left-3 h-0.5 bg-accent-cyan/20 -translate-y-1/2 rounded-full transition-all duration-500"
-            style={{ width: `${Math.min((filledCount / 6) * 100, 100)}%` }}
-          />
-
-          <div className="relative flex items-center justify-between w-full">
+        {/* Ball circles + labels (no connecting line — avoids clipping labels on narrow screens) */}
+        <div className="flex-1 flex flex-col gap-1 min-w-0 w-full sm:justify-center">
+          <div className="flex items-center justify-between w-full min-w-0">
             {slots.map((ball, i) => {
               const c = ball ? ballColor(ball.result) : null
               const isNext = !ball && i === nextPos && nextPos < 6
-              const label = `${overComp}.${i + 1}`
               return (
-                <div key={i} className="flex flex-col items-center gap-1 z-10">
+                <div key={i} className="flex justify-center min-w-0 flex-1 max-w-[3.25rem] sm:max-w-none sm:flex-none">
                   <div
                     className={`
-                      w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
-                      text-sm font-bold border-2 transition-all duration-300
+                      w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
+                      text-xs sm:text-sm font-bold border-2 transition-all duration-300 shrink-0
                       ${ball
                         ? `${c.bg} ${c.border} ${c.text} ${ball.isNew ? 'animate-ball-pop' : ''}`
                         : isNext
@@ -268,11 +287,23 @@ export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
                     {ball ? (
                       <span className={ball.isNew ? 'animate-ball-travel' : ''}>{ball.result}</span>
                     ) : (
-                      <span className="text-xs">•</span>
+                      <span className="text-[10px] sm:text-xs">•</span>
                     )}
                   </div>
-                  <span className={`text-[9px] font-mono ${ball ? 'text-text-secondary' : 'text-text-muted/50'}`}>{label}</span>
                 </div>
+              )
+            })}
+          </div>
+          <div className="flex justify-between w-full min-w-0 gap-0.5">
+            {slots.map((ball, i) => {
+              const label = `${overComp}.${i + 1}`
+              return (
+                <span
+                  key={`l-${i}`}
+                  className={`text-[8px] sm:text-[9px] font-mono truncate text-center min-w-0 flex-1 max-w-[3.25rem] sm:max-w-none sm:flex-none ${ball ? 'text-text-secondary' : 'text-text-muted/50'}`}
+                >
+                  {label}
+                </span>
               )
             })}
           </div>
@@ -281,28 +312,14 @@ export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
         {/* Extras */}
         {extras.length > 0 && (
           <>
-            <div className="h-8 w-px bg-border-subtle flex-shrink-0" />
-            <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-              <div className="flex gap-1">
-                {extras.map((e, i) => (
-                  <div key={i} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan animate-ball-pop">
-                    {e.result}
-                  </div>
-                ))}
-              </div>
-              <span className="text-[8px] text-text-muted uppercase tracking-wider">Extras</span>
-            </div>
+            <div className="hidden sm:block h-8 w-px bg-border-subtle flex-shrink-0" />
+            {extrasEl}
           </>
         )}
 
-        <div className="h-10 w-px bg-border-subtle flex-shrink-0" />
-
-        {/* Runs this over */}
-        <div className="flex-shrink-0 text-center min-w-[44px]">
-          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Runs</p>
-          <p className={`text-2xl font-black font-mono leading-none mt-0.5 ${
-            totalRuns >= 15 ? 'text-accent-amber' : totalRuns >= 8 ? 'text-accent-cyan' : 'text-text-primary'
-          }`}>{totalRuns}</p>
+        <div className="hidden sm:flex sm:items-center sm:gap-4 sm:flex-shrink-0">
+          <div className="h-10 w-px bg-border-subtle flex-shrink-0" />
+          {runsSummaryEl}
         </div>
       </div>
     </div>
