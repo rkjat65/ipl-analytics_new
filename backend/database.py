@@ -119,13 +119,40 @@ VENUE_NORM_SQL = _build_venue_norm_sql()
 
 
 _local = threading.local()
+_db_version = 0
+_db_version_lock = threading.Lock()
 
 
 def get_db() -> duckdb.DuckDBPyConnection:
-    """Return a thread-local read-only DuckDB connection."""
-    if not hasattr(_local, "conn") or _local.conn is None:
+    """Return a thread-local read-only DuckDB connection.
+
+    Automatically reopens if the global DB version has been bumped
+    (e.g. after a new match is ingested).
+    """
+    local_ver = getattr(_local, "ver", -1)
+    if local_ver != _db_version:
+        if hasattr(_local, "conn") and _local.conn is not None:
+            try:
+                _local.conn.close()
+            except Exception:
+                pass
         _local.conn = duckdb.connect(DB_PATH, read_only=True)
+        _local.ver = _db_version
+    elif not hasattr(_local, "conn") or _local.conn is None:
+        _local.conn = duckdb.connect(DB_PATH, read_only=True)
+        _local.ver = _db_version
     return _local.conn
+
+
+def refresh_db():
+    """Bump the global DB version so all threads reopen their connections.
+
+    Call after ingesting new matches into ipl.duckdb so read-only snapshots
+    pick up the latest data.
+    """
+    global _db_version
+    with _db_version_lock:
+        _db_version += 1
 
 
 # Reusable CTE that resolves super-over winners for tied matches.

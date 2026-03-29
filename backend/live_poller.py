@@ -80,7 +80,7 @@ def _patch_scorecard_with_live_data(match_id: str, match_data: dict):
     if not existing:
         return
     changed = False
-    for key in ("score", "status", "matchStarted", "matchEnded", "matchWinner"):
+    for key in ("score", "status", "matchStarted", "matchEnded", "matchWinner", "playerOfMatch"):
         if key in match_data and match_data[key] != existing.get(key):
             existing[key] = match_data[key]
             changed = True
@@ -117,11 +117,24 @@ async def _poll_once() -> int:
         logger.debug("No matches tracked — skipping scorecard fetch")
         return hits
 
+    for mid in tracked_ids:
+        prev = get_scorecard(mid)
+        was_live = prev and not prev.get("matchEnded")
+        live_data = match_lookup.get(mid, {})
+        now_ended = live_data.get("matchEnded", False)
+        if was_live and now_ended:
+            api.reset_tier_cache(mid)
+            logger.info("Match %s just ended — reset tier cache to fetch MOTM", mid)
+
     rate_limited = False
     for mid in tracked_ids:
         try:
             sc = await api.fetch_scorecard(mid)
             hits += 1
+            if not sc.get("playerOfMatch"):
+                prev = get_scorecard(mid)
+                if prev and prev.get("playerOfMatch"):
+                    sc["playerOfMatch"] = prev["playerOfMatch"]
             upsert_scorecard(mid, sc)
             log_poll("scorecard", "success", match_id=mid, hits=1)
             extra = await try_promote_after_scorecard(mid, sc)

@@ -10,6 +10,7 @@ from pathlib import Path
 import orjson
 
 from .cricket_api import SportmonksProvider, get_cricket_api
+from .database import refresh_db
 from .live_db import get_match
 from .sportmonks_cricsheet_export import fixture_to_cricsheet
 
@@ -83,6 +84,7 @@ def ingest_sm_json(match_id: str, *, db_path: Path | None = None) -> None:
     if not jp.is_file():
         raise FileNotFoundError(jp)
     ingest_json_paths(db_path or _DUCKDB, [jp], replace_existing_match=True)
+    refresh_db()
 
 
 async def promote_sportmonks_fixture(
@@ -120,7 +122,8 @@ async def promote_sportmonks_fixture(
     out_path.write_bytes(orjson.dumps(doc, option=orjson.OPT_INDENT_2))
     ingest_json_paths = _ingest_json_paths()
     ingest_json_paths(db, [out_path], replace_existing_match=True)
-    log.info("Promoted %s into DuckDB", match_id)
+    refresh_db()
+    log.info("Promoted %s into DuckDB (connections refreshed)", match_id)
     return True, 1
 
 

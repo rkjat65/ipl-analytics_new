@@ -352,6 +352,24 @@ def fixture_to_cricsheet(
             outcome["by"] = {"runs": int(mruns.group(1))}
         elif mwkt:
             outcome["by"] = {"wickets": int(mwkt.group(1))}
+        if "by" not in outcome:
+            runs_data = _unwrap(fixture.get("runs")) or fixture.get("runs")
+            if isinstance(runs_data, list) and len(runs_data) >= 2:
+                inn_scores: dict[int, int] = {}
+                inn_wickets: dict[int, int] = {}
+                for rd in runs_data:
+                    if isinstance(rd, dict):
+                        inning = rd.get("inning", 0)
+                        inn_scores[inning] = rd.get("score", 0)
+                        inn_wickets[inning] = rd.get("wickets", 0)
+                if len(inn_scores) >= 2:
+                    s1 = inn_scores.get(1, 0)
+                    s2 = inn_scores.get(2, 0)
+                    w2 = inn_wickets.get(2, 10)
+                    if s2 > s1:
+                        outcome["by"] = {"wickets": 10 - w2}
+                    elif s1 > s2:
+                        outcome["by"] = {"runs": s1 - s2}
     if "tie" in note.lower() and "won" not in note.lower():
         outcome["result"] = "tie"
     if "no result" in note.lower():

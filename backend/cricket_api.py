@@ -215,6 +215,10 @@ class SportmonksProvider(CricketAPIProvider):
         self._season_id = int(os.getenv("SEASON_ID", "0") or "0")
         self._last_good_tier: dict[str, int] = {}  # match_id → tier index
 
+    def reset_tier_cache(self, match_id: str) -> None:
+        """Reset cached include tier for a match so the next fetch tries the richest tier."""
+        self._last_good_tier.pop(match_id, None)
+
     def is_configured(self) -> bool:
         return bool(self._token)
 
@@ -510,20 +514,20 @@ class SportmonksProvider(CricketAPIProvider):
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue,manofmatch,lineup",
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
-            "batting.catchstump,bowling.bowler,venue,lineup",
-            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue,lineup",
-            "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,lineup",
+            "batting.catchstump,bowling.bowler,venue,manofmatch,lineup",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue,manofmatch,lineup",
+            "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,manofmatch,lineup",
             # Without lineup
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue,manofmatch",
-            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue",
-            "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue,manofmatch",
+            "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,manofmatch",
             # Flat includes (no nesting — API may reject nested during live)
-            "localteam,visitorteam,runs,batting,bowling,venue,lineup",
-            "localteam,visitorteam,runs,batting,bowling,venue",
-            "localteam,visitorteam,runs,batting,bowling",
+            "localteam,visitorteam,runs,batting,bowling,venue,manofmatch,lineup",
+            "localteam,visitorteam,runs,batting,bowling,venue,manofmatch",
+            "localteam,visitorteam,runs,batting,bowling,manofmatch",
             # Bare minimum
-            "localteam,visitorteam,runs,venue",
+            "localteam,visitorteam,runs,venue,manofmatch",
             "localteam,visitorteam,runs",
         ]
 

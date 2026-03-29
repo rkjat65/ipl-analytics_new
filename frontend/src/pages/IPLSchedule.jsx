@@ -120,7 +120,7 @@ export default function IPLSchedule() {
   return (
     <div className="space-y-6">
       <SEO
-        title="IPL 2026 Schedule — Crickrida"
+        title="IPL26 Schedule — Crickrida"
         description="Full IPL 2026 match schedule with dates, venues, results, and match reports."
         url="https://crickrida.rkjat.in/ipl-schedule"
         keywords="IPL 2026 schedule, IPL match dates, IPL fixtures, IPL 2026 matches, IPL venue"
@@ -142,7 +142,7 @@ export default function IPLSchedule() {
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
           </span>
-          IPL 2026 Matches
+          IPL 2026
         </h1>
         <p className="text-xs text-text-muted mt-1">Full season schedule, results & match reports</p>
       </div>
@@ -235,135 +235,149 @@ export default function IPLSchedule() {
         {teamFilter !== 'all' && <span className="text-xs text-text-secondary">{filteredMatches.length} matches</span>}
       </div>
 
-      {/* Schedule table */}
-      <div ref={scrollRef} className="rounded-xl border border-border-subtle bg-bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-bg-elevated text-text-muted border-b border-border-subtle">
-                <th className="text-center py-3 px-3 font-medium text-xs uppercase tracking-wider w-12">#</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Date</th>
-                <th className="text-center py-3 px-3 font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Day</th>
-                <th className="text-center py-3 px-3 font-medium text-xs uppercase tracking-wider">Time</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Home</th>
-                <th className="text-center py-3 px-2 font-medium text-xs uppercase tracking-wider w-8"></th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Away</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider hidden lg:table-cell min-w-[140px]">Result</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Venue</th>
-                <th className="text-center py-3 px-2 font-medium text-xs uppercase tracking-wider w-20">Details</th>
-                <th className="text-center py-3 px-2 font-medium text-xs uppercase tracking-wider w-24">Report</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMatches.map((m) => {
-                const d = new Date(m.date + 'T00:00:00')
-                const dayStr = DAYS[d.getDay()]
-                const dateStr = `${d.getDate()} ${MONTHS[d.getMonth()]}`
-                const isNext = nextM && m.match === nextM.match
-                const isToday = m.date === new Date().toISOString().slice(0, 10)
-                const isCompleted = m.status === 'completed'
-                const isLive = m.status === 'live'
-                const winnerLine = m.matchWinner
-                  ? `${getTeamAbbr(m.matchWinner)} won`
-                  : isCompleted && m.resultNote
-                    ? sanitizeResultStatus(m.resultNote).slice(0, 120)
-                    : isCompleted
-                      ? '—'
-                      : ''
+      {/* Match tiles */}
+      <div ref={scrollRef} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredMatches.map((m) => {
+          const d = new Date(m.date + 'T00:00:00')
+          const dayStr = DAYS[d.getDay()]
+          const dateStr = `${d.getDate()} ${MONTHS[d.getMonth()]}`
+          const isNext = nextM && m.match === nextM.match
+          const todayStr = new Date().toISOString().slice(0, 10)
+          const isToday = m.date === todayStr
+          const isCompleted = m.status === 'completed'
+          const isLive = m.status === 'live'
+          const dbId = getDbMatchId(m)
 
-                const dbId = getDbMatchId(m)
+          const homeColor = getTeamColor(m.home) || '#00E5FF'
+          const awayColor = getTeamColor(m.away) || '#E040FB'
 
-                let rowClass = 'border-b border-border-subtle/50 transition-colors'
-                if (isLive) rowClass += ' bg-accent-magenta/5 border-l-2 border-l-accent-magenta'
-                else if (isNext) rowClass += ' bg-accent-cyan/5 border-l-2 border-l-accent-cyan'
-                else if (isToday) rowClass += ' bg-accent-amber/5 border-l-2 border-l-accent-amber'
-                else if (isCompleted && !m.matchWinner && !m.resultNote) rowClass += ' opacity-50'
-                else if (isCompleted) rowClass += ' bg-bg-card-hover/25'
-                else rowClass += ' hover:bg-bg-card-hover/50'
+          let borderClass = 'border-border-subtle'
+          let glowStyle = {}
+          if (isLive) {
+            borderClass = 'border-accent-magenta/60'
+            glowStyle = { boxShadow: '0 0 20px rgba(224,64,251,0.15)' }
+          } else if (isNext) {
+            borderClass = 'border-accent-cyan/50'
+            glowStyle = { boxShadow: '0 0 20px rgba(0,229,255,0.1)' }
+          } else if (isToday) {
+            borderClass = 'border-accent-amber/50'
+          }
 
-                return (
-                  <tr key={m.match} data-match={m.match} className={rowClass}>
-                    <td className="text-center py-3 px-3 font-mono text-xs text-text-muted">{m.match}</td>
-                    <td className="py-3 px-3 text-xs font-medium text-text-primary whitespace-nowrap">{dateStr}</td>
-                    <td className="text-center py-3 px-3 text-xs text-text-secondary hidden sm:table-cell">{dayStr}</td>
-                    <td className="text-center py-3 px-3 text-xs font-mono text-text-secondary whitespace-nowrap">
-                      {m.time}
-                      {isLive && (
-                        <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] font-bold text-accent-magenta">
-                          <span className="w-1.5 h-1.5 rounded-full bg-accent-magenta animate-pulse" />
-                          LIVE
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo team={m.home} size={20} />
-                        <span className="text-xs font-semibold text-text-primary hidden lg:inline">{m.home}</span>
-                        <span className="text-xs font-semibold text-text-primary lg:hidden">{getTeamAbbr(m.home)}</span>
-                      </div>
-                    </td>
-                    <td className="text-center py-3 px-2 text-[10px] font-bold text-text-muted">vs</td>
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo team={m.away} size={20} />
-                        <span className="text-xs font-semibold text-text-primary hidden lg:inline">{m.away}</span>
-                        <span className="text-xs font-semibold text-text-primary lg:hidden">{getTeamAbbr(m.away)}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-[11px] text-text-secondary hidden lg:table-cell align-top max-w-[200px]">
-                      {isCompleted ? (
-                        <div className="space-y-1">
-                          <p className="font-bold text-accent-lime">{winnerLine}</p>
-                          {m.resultNote && m.matchWinner && (
-                            <p className="text-text-muted leading-snug line-clamp-2" title={m.resultNote}>
-                              {sanitizeResultStatus(m.resultNote)}
-                            </p>
-                          )}
-                          {m.playerOfMatch?.name && (
-                            <p className="text-accent-amber/90 text-[10px]">MOTM: {m.playerOfMatch.name}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-text-secondary hidden md:table-cell">{m.venue}</td>
-                    <td className="py-3 px-2 text-center align-middle">
-                      {dbId ? (
-                        <Link
-                          to={`/matches/${dbId}`}
-                          className="text-[10px] font-bold px-2 py-1.5 rounded-md border border-accent-purple/40 text-accent-purple hover:bg-accent-purple/10 whitespace-nowrap inline-block"
-                        >
-                          View
-                        </Link>
-                      ) : (
-                        <span className="text-[10px] text-text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-2 text-center align-middle">
-                      {m.apiMatchId && (isCompleted || isLive) ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setReportCtx({
-                              apiMatchId: m.apiMatchId,
-                              title: `Match ${m.match} · ${getTeamAbbr(m.home)} vs ${getTeamAbbr(m.away)}`,
-                            })
-                          }
-                          className="text-[10px] font-bold px-2 py-1.5 rounded-md border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 whitespace-nowrap leading-tight text-center max-w-[9rem]"
-                        >
-                          {isCompleted ? 'Download' : 'Live'}
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-text-muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+          return (
+            <div
+              key={m.match}
+              data-match={m.match}
+              className={`rounded-2xl border ${borderClass} bg-surface-card overflow-hidden transition-all hover:border-white/20 group`}
+              style={glowStyle}
+            >
+              {/* Top bar with match number, date, status */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle/50 bg-white/[0.02]">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold text-text-muted bg-white/[0.05] px-1.5 py-0.5 rounded">#{m.match}</span>
+                  <span className="text-[11px] text-text-secondary font-medium">{dayStr}, {dateStr}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-text-muted">{m.time}</span>
+                  {isLive && (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-black text-accent-magenta bg-accent-magenta/15 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-magenta animate-pulse" />
+                      LIVE
+                    </span>
+                  )}
+                  {isNext && !isLive && (
+                    <span className="text-[9px] font-bold text-accent-cyan bg-accent-cyan/10 px-2 py-0.5 rounded-full">NEXT</span>
+                  )}
+                  {isCompleted && (
+                    <span className="text-[9px] font-bold text-accent-lime/70 bg-accent-lime/10 px-2 py-0.5 rounded-full">DONE</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Teams */}
+              <div className="px-4 py-4">
+                <div className="flex items-center justify-between">
+                  {/* Home team */}
+                  <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                    <div className="relative">
+                      <TeamLogo team={m.home} size={44} />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full" style={{ backgroundColor: homeColor, opacity: 0.6 }} />
+                    </div>
+                    <span className="text-xs font-bold text-text-primary text-center leading-tight">{getTeamAbbr(m.home)}</span>
+                  </div>
+
+                  {/* VS */}
+                  <div className="flex flex-col items-center gap-1 px-3">
+                    <span className="text-sm font-black text-text-muted/40">VS</span>
+                  </div>
+
+                  {/* Away team */}
+                  <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                    <div className="relative">
+                      <TeamLogo team={m.away} size={44} />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full" style={{ backgroundColor: awayColor, opacity: 0.6 }} />
+                    </div>
+                    <span className="text-xs font-bold text-text-primary text-center leading-tight">{getTeamAbbr(m.away)}</span>
+                  </div>
+                </div>
+
+                {/* Result (completed matches) */}
+                {isCompleted && (m.matchWinner || m.resultNote) && (
+                  <div className="mt-3 pt-3 border-t border-border-subtle/40">
+                    {m.matchWinner && (
+                      <p className="text-[11px] font-bold text-accent-lime text-center">
+                        {getTeamAbbr(m.matchWinner)} won
+                      </p>
+                    )}
+                    {m.resultNote && (
+                      <p className="text-[10px] text-text-muted text-center mt-0.5 line-clamp-1" title={sanitizeResultStatus(m.resultNote)}>
+                        {sanitizeResultStatus(m.resultNote)}
+                      </p>
+                    )}
+                    {m.playerOfMatch?.name && (
+                      <p className="text-[10px] text-accent-amber/80 text-center mt-0.5">
+                        MOTM: {m.playerOfMatch.name}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer: venue + action buttons */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-t border-border-subtle/40 bg-white/[0.01]">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-text-muted flex-shrink-0">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <span className="text-[10px] text-text-muted truncate">{m.venue}</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {dbId && (
+                    <Link
+                      to={`/matches/${dbId}`}
+                      className="text-[9px] font-bold px-2 py-1 rounded-md border border-accent-purple/30 text-accent-purple hover:bg-accent-purple/10 transition-colors"
+                    >
+                      Details
+                    </Link>
+                  )}
+                  {m.apiMatchId && (isCompleted || isLive) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReportCtx({
+                          apiMatchId: m.apiMatchId,
+                          title: `Match ${m.match} · ${getTeamAbbr(m.home)} vs ${getTeamAbbr(m.away)}`,
+                        })
+                      }
+                      className="text-[9px] font-bold px-2 py-1 rounded-md border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/10 transition-colors"
+                    >
+                      Report
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

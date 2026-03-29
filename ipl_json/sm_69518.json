@@ -20,7 +20,10 @@
       "umpires": []
     },
     "outcome": {
-      "winner": "Royal Challengers Bengaluru"
+      "winner": "Royal Challengers Bengaluru",
+      "by": {
+        "wickets": 6
+      }
     },
     "players": {
       "Royal Challengers Bengaluru": [
