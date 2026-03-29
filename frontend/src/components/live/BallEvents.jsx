@@ -204,10 +204,11 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
-export function OverProgressTile({ balls, overComp }) {
+export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
   if (overComp == null) return null
 
   const displayOver = overComp + 1
+  if (displayOver > maxOvers) return null
   const legalBalls = balls.filter(b => b.type !== 'extra')
   const extras = balls.filter(b => b.type === 'extra')
   const totalRuns = balls.reduce((s, b) => s + (b.runs || 0), 0)
