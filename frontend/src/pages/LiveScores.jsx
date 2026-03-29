@@ -324,7 +324,8 @@ function LiveScoreHero({ match, onClick, isSelected }) {
 
 /* ── Detailed Scorecard View ──────────────────────────────────
    Two-section layout:
-   1. Match summary hero (scores, toss, venue)
+   1. Match summary hero: scores → status → chase target → notifications →
+      current over → active players → venue/toss
    2. Full batting/bowling tables per innings
 */
 function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) {
@@ -477,26 +478,6 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             })}
           </div>
 
-          {/* Match info row */}
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary border-t border-border-subtle/50 pt-3">
-            {scorecard.venue && (
-              <Link to={venueLink(scorecard.venue)} className="flex items-center gap-1.5 hover:text-accent-cyan transition-colors">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-                </svg>
-                {scorecard.venue}
-              </Link>
-            )}
-            {scorecard.tossWinner && (
-              <span className="flex items-center gap-1.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-amber">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
-                </svg>
-                Toss: <span className="text-text-primary font-semibold">{scorecard.tossWinner}</span> — {scorecard.tossChoice}
-              </span>
-            )}
-          </div>
-
           {/* Status */}
           <p className={`mt-3 text-sm sm:text-base font-bold text-center ${
             isLive ? 'text-accent-lime' : scorecard.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
@@ -524,13 +505,26 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             if (ballsRemaining <= 0) return null
             const rrr = (runsNeeded / (ballsRemaining / 6)).toFixed(2)
             return (
-              <div className="mt-2 flex items-center justify-center gap-3 text-sm">
-                <span className="px-3 py-1 rounded-full bg-accent-amber/10 border border-accent-amber/30 text-accent-amber font-bold">
-                  Need {runsNeeded} run{runsNeeded !== 1 ? 's' : ''} in {ballsRemaining} ball{ballsRemaining !== 1 ? 's' : ''}
-                </span>
-                <span className="text-text-muted">
-                  RRR: <span className="text-accent-amber font-mono font-bold">{rrr}</span>
-                </span>
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-sm">
+                  <span className="inline-flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 px-3 py-1.5 rounded-full bg-accent-amber/10 border border-accent-amber/30 font-bold text-sm text-center max-w-full">
+                    <span className="text-accent-amber shrink-0">Need</span>
+                    <span className="text-accent-lime inline-flex items-center gap-0.5">
+                      <span aria-hidden="true">⚡</span>
+                      <span className="tabular-nums">{runsNeeded}</span>
+                      <span>run{runsNeeded !== 1 ? 's' : ''}</span>
+                    </span>
+                    <span className="text-text-secondary font-semibold shrink-0">in</span>
+                    <span className="text-accent-cyan inline-flex items-center gap-0.5">
+                      <span aria-hidden="true">🏏</span>
+                      <span className="tabular-nums">{ballsRemaining}</span>
+                      <span>ball{ballsRemaining !== 1 ? 's' : ''}</span>
+                    </span>
+                  </span>
+                  <span className="text-text-muted">
+                    RRR: <span className="text-accent-amber font-mono font-bold">{rrr}</span>
+                  </span>
+                </div>
               </div>
             )
           })()}
@@ -548,17 +542,41 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             </div>
           )}
 
+          {/* Current over — ball-by-ball (after target/chase, before active players) */}
+          {isLive && overComp != null && (
+            <div className="mt-3">
+              <OverProgressTile balls={overBalls} overComp={overComp} />
+            </div>
+          )}
+
           {/* Active players inline */}
           {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
             <ActivePlayersInline scorecard={scorecard} playerLookup={playerLookup} />
           )}
+
+          {/* Venue & toss — last: context after live action */}
+          {(scorecard.venue || scorecard.tossWinner) && (
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary border-t border-border-subtle/50 pt-3 mt-4">
+              {scorecard.venue && (
+                <Link to={venueLink(scorecard.venue)} className="flex items-center gap-1.5 hover:text-accent-cyan transition-colors">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {scorecard.venue}
+                </Link>
+              )}
+              {scorecard.tossWinner && (
+                <span className="flex items-center gap-1.5 text-center sm:text-left">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-amber flex-shrink-0">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
+                  </svg>
+                  Toss: <span className="text-text-primary font-semibold">{scorecard.tossWinner}</span> — {scorecard.tossChoice}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Over Progress Tile — ball-by-ball for current over */}
-      {isLive && overComp != null && (
-        <OverProgressTile balls={overBalls} overComp={overComp} />
-      )}
 
       {/* Innings cards — current (last) innings first */}
       {(() => {
@@ -876,7 +894,7 @@ function ActivePlayersInline({ scorecard, playerLookup = {} }) {
   if (activePlayers.length === 0) return null
 
   return (
-    <div className="mt-4 pt-3 border-t border-border-subtle/50">
+    <div className="mt-3">
       <div className="flex items-center gap-1.5 mb-3">
         <span className="w-2 h-2 rounded-full bg-accent-lime animate-pulse" />
         <span className="text-xs font-bold text-text-muted uppercase tracking-wider">At the Crease</span>
