@@ -44,6 +44,11 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
+class RateLimitError(RuntimeError):
+    """Sportmonks API rate limit hit — stop retrying immediately."""
+    pass
+
 # Sportmonks (and some feeds) occasionally glue a wicket count to a city token,
 # e.g. "won by 6Bengaluru wickets" — insert a space before known venue/city tokens.
 _STATUS_CITY_GLUE = re.compile(
@@ -208,6 +213,7 @@ class SportmonksProvider(CricketAPIProvider):
     def __init__(self, api_token: str):
         self._token = api_token
         self._season_id = int(os.getenv("SEASON_ID", "0") or "0")
+        self._last_good_tier: dict[str, int] = {}  # match_id → tier index
 
     def is_configured(self) -> bool:
         return bool(self._token)
@@ -218,6 +224,18 @@ class SportmonksProvider(CricketAPIProvider):
             params["include"] = include
         async with httpx.AsyncClient(timeout=20) as client:
             r = await client.get(f"{self._BASE}/{path}", params=params)
+            if r.status_code in (400, 429):
+                try:
+                    body = r.json()
+                except Exception:
+                    body = {}
+                msg = ""
+                if isinstance(body.get("message"), dict):
+                    msg = body["message"].get("message", "")
+                elif isinstance(body.get("message"), str):
+                    msg = body["message"]
+                if "too many" in msg.lower():
+                    raise RateLimitError(f"Rate limited by Sportmonks: {msg}")
             r.raise_for_status()
             return r.json()
 
@@ -488,29 +506,46 @@ class SportmonksProvider(CricketAPIProvider):
 
     async def fetch_scorecard(self, match_id: str) -> dict:
         include_tiers = [
+            # Full nested includes (richest data)
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue,manofmatch,lineup",
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue,lineup",
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue,lineup",
             "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,lineup",
+            # Without lineup
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue,manofmatch",
-            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
-            "batting.catchstump,bowling.bowler,venue",
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue",
             "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue",
+            # Flat includes (no nesting — API may reject nested during live)
+            "localteam,visitorteam,runs,batting,bowling,venue,lineup",
+            "localteam,visitorteam,runs,batting,bowling,venue",
+            "localteam,visitorteam,runs,batting,bowling",
+            # Bare minimum
+            "localteam,visitorteam,runs,venue",
+            "localteam,visitorteam,runs",
         ]
+
+        # Start from the last known good tier for this match to minimize API hits
+        start_idx = self._last_good_tier.get(match_id, 0)
+        ordered_tiers = list(range(start_idx, len(include_tiers))) + list(range(0, start_idx))
+
         data: dict = {}
-        last_err: httpx.HTTPStatusError | None = None
-        for inc in include_tiers:
+        last_err: Exception | None = None
+        for tier_idx in ordered_tiers:
+            inc = include_tiers[tier_idx]
             try:
                 data = await self._call(f"fixtures/{match_id}", include=inc)
+                self._last_good_tier[match_id] = tier_idx
                 break
+            except RateLimitError:
+                logger.warning("fixtures/%s: rate limited — stopping tier attempts", match_id)
+                raise
             except httpx.HTTPStatusError as e:
                 last_err = e
                 if e.response.status_code in (400, 422):
-                    logger.warning("fixtures/%s: include tier failed, trying simpler (%s)", match_id, inc[:60])
+                    logger.warning("fixtures/%s: include tier %d failed, trying next", match_id, tier_idx)
                     continue
                 raise
         else:
@@ -714,6 +749,46 @@ class SportmonksProvider(CricketAPIProvider):
         result = [v for v in teams_map.values() if v["players"]]
         return result
 
+    def _player_lookup_from_lineup(self, fixture: dict) -> dict[int, dict]:
+        """Build player_id → {name, image} lookup from lineup data."""
+        lookup: dict[int, dict] = {}
+        raw = fixture.get("lineup")
+        items: list = []
+        if isinstance(raw, dict) and isinstance(raw.get("data"), list):
+            items = raw["data"]
+        elif isinstance(raw, list):
+            items = raw
+        for entry in items:
+            if not isinstance(entry, dict):
+                continue
+            pid = entry.get("id")
+            if pid is None:
+                continue
+            name = (
+                entry.get("fullname")
+                or entry.get("lastname")
+                or entry.get("firstname")
+                or ""
+            ).strip()
+            image = self._sportmonks_image_url(entry.get("image_path") or "")
+            lookup[pid] = {"name": name, "image": image}
+        return lookup
+
+    def _resolve_player(self, nested: dict | None, player_id: int | None, lookup: dict[int, dict]) -> tuple[str, str]:
+        """Return (name, image_url) from nested include, lineup lookup, or fallback."""
+        if isinstance(nested, dict):
+            obj = nested.get("data") if "data" in nested else nested
+            if isinstance(obj, dict):
+                name = obj.get("fullname") or obj.get("lastname") or ""
+                image = self._sportmonks_image_url(obj.get("image_path") or "")
+                if name:
+                    return name, image
+        if player_id and player_id in lookup:
+            return lookup[player_id]["name"], lookup[player_id]["image"]
+        if player_id:
+            return f"Player #{player_id}", ""
+        return "", ""
+
     def _build_scorecard_array(self, fixture: dict, local: dict | None, visitor: dict | None) -> list[dict]:
         """Build a scorecard array from Sportmonks batting/bowling includes."""
         batting_raw = fixture.get("batting") or {}
@@ -727,6 +802,8 @@ class SportmonksProvider(CricketAPIProvider):
         t1 = self._team_name(local)
         t2 = self._team_name(visitor)
 
+        player_lookup = self._player_lookup_from_lineup(fixture)
+
         innings_map: dict[str, dict] = {}
         for b in batting_list:
             tid = b.get("team_id")
@@ -739,12 +816,9 @@ class SportmonksProvider(CricketAPIProvider):
                 "batsmen": [],
                 "bowlers": [],
             })
-            batsman = b.get("batsman") or {}
-            if isinstance(batsman, dict) and "data" in batsman:
-                batsman = batsman["data"]
-            name = ""
-            if isinstance(batsman, dict):
-                name = batsman.get("fullname") or batsman.get("lastname") or ""
+            name, image = self._resolve_player(
+                b.get("batsman"), b.get("player_id"), player_lookup,
+            )
             is_active = b.get("active", False)
             dismiss_text, is_not_out = self._batting_dismissal_detail(b)
             entry["batsmen"].append({
@@ -758,9 +832,7 @@ class SportmonksProvider(CricketAPIProvider):
                 "dismissal": "not out" if is_not_out else "out",
                 "dismissalDetail": dismiss_text,
                 "active": is_active,
-                "image": self._sportmonks_image_url(
-                    batsman.get("image_path", "") if isinstance(batsman, dict) else ""
-                ),
+                "image": image,
             })
 
         for bw in bowling_list:
@@ -775,12 +847,9 @@ class SportmonksProvider(CricketAPIProvider):
                 "batsmen": [],
                 "bowlers": [],
             })
-            bowler = bw.get("bowler") or {}
-            if isinstance(bowler, dict) and "data" in bowler:
-                bowler = bowler["data"]
-            bname = ""
-            if isinstance(bowler, dict):
-                bname = bowler.get("fullname") or bowler.get("lastname") or ""
+            bname, bimage = self._resolve_player(
+                bw.get("bowler"), bw.get("player_id"), player_lookup,
+            )
             entry["bowlers"].append({
                 "name": bname,
                 "fullName": bname,
@@ -790,9 +859,7 @@ class SportmonksProvider(CricketAPIProvider):
                 "wickets": bw.get("wickets", 0),
                 "economy": bw.get("rate", 0),
                 "active": bw.get("active", False),
-                "image": self._sportmonks_image_url(
-                    bowler.get("image_path", "") if isinstance(bowler, dict) else ""
-                ),
+                "image": bimage,
             })
 
         ordered = sorted(innings_map.values(), key=lambda x: x.get("scoreboard", "S1"))
