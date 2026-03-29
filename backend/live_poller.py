@@ -8,10 +8,12 @@ it sleeps and rechecks every IDLE_CHECK_INTERVAL seconds.
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from .ball_state_sync import sync_ball_state
 from .cricket_api import RateLimitError, get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
@@ -79,6 +81,7 @@ def _patch_scorecard_with_live_data(match_id: str, match_data: dict):
     existing = get_scorecard(match_id)
     if not existing:
         return
+    before = copy.deepcopy(existing)
     changed = False
     for key in ("score", "status", "matchStarted", "matchEnded", "matchWinner"):
         if key in match_data and match_data[key] != existing.get(key):
@@ -86,6 +89,7 @@ def _patch_scorecard_with_live_data(match_id: str, match_data: dict):
             changed = True
     if changed:
         upsert_scorecard(match_id, existing)
+        sync_ball_state(match_id, before, existing)
         logger.info("Patched scorecard %s with livescores data", match_id)
 
 
@@ -120,9 +124,11 @@ async def _poll_once() -> int:
     rate_limited = False
     for mid in tracked_ids:
         try:
+            prev_sc = get_scorecard(mid)
             sc = await api.fetch_scorecard(mid)
             hits += 1
             upsert_scorecard(mid, sc)
+            sync_ball_state(mid, prev_sc, sc)
             log_poll("scorecard", "success", match_id=mid, hits=1)
             extra = await try_promote_after_scorecard(mid, sc)
             hits += extra

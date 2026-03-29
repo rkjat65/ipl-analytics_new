@@ -14,6 +14,7 @@ from ..cricket_api import get_cricket_api
 from ..ipl_schedule import compute_schedule_with_status
 from ..live_db import (
     get_all_matches,
+    get_ball_state,
     get_last_poll_time,
     get_match,
     get_matches_for_admin,
@@ -63,13 +64,16 @@ def live_matches():
 
 @router.get("/scorecard/{match_id}")
 def live_scorecard(match_id: str):
-    """Return a cached scorecard for *match_id*."""
+    """Return a cached scorecard for *match_id* (includes ``ballState`` when available)."""
     sc = get_scorecard(match_id)
     if sc is None:
         match = get_match(match_id)
         if match is None:
             raise HTTPException(404, "Match not found")
         return match
+    bs = get_ball_state(match_id)
+    if bs:
+        return {**sc, "ballState": bs}
     return sc
 
 

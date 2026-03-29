@@ -61,6 +61,13 @@ def init_live_db():
             value TEXT NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS live_ball_state (
+            match_id   TEXT PRIMARY KEY,
+            data       TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
     # Migration: add is_tracked column (NULL = auto, 1 = force on, 0 = force off)
     try:
         conn.execute("ALTER TABLE live_matches ADD COLUMN is_tracked INTEGER")
@@ -91,6 +98,7 @@ def clear_matches():
     conn = get_live_db()
     conn.execute("DELETE FROM live_matches")
     conn.execute("DELETE FROM live_scorecards")
+    conn.execute("DELETE FROM live_ball_state")
     conn.commit()
 
 
@@ -125,6 +133,35 @@ def upsert_scorecard(match_id: str, scorecard: dict):
              data       = excluded.data,
              updated_at = excluded.updated_at""",
         (match_id, json.dumps(scorecard), now),
+    )
+    conn.commit()
+
+
+def get_ball_state(match_id: str) -> dict | None:
+    """Return persisted ball-by-ball UI state for a match, or None."""
+    conn = get_live_db()
+    row = conn.execute(
+        "SELECT data FROM live_ball_state WHERE match_id = ?", (match_id,)
+    ).fetchone()
+    if not row:
+        return None
+    try:
+        return json.loads(row["data"])
+    except json.JSONDecodeError:
+        return None
+
+
+def upsert_ball_state(match_id: str, payload: dict):
+    """Persist current-over ball strip state (overComp + balls array)."""
+    conn = get_live_db()
+    now = _now_iso()
+    conn.execute(
+        """INSERT INTO live_ball_state (match_id, data, updated_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(match_id) DO UPDATE SET
+             data       = excluded.data,
+             updated_at = excluded.updated_at""",
+        (match_id, json.dumps(payload), now),
     )
     conn.commit()
 

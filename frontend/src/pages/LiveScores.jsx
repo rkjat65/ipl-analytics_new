@@ -269,16 +269,16 @@ function LiveScoreHero({ match, onClick, isSelected }) {
                 </div>
               </Link>
               <div className="text-right flex-shrink-0">
-                {score ? (
-                  <div>
-                    <span className="text-lg font-mono font-black" style={{ color: teamColor }}>
-                      {score.r !== undefined ? `${score.r}/${score.w}` : fmtScore(score)}
-                    </span>
-                    {score.o !== undefined && (
-                      <span className="text-xs text-text-muted ml-1.5">({score.o} ov)</span>
-                    )}
-                  </div>
-                ) : (
+                    {score ? (
+                      <div className="inline-flex flex-col items-end gap-0 leading-tight">
+                        <span className="text-lg font-mono font-black tabular-nums" style={{ color: teamColor }}>
+                          {score.r !== undefined ? `${score.r}/${score.w}` : fmtScore(score)}
+                        </span>
+                        {score.o !== undefined && (
+                          <span className="text-[10px] text-text-muted font-mono whitespace-nowrap">({score.o} ov)</span>
+                        )}
+                      </div>
+                    ) : (
                   <span className="text-sm text-text-muted">—</span>
                 )}
               </div>
@@ -403,9 +403,9 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
   return (
     <div className="space-y-5">
       {/* Match Summary Hero */}
-      <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
-        {/* Header band */}
-        <div className={`px-5 py-3 flex items-center justify-between ${
+      <div className="rounded-2xl border border-border-subtle bg-surface-card">
+        {/* Header band — isolate overflow so body isn’t clipped (e.g. player rows) */}
+        <div className={`px-5 py-3 flex items-center justify-between rounded-t-2xl overflow-hidden ${
           isLive ? 'bg-gradient-to-r from-accent-magenta/10 to-accent-cyan/5' : 'bg-surface-hover'
         }`}>
           <div className="flex items-center gap-3">
@@ -425,7 +425,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           </span>
         </div>
 
-        <div className="p-4 sm:p-5">
+        <div className="p-4 sm:p-5 pb-6 sm:pb-5">
           {/* Teams & Scores */}
           <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4">
             {teams.map((team, i) => {
@@ -458,13 +458,13 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
                       </div>
                     </Link>
                     {score ? (
-                      <div className={i === 1 ? 'text-right' : 'text-left'}>
-                        <span className="text-3xl sm:text-4xl font-mono font-black" style={{ color }}>
+                      <div className={`flex flex-col gap-0.5 ${i === 1 ? 'items-end text-right' : 'items-start text-left'}`}>
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-mono font-black tabular-nums whitespace-nowrap" style={{ color }}>
                           {score.r !== undefined ? score.r : ''}
-                          <span className="text-lg sm:text-xl text-text-muted">/{score.w !== undefined ? score.w : ''}</span>
+                          <span className="text-base sm:text-lg md:text-xl text-text-muted">/{score.w !== undefined ? score.w : ''}</span>
                         </span>
                         {score.o !== undefined && (
-                          <span className="text-sm text-text-secondary ml-1.5 sm:ml-2">({score.o} ov)</span>
+                          <span className="text-xs sm:text-sm text-text-secondary font-mono whitespace-nowrap">({score.o} ov)</span>
                         )}
                       </div>
                     ) : scoreArr.length > 0 ? (

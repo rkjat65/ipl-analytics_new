@@ -1,6 +1,6 @@
 export default function Header({ onSidebarToggle }) {
   return (
-    <header className="h-12 bg-bg-elevated border-b border-border-subtle flex items-center px-4 shrink-0 lg:hidden">
+    <header className="h-12 bg-bg-elevated flex items-center px-4 shrink-0 lg:hidden">
       {/* Mobile sidebar toggle — only visible on small screens */}
       <button
         onClick={onSidebarToggle}
