@@ -23,6 +23,7 @@ import CricketPulse from './pages/CricketPulse'
 import PlayerImpact from './pages/PlayerImpact'
 import Charts from './pages/Charts'
 import LiveScores from './pages/LiveScores'
+import IPLSchedule from './pages/IPLSchedule'
 import Admin from './pages/Admin'
 import About from './pages/About'
 
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/social" element={<SocialCompose />} />
         <Route path="/charts" element={<Charts />} />
         <Route path="/live" element={<LiveScores />} />
+        <Route path="/ipl-schedule" element={<IPLSchedule />} />
         <Route path="/pulse" element={<CricketPulse />} />
         <Route path="/player-impact" element={<PlayerImpact />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
