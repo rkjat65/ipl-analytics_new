@@ -18,6 +18,7 @@ import TeamLogo from '../components/ui/TeamLogo'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import Loading from '../components/ui/Loading'
 import SEO from '../components/SEO'
+import { useBallEvents, OverProgressTile, BallEventNotifications } from '../components/live/BallEvents'
 
 const POLL_INTERVAL = 3_000
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -375,11 +376,13 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
     return () => clearInterval(intervalRef.current)
   }, [fetchData])
 
+  const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded)
+  const { notifications, overBalls, overComp } = useBallEvents(scorecard, isLive)
+
   if (loading) return <Loading />
   if (error) return <div className="text-accent-magenta text-sm p-4 rounded-xl border border-accent-magenta/20 bg-accent-magenta/5">{error}</div>
   if (!scorecard) return null
 
-  const isLive = scorecard.matchStarted && !scorecard.matchEnded
   const rawTeams = scorecard.teams || []
   const rawTeamInfo = scorecard.teamInfo || []
 
@@ -538,12 +541,24 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             </p>
           )}
 
+          {/* Ball event notifications — inline inside scorecard */}
+          {isLive && notifications.length > 0 && (
+            <div className="mt-3">
+              <BallEventNotifications notifications={notifications} />
+            </div>
+          )}
+
           {/* Active players inline */}
           {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
             <ActivePlayersInline scorecard={scorecard} playerLookup={playerLookup} />
           )}
         </div>
       </div>
+
+      {/* Over Progress Tile — ball-by-ball for current over */}
+      {isLive && overComp != null && (
+        <OverProgressTile balls={overBalls} overComp={overComp} />
+      )}
 
       {/* Innings cards — current (last) innings first */}
       {(() => {
@@ -569,9 +584,101 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           ))
       })()}
 
+      {/* Playing XI — shown when lineup data is available */}
+      {scorecard.lineup && scorecard.lineup.length > 0 && (
+        <PlayingXI lineup={scorecard.lineup} teams={teams} teamInfo={teamInfo} />
+      )}
+
       {/* Mobile-only: analytics right below live score */}
       {mobileAnalyticsSlot && (
         <div className="xl:hidden">{mobileAnalyticsSlot}</div>
+      )}
+    </div>
+  )
+}
+
+
+/* ── Playing XI — Both teams side-by-side ──────────────────── */
+function PlayingXI({ lineup, teams, teamInfo }) {
+  const [expanded, setExpanded] = useState(true)
+
+  if (!lineup || lineup.length === 0) return null
+
+  return (
+    <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full px-4 py-3 bg-surface-hover border-b border-border-subtle flex items-center justify-between cursor-pointer hover:bg-surface-hover/80 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent-cyan">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          <span className="text-sm font-bold text-text-primary tracking-wide">Playing XI</span>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`w-4 h-4 text-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-0">
+          {lineup.map((teamLineup, tIdx) => {
+            const teamName = teamLineup.team || teams[tIdx] || ''
+            const teamImg = teamLineup.teamImg || teamInfo[tIdx]?.img || ''
+            const color = getTeamColor(teamName)
+            const players = teamLineup.players || []
+
+            return (
+              <div key={tIdx} className={`${tIdx === 0 && lineup.length > 1 ? 'sm:border-r border-b sm:border-b-0 border-border-subtle' : ''}`}>
+                {/* Team header */}
+                <div className="px-4 py-3 flex items-center gap-2.5 border-b border-border-subtle/50" style={{ background: `${color}08` }}>
+                  {teamImg ? (
+                    <img src={teamImg} alt={teamName} className="w-7 h-7 rounded-lg object-cover border border-border-subtle" />
+                  ) : (
+                    <TeamLogo team={teamName} size={28} />
+                  )}
+                  <span className="text-sm font-bold text-text-primary">{getTeamAbbr(teamName)}</span>
+                  <span className="text-xs text-text-muted ml-auto">{players.length} players</span>
+                </div>
+
+                {/* Player list */}
+                <div className="divide-y divide-border-subtle/30">
+                  {players.map((p, pIdx) => (
+                    <div key={pIdx} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover/50 transition-colors">
+                      <PlayerAvatar
+                        name={p.name}
+                        imageUrl={p.image || undefined}
+                        teamColor={color}
+                        size={40}
+                        showBorder={false}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-text-primary truncate">{p.name || '—'}</span>
+                          {p.captain && (
+                            <span className="flex-shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-amber/15 text-accent-amber border border-accent-amber/25">C</span>
+                          )}
+                          {p.wicketkeeper && (
+                            <span className="flex-shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/25">WK</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-xs text-text-muted font-mono tabular-nums flex-shrink-0">#{pIdx + 1}</span>
+                    </div>
+                  ))}
+                  {players.length === 0 && (
+                    <div className="px-4 py-6 text-center text-sm text-text-muted italic">
+                      Lineup not yet announced
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

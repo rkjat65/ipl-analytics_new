@@ -489,6 +489,12 @@ class SportmonksProvider(CricketAPIProvider):
     async def fetch_scorecard(self, match_id: str) -> dict:
         include_tiers = [
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
+            "batting.catchstump,bowling.bowler,venue,manofmatch,lineup",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
+            "batting.catchstump,bowling.bowler,venue,lineup",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,bowling.bowler,venue,lineup",
+            "localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,lineup",
+            "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue,manofmatch",
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
             "batting.catchstump,bowling.bowler,venue",
@@ -539,6 +545,7 @@ class SportmonksProvider(CricketAPIProvider):
         match_winner = t1 if winner_id == m.get("localteam_id") else t2 if winner_id == m.get("visitorteam_id") else ""
 
         scorecard = self._build_scorecard_array(m, local, visitor)
+        lineup = self._build_lineup(m, local, visitor)
         raw_status = m.get("note") or m.get("status") or ""
         pom = self._extract_player_of_match(m)
 
@@ -564,6 +571,8 @@ class SportmonksProvider(CricketAPIProvider):
         }
         if pom:
             out_sc["playerOfMatch"] = pom
+        if lineup:
+            out_sc["lineup"] = lineup
         return out_sc
 
     async def fetch_fixture_raw_for_ingest(self, match_id: str) -> dict:
@@ -647,6 +656,63 @@ class SportmonksProvider(CricketAPIProvider):
             "matchStarted": started,
             "matchEnded": ended,
         }
+
+    def _build_lineup(
+        self, fixture: dict, local: dict | None, visitor: dict | None,
+    ) -> list[dict]:
+        """Build a per-team playing XI array from the Sportmonks ``lineup`` include.
+
+        Returns a list of two dicts (one per team), each with ``team``, ``teamImg``,
+        and ``players`` — an ordered list of player dicts with name, image, captain,
+        and wicketkeeper flags.
+        """
+        raw = fixture.get("lineup")
+        if not raw:
+            return []
+        lineup_list: list[dict] = []
+        if isinstance(raw, dict) and isinstance(raw.get("data"), list):
+            lineup_list = raw["data"]
+        elif isinstance(raw, list):
+            lineup_list = raw
+        if not lineup_list:
+            return []
+
+        local_id = fixture.get("localteam_id")
+        visitor_id = fixture.get("visitorteam_id")
+        t1 = self._team_name(local)
+        t2 = self._team_name(visitor)
+
+        teams_map: dict[int, dict] = {
+            local_id: {"team": t1, "teamImg": self._team_img(local), "players": []},
+            visitor_id: {"team": t2, "teamImg": self._team_img(visitor), "players": []},
+        }
+
+        for entry in lineup_list:
+            if not isinstance(entry, dict):
+                continue
+            tid = entry.get("team_id")
+            if tid not in teams_map:
+                continue
+
+            name = (
+                entry.get("fullname")
+                or entry.get("lastname")
+                or entry.get("firstname")
+                or ""
+            ).strip()
+            image = self._sportmonks_image_url(entry.get("image_path") or "")
+            captain = bool(entry.get("captain"))
+            wicketkeeper = bool(entry.get("wicketkeeper"))
+
+            teams_map[tid]["players"].append({
+                "name": name,
+                "image": image,
+                "captain": captain,
+                "wicketkeeper": wicketkeeper,
+            })
+
+        result = [v for v in teams_map.values() if v["players"]]
+        return result
 
     def _build_scorecard_array(self, fixture: dict, local: dict | None, visitor: dict | None) -> list[dict]:
         """Build a scorecard array from Sportmonks batting/bowling includes."""

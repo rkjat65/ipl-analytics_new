@@ -105,3 +105,97 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ── Ball Events: Live Match Animations ────────────────────── */
+
+@keyframes ballPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.animate-ball-pop {
+  animation: ballPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes ballPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(0, 229, 255, 0); }
+}
+.animate-ball-pulse {
+  animation: ballPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes slideInRight {
+  0% { transform: translateX(110%) scale(0.85); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes slideOutRight {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+.animate-slide-out-right {
+  animation: slideOutRight 0.35s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+}
+
+@keyframes eventAvatarPop {
+  0% { transform: scale(0.4) rotate(-8deg); }
+  50% { transform: scale(1.12) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.animate-avatar-pop {
+  animation: eventAvatarPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes milestoneBounce {
+  0% { transform: scale(0.3) rotate(-12deg); }
+  30% { transform: scale(1.25) rotate(4deg); }
+  50% { transform: scale(0.9) rotate(-2deg); }
+  70% { transform: scale(1.08) rotate(1deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.animate-milestone-bounce {
+  animation: milestoneBounce 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) translateX(0) rotateZ(0deg) rotateX(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--confetti-y, 280px)) translateX(var(--confetti-drift, 0px)) rotateZ(720deg) rotateX(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes eventFlash {
+  0% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+.animate-event-flash {
+  animation: eventFlash 0.6s ease-out forwards;
+}
+
+@keyframes ballTravel {
+  0% { transform: translateX(-100%) scale(0.5); opacity: 0; }
+  40% { transform: translateX(0) scale(1.1); opacity: 1; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+.animate-ball-travel {
+  animation: ballTravel 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.animate-shake {
+  animation: shakeX 0.5s ease-in-out;
+}

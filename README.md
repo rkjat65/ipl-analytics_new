@@ -57,6 +57,8 @@ cd /path/to/ipl-analytics_new
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+how to 
+
 - **URL:** [http://localhost:8000](http://localhost:8000)
 - **Health:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
 - **`--reload`** restarts the server when you edit Python files.
