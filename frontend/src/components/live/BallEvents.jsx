@@ -128,7 +128,12 @@ export function useBallEvents(scorecard, isLive) {
     // Each ball is tagged with its overComp and its position (ballNum 1-6).
     // When a new over starts the array resets; only balls belonging to
     // currO.comp are kept (guards against stale entries).
-    if (newLegalBalls > 0 || isExtra) {
+    //
+    // At exact over boundaries (currO.balls === 0, e.g. 10.0) any run/wicket
+    // change was the last ball of the PREVIOUS over, so start the new over empty.
+    if (newOverStarted && currO.balls === 0) {
+      setOverBalls([])
+    } else if (newLegalBalls > 0 || isExtra) {
       const ball = {
         ballNum: currO.balls,          // 1-6 within the over
         overComp: currO.comp,          // completed-overs stamp
@@ -193,10 +198,13 @@ function ballColor(result) {
   }
 }
 
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
 export function OverProgressTile({ balls, overComp }) {
-  // overComp = completed overs (e.g. 4 when overs read 4.2)
-  // Display title: "Over 5" (the over being bowled = overComp + 1)
-  // Ball labels: 4.1, 4.2, …, 4.6 (cricket notation)
   if (overComp == null) return null
 
   const displayOver = overComp + 1
@@ -219,9 +227,9 @@ export function OverProgressTile({ balls, overComp }) {
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
       <div className="px-4 py-3 flex items-center gap-4">
         {/* Over label */}
-        <div className="flex-shrink-0 text-center min-w-[52px]">
-          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Over</p>
-          <p className="text-2xl font-black text-text-primary font-mono leading-none mt-0.5">{displayOver}</p>
+        <div className="flex-shrink-0 text-center min-w-[56px]">
+          <p className="text-xl font-black text-text-primary font-mono leading-none">{ordinal(displayOver)}</p>
+          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold mt-0.5">Over</p>
         </div>
 
         <div className="h-10 w-px bg-border-subtle flex-shrink-0" />
