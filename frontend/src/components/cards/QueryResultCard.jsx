@@ -1,4 +1,4 @@
-import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, CARD_DIMENSIONS, formatNumber } from './cardStyles'
+import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, watermarkLogoStyle, CARD_DIMENSIONS, formatNumber } from './cardStyles'
 
 function StatRow({ label, value, color }) {
   return (
@@ -121,7 +121,7 @@ export default function QueryResultCard({
         </div>
       </div>
 
-      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
+      <div style={watermarkStyle()}><img src="/logo.png" alt="" style={watermarkLogoStyle()} />crickrida.rkjat.in</div>
     </div>
   )
 }

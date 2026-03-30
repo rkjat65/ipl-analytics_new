@@ -39,11 +39,17 @@ export default function Layout({ children }) {
       {/* Right area: top nav bar + content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onSidebarToggle={handleToggle} />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 relative">
           <div className="max-w-[1440px] mx-auto">
             {children || <Outlet />}
           </div>
         </main>
+      </div>
+
+      {/* Brand watermark — always visible, appears in screenshots */}
+      <div className="fixed bottom-3 right-4 z-50 pointer-events-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-primary/70 backdrop-blur-sm border border-border-subtle/30" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
+        <img src="/logo.png" alt="" className="w-4 h-4 rounded-sm opacity-70" draggable={false} />
+        <span className="text-[10px] font-semibold tracking-wide text-text-muted/60">crickrida.rkjat.in</span>
       </div>
     </div>
   )

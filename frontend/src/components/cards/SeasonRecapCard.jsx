@@ -1,4 +1,4 @@
-import { NEON_COLORS, BOX_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, CARD_DIMENSIONS, scaledFont } from './cardStyles'
+import { NEON_COLORS, BOX_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, watermarkLogoStyle, CARD_DIMENSIONS, scaledFont } from './cardStyles'
 import { getTeamColor } from '../../constants/teams'
 
 function AwardRow({ label, value, color, boxColor, sf }) {
@@ -65,7 +65,7 @@ export default function SeasonRecapCard({ season, champion, orangeCap, purpleCap
         </div>
       </div>
 
-      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
+      <div style={watermarkStyle()}><img src="/logo.png" alt="" style={watermarkLogoStyle()} />crickrida.rkjat.in</div>
     </div>
   )
 }

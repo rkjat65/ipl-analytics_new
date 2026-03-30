@@ -762,35 +762,35 @@ export default function ContentStudio() {
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: sf(5), background: `linear-gradient(90deg, ${fiColor}, ${fiColor}88)` }} />
                 <div style={{ padding: isPortrait ? '8% 6%' : '5%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isPortrait ? 'center' : 'space-between', gap: isPortrait ? sf(40) : undefined }}>
                   <div>
-                    <p style={{ color: '#60607A', fontSize: sf(14), letterSpacing: 3, textTransform: 'uppercase', marginBottom: sf(8) }}>Team Form Index</p>
-                    <h2 style={{ color: '#F0F0F5', fontSize: sf(36), fontWeight: 800, margin: 0 }}>{tfTeam || 'Select Team'}</h2>
-                    <p style={{ color: '#A0A0B8', fontSize: sf(16), marginTop: sf(6) }}>Last {tfLastN} matches</p>
+                    <p style={{ color: '#83eae8', fontSize: sf(24), letterSpacing: 3, textTransform: 'uppercase', marginBottom: sf(8) }}>Team Form Index</p>
+                    <h2 style={{ color: '#F0F0F5', fontSize: sf(46), fontWeight: 800, margin: 0 }}>{tfTeam || 'Select Team'}</h2>
+                    <p style={{ color: '#A0A0B8', fontSize: sf(26), marginTop: sf(6) }}>Last {tfLastN} matches</p>
                   </div>
                   <div style={{ display: 'flex', flexDirection: isPortrait ? 'column' : 'row', alignItems: 'center', gap: isPortrait ? sf(32) : '8%' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: sf(72), fontWeight: 900, color: fiColor, fontFamily: 'monospace', lineHeight: 1 }}>{fi.toFixed(1)}</div>
-                      <div style={{ fontSize: sf(16), color: fiColor, letterSpacing: 3, fontWeight: 700, marginTop: sf(4) }}>{fiLabel}</div>
+                      <div style={{ fontSize: sf(92), fontWeight: 900, color: fiColor, fontFamily: 'monospace', lineHeight: 1 }}>{fi.toFixed(1)}</div>
+                      <div style={{ fontSize: sf(32), color: fiColor, letterSpacing: 3, fontWeight: 700, marginTop: sf(4) }}>{fiLabel}</div>
                     </div>
                     <div style={{ flex: isPortrait ? undefined : 1, width: isPortrait ? '100%' : undefined }}>
                       <div style={{ display: 'flex', gap: sf(12), marginBottom: sf(16), justifyContent: isPortrait ? 'center' : 'flex-start' }}>
                         <div style={{ background: '#B8FF0018', border: '1px solid #B8FF0030', borderRadius: sf(10), padding: `${sf(14)}px ${sf(24)}px`, textAlign: 'center' }}>
-                          <div style={{ fontSize: sf(28), fontWeight: 800, color: '#B8FF00', fontFamily: 'monospace' }}>{wins}</div>
-                          <div style={{ fontSize: sf(11), color: '#A0A0B8', letterSpacing: 2 }}>WINS</div>
+                          <div style={{ fontSize: sf(88), fontWeight: 800, color: '#B8FF00', fontFamily: 'monospace' }}>{wins}</div>
+                          <div style={{ fontSize: sf(31), color: '#fefeff', letterSpacing: 5 }}>WINS</div>
                         </div>
                         <div style={{ background: '#FF2D7818', border: '1px solid #FF2D7830', borderRadius: sf(10), padding: `${sf(14)}px ${sf(24)}px`, textAlign: 'center' }}>
-                          <div style={{ fontSize: sf(28), fontWeight: 800, color: '#FF2D78', fontFamily: 'monospace' }}>{losses}</div>
-                          <div style={{ fontSize: sf(11), color: '#A0A0B8', letterSpacing: 2 }}>LOSSES</div>
+                          <div style={{ fontSize: sf(88), fontWeight: 800, color: '#FF2D78', fontFamily: 'monospace' }}>{losses}</div>
+                          <div style={{ fontSize: sf(31), color: '#fefeff', letterSpacing: 5 }}>LOSSES</div>
                         </div>
                         {streak && (
                           <div style={{ background: '#FFB80018', border: '1px solid #FFB80030', borderRadius: sf(10), padding: `${sf(14)}px ${sf(24)}px`, textAlign: 'center' }}>
-                            <div style={{ fontSize: sf(28), fontWeight: 800, color: '#FFB800', fontFamily: 'monospace' }}>{streak}</div>
-                            <div style={{ fontSize: sf(11), color: '#A0A0B8', letterSpacing: 2 }}>STREAK</div>
+                            <div style={{ fontSize: sf(88), fontWeight: 800, color: '#FFB800', fontFamily: 'monospace' }}>{streak}</div>
+                            <div style={{ fontSize: sf(31), color: '#fefeff', letterSpacing: 5 }}>STREAK</div>
                           </div>
                         )}
                       </div>
-                      <div style={{ display: 'flex', gap: sf(5), justifyContent: isPortrait ? 'center' : 'flex-start' }}>
+                      <div style={{ display: 'flex', gap: sf(8), justifyContent: isPortrait ? 'center' : 'flex-start' }}>
                         {trend.slice().reverse().map((m, idx) => (
-                          <div key={idx} style={{ width: sf(16), height: sf(16), borderRadius: sf(4), background: m.result === 'W' ? '#B8FF00' : m.result === 'L' ? '#FF2D78' : '#60607A' }} />
+                          <div key={idx} style={{ width: sf(36), height: sf(36), borderRadius: sf(4), background: m.result === 'W' ? '#B8FF00' : m.result === 'L' ? '#FF2D78' : '#60607A' }} />
                         ))}
                       </div>
                     </div>
