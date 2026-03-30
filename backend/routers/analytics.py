@@ -496,6 +496,115 @@ def phase_dominance(season: str | None = None):
     return sorted(team_data.values(), key=lambda r: r["death"], reverse=True)
 
 
+@router.get("/points-table")
+def points_table(season: str = "2026"):
+    """IPL points table with P, W, L, NR, PTS, NRR."""
+    from ..ipl_schedule import IPL_2026_SCHEDULE
+
+    all_teams: set[str] = set()
+    for m in IPL_2026_SCHEDULE:
+        all_teams.add(normalize_team(m["home"]))
+        all_teams.add(normalize_team(m["away"]))
+
+    sf_m, sp_m = _season_filter("m", season)
+
+    standings_rows = query(f"""
+        WITH team_matches AS (
+            SELECT m.match_id, m.team1 AS team, m.winner, m.result
+            FROM matches m WHERE 1=1 {sf_m}
+            UNION ALL
+            SELECT m.match_id, m.team2 AS team, m.winner, m.result
+            FROM matches m WHERE 1=1 {sf_m}
+        )
+        SELECT team,
+               COUNT(*) AS played,
+               SUM(CASE WHEN result = 'win' AND winner = team THEN 1 ELSE 0 END) AS won,
+               SUM(CASE WHEN result = 'win' AND winner != team THEN 1 ELSE 0 END) AS lost,
+               SUM(CASE WHEN result = 'no result' THEN 1 ELSE 0 END) AS no_result,
+               SUM(CASE
+                   WHEN result = 'win' AND winner = team THEN 2
+                   WHEN result = 'no result' THEN 1
+                   ELSE 0
+               END) AS points
+        FROM team_matches
+        GROUP BY team
+    """, sp_m + sp_m)
+
+    standings_map: dict[str, dict] = {}
+    for r in standings_rows:
+        key = normalize_team(r["team"])
+        if key in standings_map:
+            standings_map[key]["played"] += r["played"]
+            standings_map[key]["won"] += r["won"]
+            standings_map[key]["lost"] += r["lost"]
+            standings_map[key]["no_result"] += r["no_result"]
+            standings_map[key]["points"] += r["points"]
+        else:
+            standings_map[key] = {
+                "team": key,
+                "played": r["played"],
+                "won": r["won"],
+                "lost": r["lost"],
+                "no_result": r["no_result"],
+                "points": r["points"],
+            }
+
+    nrr_rows = query(f"""
+        WITH team_batting AS (
+            SELECT i.batting_team AS team,
+                   SUM(i.total_runs) AS runs_scored,
+                   SUM(CASE WHEN i.total_wickets >= 10 THEN 120 ELSE i.total_balls END) AS balls_faced
+            FROM innings i
+            JOIN matches m ON i.match_id = m.match_id
+            WHERE i.is_super_over = false AND m.result = 'win' {sf_m}
+            GROUP BY i.batting_team
+        ),
+        team_bowling AS (
+            SELECT i.bowling_team AS team,
+                   SUM(i.total_runs) AS runs_conceded,
+                   SUM(CASE WHEN i.total_wickets >= 10 THEN 120 ELSE i.total_balls END) AS balls_bowled
+            FROM innings i
+            JOIN matches m ON i.match_id = m.match_id
+            WHERE i.is_super_over = false AND m.result = 'win' {sf_m}
+            GROUP BY i.bowling_team
+        )
+        SELECT COALESCE(b.team, bw.team) AS team,
+               b.runs_scored, b.balls_faced,
+               bw.runs_conceded, bw.balls_bowled
+        FROM team_batting b
+        FULL OUTER JOIN team_bowling bw ON b.team = bw.team
+    """, sp_m + sp_m)
+
+    nrr_map: dict[str, float] = {}
+    for r in nrr_rows:
+        key = normalize_team(r["team"])
+        rs = r["runs_scored"] or 0
+        bf = r["balls_faced"] or 0
+        rc = r["runs_conceded"] or 0
+        bb = r["balls_bowled"] or 0
+        for_rr = (rs * 6.0 / bf) if bf > 0 else 0
+        against_rr = (rc * 6.0 / bb) if bb > 0 else 0
+        nrr_map[key] = round(for_rr - against_rr, 3)
+
+    result = []
+    for team in all_teams:
+        s = standings_map.get(team, {})
+        result.append({
+            "team": team,
+            "played": s.get("played", 0),
+            "won": s.get("won", 0),
+            "lost": s.get("lost", 0),
+            "no_result": s.get("no_result", 0),
+            "points": s.get("points", 0),
+            "nrr": nrr_map.get(team, 0.0),
+        })
+
+    result.sort(key=lambda r: (-r["points"], -r["nrr"]))
+    for i, r in enumerate(result):
+        r["position"] = i + 1
+    return result
+
+
 @router.get("/cap-winners")
 def cap_winners():
     """Orange Cap (most runs) and Purple Cap (most wickets) winners per season."""

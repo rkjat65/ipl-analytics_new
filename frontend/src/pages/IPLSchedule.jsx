@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { getIPLSchedule, getMatches } from '../lib/api'
+import { getIPLSchedule, getMatches, getIPLPointsTable } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
 import Loading from '../components/ui/Loading'
@@ -74,9 +74,150 @@ function buildMatchLookup(dbMatches) {
   return lookup
 }
 
+function SeasonProgress({ completed, total }) {
+  const [width, setWidth] = useState(0)
+  const pct = total > 0 ? (completed / total) * 100 : 0
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setWidth(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+
+  return (
+    <div className="rounded-xl border border-border-subtle bg-bg-card p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Season Progress</span>
+        <span className="text-xs font-mono text-text-secondary">{completed} / {total} matches</span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-bg-primary overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-accent-cyan to-accent-lime"
+          style={{ width: `${width}%`, transition: 'width 1.2s cubic-bezier(0.22,1,0.36,1)' }}
+        />
+      </div>
+    </div>
+  )
+}
+
+const QUALIFY_LINE = 4
+
+function PointsTable({ data }) {
+  const [open, setOpen] = useState(true)
+
+  if (!data?.length) return null
+
+  const maxPts = Math.max(...data.map(t => t.points), 1)
+
+  return (
+    <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
+      {/* Header — clickable to collapse */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-4 py-3 border-b border-border-subtle/50 bg-white/[0.02] flex items-center justify-between cursor-pointer hover:bg-white/[0.04] transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg bg-accent-cyan/15 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
+              <path d="M8 21h8m-4-4v4M6 4h12l-1.5 8h-9L6 4z" />
+              <path d="M5 4C3.5 4 2 5.5 2 7.5S3.5 11 5 12h1.5" />
+              <path d="M19 4c1.5 0 3 1.5 3 3.5S20.5 11 19 12h-1.5" />
+            </svg>
+          </span>
+          <h2 className="text-sm font-bold text-text-primary tracking-tight">Points Table</h2>
+          <span className="text-[10px] text-text-muted font-mono ml-1">IPL 2026</span>
+        </div>
+        <svg
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`w-4 h-4 text-text-muted transition-transform duration-300 ${open ? 'rotate-0' : '-rotate-90'}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* Collapsible body */}
+      <div
+        className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden"
+        style={{ maxHeight: open ? '800px' : '0px', opacity: open ? 1 : 0 }}
+      >
+        {/* Table */}
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border-subtle/30 bg-white/[0.01] text-[10px] font-bold text-text-muted uppercase tracking-wider">
+              <th className="py-2 pl-4 pr-1 text-left w-8">#</th>
+              <th className="py-2 pl-1 text-left">Team</th>
+              <th className="py-2 text-center w-10">P</th>
+              <th className="py-2 text-center w-10">W</th>
+              <th className="py-2 text-center w-10">L</th>
+              <th className="py-2 text-center w-10">NR</th>
+              <th className="py-2 text-center w-12">PTS</th>
+              <th className="py-2 pr-4 text-right w-16">NRR</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((team, idx) => {
+              const color = getTeamColor(team.team)
+              const abbr = getTeamAbbr(team.team)
+              const isQualify = idx < QUALIFY_LINE
+              const nrrStr = team.nrr > 0 ? `+${team.nrr.toFixed(3)}` : team.nrr.toFixed(3)
+              const ptsFrac = maxPts > 0 ? team.points / maxPts : 0
+
+              return (
+                <tr
+                  key={team.team}
+                  className={`
+                    border-b transition-colors hover:bg-white/[0.03]
+                    ${idx === QUALIFY_LINE - 1 ? 'border-b-2 border-accent-cyan/30' : 'border-border-subtle/20'}
+                  `}
+                  style={{ borderLeft: `3px solid ${isQualify ? color : 'transparent'}` }}
+                >
+                  <td className={`py-2.5 pl-4 pr-1 font-bold ${isQualify ? 'text-text-primary' : 'text-text-muted'}`}>
+                    {team.position}
+                  </td>
+                  <td className="py-2.5 pl-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <TeamLogo team={team.team} size={26} />
+                      <span className={`font-bold truncate ${isQualify ? 'text-text-primary' : 'text-text-secondary'}`}>{abbr}</span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 text-center font-mono text-text-secondary">{team.played}</td>
+                  <td className="py-2.5 text-center font-mono font-bold text-accent-lime">{team.won || <span className="text-text-muted">0</span>}</td>
+                  <td className="py-2.5 text-center font-mono text-text-secondary">{team.lost || <span className="text-text-muted">0</span>}</td>
+                  <td className="py-2.5 text-center font-mono text-text-muted">{team.no_result}</td>
+                  <td className="py-2.5 text-center relative">
+                    <span className="relative z-10 font-black text-text-primary">{team.points}</span>
+                    {ptsFrac > 0 && (
+                      <span
+                        className="absolute inset-y-1 left-0 right-0 rounded-md opacity-15"
+                        style={{ backgroundColor: color, transform: `scaleX(${ptsFrac})`, transformOrigin: 'left' }}
+                      />
+                    )}
+                  </td>
+                  <td className={`py-2.5 pr-4 text-right font-mono font-semibold ${
+                    team.nrr > 0 ? 'text-accent-lime' : team.nrr < 0 ? 'text-accent-magenta' : 'text-text-muted'
+                  }`}>
+                    {nrrStr}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        <div className="px-4 py-2 flex items-center gap-2 bg-white/[0.01]">
+          <div className="w-3 h-0.5 rounded-full bg-accent-cyan/40" />
+          <span className="text-[9px] text-text-muted">Top {QUALIFY_LINE} qualify for playoffs</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 export default function IPLSchedule() {
   const { data: schedule, loading, error } = useFetch(() => getIPLSchedule(), [])
   const { data: dbData } = useFetch(() => getMatches({ season: '2026', limit: 100, offset: 0 }), [])
+  const { data: pointsTable } = useFetch(() => getIPLPointsTable('2026'), [])
   const [teamFilter, setTeamFilter] = useState('all')
   const [reportCtx, setReportCtx] = useState(null)
   const scrollRef = useRef(null)
@@ -202,19 +343,11 @@ export default function IPLSchedule() {
         </div>
       )}
 
-      {/* Progress bar */}
-      <div className="rounded-xl border border-border-subtle bg-bg-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Season Progress</span>
-          <span className="text-xs font-mono text-text-secondary">{completedCount} / {schedule.totalMatches} matches</span>
-        </div>
-        <div className="w-full h-2 rounded-full bg-bg-primary overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-accent-cyan to-accent-lime transition-all duration-500"
-            style={{ width: `${(completedCount / schedule.totalMatches) * 100}%` }}
-          />
-        </div>
-      </div>
+      {/* Season progress bar (animated) */}
+      <SeasonProgress completed={completedCount} total={schedule.totalMatches} />
+
+      {/* Points Table */}
+      <PointsTable data={pointsTable} />
 
       {/* Team filter */}
       <div className="flex items-center gap-3 flex-wrap">
