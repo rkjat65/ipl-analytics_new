@@ -12,7 +12,7 @@ import orjson
 from .cricket_api import SportmonksProvider, get_cricket_api
 from .database import refresh_db
 from .live_db import get_match
-from .sportmonks_cricsheet_export import fixture_to_cricsheet
+from .sportmonks_cricsheet_export import fixture_to_cricsheet, normalize_cricsheet_names_to_duckdb
 
 log = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ async def export_sportmonks_fixture_to_json(
     fixture = await api.fetch_fixture_raw_for_ingest(fixture_id)
     match_id = f"sm_{fixture_id}"
     doc = fixture_to_cricsheet(fixture, match_id=match_id, season=season)
+    normalize_cricsheet_names_to_duckdb(doc)
     out_dir = json_dir or _IPL_JSON
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{match_id}.json"
@@ -116,6 +117,7 @@ async def promote_sportmonks_fixture(
         )
         return False, 1
     doc = fixture_to_cricsheet(fixture, match_id=match_id, season=season)
+    normalize_cricsheet_names_to_duckdb(doc)
     out_dir = json_dir or _IPL_JSON
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{match_id}.json"

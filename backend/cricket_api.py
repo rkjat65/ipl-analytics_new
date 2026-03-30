@@ -623,12 +623,14 @@ class SportmonksProvider(CricketAPIProvider):
         include_tiers = [
             "localteam,visitorteam,venue,runs,season,league,manofmatch,"
             "balls.batsman,balls.bowler,balls.score,balls.catchstump",
-            "localteam,visitorteam,venue,runs,season,league,"
+            "localteam,visitorteam,venue,runs,season,league,manofmatch,"
+            "balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,venue,runs,manofmatch,"
             "balls.batsman,balls.bowler,balls.score,balls.catchstump",
-            "localteam,visitorteam,venue,runs,"
-            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
-            "localteam,visitorteam,venue,runs,balls.batsman,balls.bowler,balls.score",
-            "localteam,visitorteam,runs,balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,venue,runs,manofmatch,"
+            "balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,runs,manofmatch,"
+            "balls.batsman,balls.bowler,balls.score",
         ]
         last_err: Exception | None = None
         for inc in include_tiers:

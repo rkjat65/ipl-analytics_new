@@ -71,6 +71,13 @@ export function useBallEvents(scorecard, isLive) {
       return
     }
 
+    const bs = scorecard.ballState
+    const fromServer = bs != null && typeof bs.overComp === 'number'
+    if (fromServer) {
+      setOverComp(bs.overComp)
+      setOverBalls((bs.balls || []).map(b => ({ ...b, isNew: false })))
+    }
+
     const currScore = activeInningsScore(scorecard)
     const currBat = batsmenSnapshot(scorecard)
     const currBowl = bowlersSnapshot(scorecard)
@@ -78,12 +85,10 @@ export function useBallEvents(scorecard, isLive) {
     const prev = prevRef.current
     prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
 
-    // First load — store snapshot, set over, start with empty balls
     if (!prev || !prev.score) {
-      if (currScore) {
+      if (!fromServer && currScore) {
         const o = parseOvers(currScore.o)
         setOverComp(o.comp)
-        setOverBalls([])
       }
       return
     }
@@ -96,11 +101,11 @@ export function useBallEvents(scorecard, isLive) {
 
     if (prevO.total === currO.total && dR === 0 && dW === 0) return
 
-    // ─ Over tracking ─
     const newOverStarted = currO.comp > prevO.comp
-    setOverComp(currO.comp)
+    if (!fromServer) {
+      setOverComp(currO.comp)
+    }
 
-    // ─ Determine ball result ─
     let result = String(Math.max(dR, 0))
     let type = 'run'
     let evBatter = null
@@ -124,30 +129,25 @@ export function useBallEvents(scorecard, isLive) {
 
     const isExtra = newLegalBalls === 0 && dR > 0
 
-    // ─ Update over balls ─
-    // Each ball is tagged with its overComp and its position (ballNum 1-6).
-    // When a new over starts the array resets; only balls belonging to
-    // currO.comp are kept (guards against stale entries).
-    //
-    // At exact over boundaries (currO.balls === 0, e.g. 10.0) any run/wicket
-    // change was the last ball of the PREVIOUS over, so start the new over empty.
-    if (newOverStarted && currO.balls === 0) {
-      setOverBalls([])
-    } else if (newLegalBalls > 0 || isExtra) {
-      const ball = {
-        ballNum: currO.balls,          // 1-6 within the over
-        overComp: currO.comp,          // completed-overs stamp
-        result: isExtra ? `+${dR}` : result,
-        type: isExtra ? 'extra' : type,
-        runs: dR,
-        isNew: true,
+    if (!fromServer) {
+      if (newOverStarted && currO.balls === 0) {
+        setOverBalls([])
+      } else if (newLegalBalls > 0 || isExtra) {
+        const ball = {
+          ballNum: currO.balls,
+          overComp: currO.comp,
+          result: isExtra ? `+${dR}` : result,
+          type: isExtra ? 'extra' : type,
+          runs: dR,
+          isNew: true,
+        }
+        setOverBalls(prev => {
+          if (newOverStarted) return [ball]
+          return [...prev.filter(b => b.overComp === currO.comp), ball]
+        })
+      } else if (newOverStarted) {
+        setOverBalls([])
       }
-      setOverBalls(prev => {
-        if (newOverStarted) return [ball]
-        return [...prev.filter(b => b.overComp === currO.comp), ball]
-      })
-    } else if (newOverStarted) {
-      setOverBalls([])
     }
 
     // ─ Generate notifications ─
@@ -198,12 +198,6 @@ function ballColor(result) {
   }
 }
 
-function ordinal(n) {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
 export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
   if (overComp == null) return null
 
@@ -213,113 +207,82 @@ export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
   const extras = balls.filter(b => b.type === 'extra')
   const totalRuns = balls.reduce((s, b) => s + (b.runs || 0), 0)
 
-  // Map legal balls into 6 positional slots using their ballNum (1-6)
   const slots = Array.from({ length: 6 }, (_, i) => {
     const pos = i + 1
     return legalBalls.find(b => b.ballNum === pos) || null
   })
 
-  // The "next" ball position = first empty slot
   const nextPos = slots.findIndex(s => s === null)
-
-  const overLabelEl = (
-    <div className="flex-shrink-0 text-center min-w-[48px] sm:min-w-[56px]">
-      <p className="text-lg sm:text-xl font-black text-text-primary font-mono leading-none">{ordinal(displayOver)}</p>
-      <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold mt-0.5">Over</p>
-    </div>
-  )
-
-  const runsSummaryEl = (
-    <div className="flex-shrink-0 text-center min-w-[40px] sm:min-w-[44px]">
-      <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Runs</p>
-      <p className={`text-xl sm:text-2xl font-black font-mono leading-none mt-0.5 ${
-        totalRuns >= 15 ? 'text-accent-amber' : totalRuns >= 8 ? 'text-accent-cyan' : 'text-text-primary'
-      }`}>{totalRuns}</p>
-    </div>
-  )
-
-  const extrasEl = extras.length > 0 && (
-    <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-full sm:w-auto">
-      <div className="flex flex-wrap justify-center gap-1">
-        {extras.map((e, i) => (
-          <div key={i} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan animate-ball-pop">
-            {e.result}
-          </div>
-        ))}
-      </div>
-      <span className="text-[8px] text-text-muted uppercase tracking-wider">Extras</span>
-    </div>
-  )
+  const filledCount = slots.filter(Boolean).length
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
-      <div className="px-3 py-2.5 flex flex-col gap-2.5 min-w-0 sm:px-4 sm:py-3 sm:flex-row sm:items-center sm:gap-4">
-        {/* Mobile: over + runs on one row; desktop: only over + divider here */}
-        <div className="flex items-center justify-between gap-3 sm:justify-start sm:contents">
-          <div className="flex items-center gap-3 shrink-0">
-            {overLabelEl}
-            <div className="hidden sm:block h-10 w-px bg-border-subtle flex-shrink-0" />
-          </div>
-          <div className="sm:hidden">{runsSummaryEl}</div>
+      <div className="px-3 py-3 sm:px-4 flex flex-row items-center gap-2 sm:gap-4">
+        <div className="flex-shrink-0 text-center min-w-[40px] sm:min-w-[52px]">
+          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Over</p>
+          <p className="text-2xl font-black text-text-primary font-mono leading-none mt-0.5">{displayOver}</p>
         </div>
 
-        {/* Ball circles + labels (no connecting line — avoids clipping labels on narrow screens) */}
-        <div className="flex-1 flex flex-col gap-1 min-w-0 w-full sm:justify-center">
-          <div className="flex items-center justify-between w-full min-w-0">
-            {slots.map((ball, i) => {
-              const c = ball ? ballColor(ball.result) : null
-              const isNext = !ball && i === nextPos && nextPos < 6
-              return (
-                <div key={i} className="flex justify-center min-w-0 flex-1 max-w-[3.25rem] sm:max-w-none sm:flex-none">
-                  <div
-                    className={`
-                      w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
-                      text-xs sm:text-sm font-bold border-2 transition-all duration-300 shrink-0
-                      ${ball
-                        ? `${c.bg} ${c.border} ${c.text} ${ball.isNew ? 'animate-ball-pop' : ''}`
-                        : isNext
-                          ? 'bg-accent-cyan/5 border-accent-cyan/30 text-accent-cyan/40 animate-ball-pulse'
-                          : 'bg-white/[0.02] border-white/[0.05] text-white/[0.08]'
-                      }
-                    `}
-                    style={ball ? { boxShadow: c.glow } : {}}
-                  >
-                    {ball ? (
-                      <span className={ball.isNew ? 'animate-ball-travel' : ''}>{ball.result}</span>
-                    ) : (
-                      <span className="text-[10px] sm:text-xs">•</span>
-                    )}
+        <div className="flex-1 flex items-center min-w-0">
+          <div className="relative w-full min-w-0 py-1">
+            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/[0.04] -translate-y-1/2 rounded-full" />
+            <div
+              className="absolute top-1/2 left-0 h-0.5 bg-accent-cyan/20 -translate-y-1/2 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min((filledCount / 6) * 100, 100)}%` }}
+            />
+
+            <div className="relative flex flex-nowrap items-center justify-evenly pb-0.5">
+              {slots.map((ball, i) => {
+                const c = ball ? ballColor(ball.result) : null
+                const isNext = !ball && i === nextPos && nextPos < 6
+                const label = `${overComp}.${i + 1}`
+                return (
+                  <div key={i} className="flex flex-col items-center gap-0.5 z-10">
+                    <div
+                      className={`
+                        w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
+                        text-[11px] sm:text-sm font-bold border-2 transition-all duration-300
+                        ${ball
+                          ? `${c.bg} ${c.border} ${c.text} ${ball.isNew ? 'animate-ball-pop' : ''}`
+                          : isNext
+                            ? 'bg-accent-cyan/5 border-accent-cyan/30 text-accent-cyan/40 animate-ball-pulse'
+                            : 'bg-white/[0.02] border-white/[0.05] text-white/[0.08]'
+                        }
+                      `}
+                      style={ball ? { boxShadow: c.glow } : {}}
+                    >
+                      {ball ? (
+                        <span className={ball.isNew ? 'animate-ball-travel' : ''}>{ball.result}</span>
+                      ) : (
+                        <span className="text-[10px] sm:text-xs">•</span>
+                      )}
+                    </div>
+                    <span className={`text-[7px] sm:text-[9px] font-mono ${ball ? 'text-text-secondary' : 'text-text-muted/50'}`}>{label}</span>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="flex justify-between w-full min-w-0 gap-0.5">
-            {slots.map((ball, i) => {
-              const label = `${overComp}.${i + 1}`
-              return (
-                <span
-                  key={`l-${i}`}
-                  className={`text-[8px] sm:text-[9px] font-mono truncate text-center min-w-0 flex-1 max-w-[3.25rem] sm:max-w-none sm:flex-none ${ball ? 'text-text-secondary' : 'text-text-muted/50'}`}
-                >
-                  {label}
-                </span>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Extras */}
         {extras.length > 0 && (
-          <>
-            <div className="hidden sm:block h-8 w-px bg-border-subtle flex-shrink-0" />
-            {extrasEl}
-          </>
+          <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+            <div className="flex gap-1 flex-wrap justify-center max-w-[5rem]">
+              {extras.map((e, i) => (
+                <div key={i} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan animate-ball-pop">
+                  {e.result}
+                </div>
+              ))}
+            </div>
+            <span className="text-[7px] sm:text-[8px] text-text-muted uppercase tracking-wider">Extras</span>
+          </div>
         )}
 
-        <div className="hidden sm:flex sm:items-center sm:gap-4 sm:flex-shrink-0">
-          <div className="h-10 w-px bg-border-subtle flex-shrink-0" />
-          {runsSummaryEl}
+        <div className="flex-shrink-0 text-center min-w-[40px] sm:min-w-[44px]">
+          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Runs</p>
+          <p className={`text-2xl font-black font-mono leading-none mt-0.5 ${
+            totalRuns >= 15 ? 'text-accent-amber' : totalRuns >= 8 ? 'text-accent-cyan' : 'text-text-primary'
+          }`}>{totalRuns}</p>
         </div>
       </div>
     </div>
