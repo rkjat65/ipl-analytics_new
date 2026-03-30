@@ -11,7 +11,7 @@ export default function PlayerStatCard({ playerName, stats = {}, type = 'batting
   const battingGrid = [
     { label: 'Runs', value: formatNumber(stats.runs) },
     { label: 'Matches', value: formatNumber(stats.matches) },
-    { label: 'Innings', value: formatNumber(stats.innings) },
+    { label: 'HS', value: formatNumber(stats.highest) },
     { label: 'Average', value: formatDecimal(stats.avg) },
     { label: 'Strike Rate', value: formatDecimal(stats.sr) },
     { label: '50s', value: formatNumber(stats.fifties) },
@@ -23,9 +23,8 @@ export default function PlayerStatCard({ playerName, stats = {}, type = 'batting
   const bowlingGrid = [
     { label: 'Wickets', value: formatNumber(stats.wickets) },
     { label: 'Matches', value: formatNumber(stats.matches) },
-    { label: 'Innings', value: formatNumber(stats.innings) },
-    { label: 'Average', value: formatDecimal(stats.avg) },
     { label: 'Economy', value: formatDecimal(stats.economy) },
+    { label: 'Average', value: formatDecimal(stats.avg) },
     { label: 'Strike Rate', value: formatDecimal(stats.sr) },
     { label: 'Best', value: stats.best_figures || '-' },
     { label: '4W', value: formatNumber(stats.four_wickets) },

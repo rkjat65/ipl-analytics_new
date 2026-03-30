@@ -177,6 +177,7 @@ export default function ContentStudio() {
             runs: c.runs ?? c.total_runs,
             matches: c.matches,
             innings: c.innings,
+            highest: c.highest ?? c.hs,
             avg: c.avg ?? c.average,
             sr: c.sr ?? c.strike_rate,
             fifties: c.fifties ?? c.half_centuries,
