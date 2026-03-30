@@ -17,7 +17,11 @@ class BatchPlayerLookupBody(BaseModel):
 @router.get("/seasons")
 def list_seasons():
     rows = query("SELECT DISTINCT season FROM matches ORDER BY season")
-    return [r["season"] for r in rows]
+    seasons = [r["season"] for r in rows]
+    # IPL 2026 live data exists outside DuckDB until ingested; expose year in filters.
+    if "2026" not in seasons:
+        seasons = ["2026"] + seasons
+    return seasons
 
 
 @router.get("/teams")

@@ -12,9 +12,10 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from .cricket_api import get_cricket_api
+from .cricket_api import RateLimitError, get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
+    get_scorecard,
     get_setting,
     get_today_api_hits,
     get_tracked_match_ids,
@@ -23,6 +24,7 @@ from .live_db import (
     upsert_matches,
     upsert_scorecard,
 )
+from .sportmonks_history import try_promote_after_scorecard
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +69,36 @@ class PollerState:
 poller_state = PollerState()
 
 
+def _patch_scorecard_with_live_data(match_id: str, match_data: dict):
+    """Update a cached scorecard's score/status fields from livescores data.
+
+    When the detailed fixtures endpoint is rate-limited, we still receive
+    fresh score data via the livescores endpoint. Merge it into the stored
+    scorecard so the frontend shows up-to-date scores.
+    """
+    existing = get_scorecard(match_id)
+    if not existing:
+        return
+    changed = False
+    for key in ("score", "status", "matchStarted", "matchEnded", "matchWinner", "playerOfMatch"):
+        if key in match_data and match_data[key] != existing.get(key):
+            existing[key] = match_data[key]
+            changed = True
+    if changed:
+        upsert_scorecard(match_id, existing)
+        logger.info("Patched scorecard %s with livescores data", match_id)
+
+
 async def _poll_once() -> int:
     """Run a single poll cycle.
 
     1. Refresh the match list (1 API hit) so scores stay current.
     2. Fetch scorecards for tracked matches (1 hit per match) for player details.
+    3. If fixtures endpoint is rate-limited, patch cached scorecards from livescores data.
     """
     api = get_cricket_api()
     hits = 0
+    matches: list[dict] = []
 
     try:
         matches = await api.fetch_matches()
@@ -86,20 +110,50 @@ async def _poll_once() -> int:
         logger.warning("Match list refresh failed: %s", exc)
         log_poll("matches", "error", error_msg=str(exc)[:500])
 
+    match_lookup = {m["id"]: m for m in matches if m.get("id")}
+
     tracked_ids = get_tracked_match_ids()
     if not tracked_ids:
         logger.debug("No matches tracked — skipping scorecard fetch")
         return hits
 
     for mid in tracked_ids:
+        prev = get_scorecard(mid)
+        was_live = prev and not prev.get("matchEnded")
+        live_data = match_lookup.get(mid, {})
+        now_ended = live_data.get("matchEnded", False)
+        if was_live and now_ended:
+            api.reset_tier_cache(mid)
+            logger.info("Match %s just ended — reset tier cache to fetch MOTM", mid)
+
+    rate_limited = False
+    for mid in tracked_ids:
         try:
             sc = await api.fetch_scorecard(mid)
             hits += 1
+            if not sc.get("playerOfMatch"):
+                prev = get_scorecard(mid)
+                if prev and prev.get("playerOfMatch"):
+                    sc["playerOfMatch"] = prev["playerOfMatch"]
             upsert_scorecard(mid, sc)
             log_poll("scorecard", "success", match_id=mid, hits=1)
+            extra = await try_promote_after_scorecard(mid, sc)
+            hits += extra
+        except RateLimitError as exc:
+            logger.warning("Rate limited fetching %s — using livescores fallback", mid)
+            log_poll("scorecard", "rate_limited", match_id=mid, error_msg=str(exc)[:500])
+            rate_limited = True
+            if mid in match_lookup:
+                _patch_scorecard_with_live_data(mid, match_lookup[mid])
+            break
         except Exception as exc:
             logger.warning("Scorecard fetch failed for %s: %s", mid, exc)
             log_poll("scorecard", "error", match_id=mid, error_msg=str(exc)[:500])
+
+    if rate_limited:
+        for mid in tracked_ids:
+            if mid in match_lookup:
+                _patch_scorecard_with_live_data(mid, match_lookup[mid])
 
     return hits
 
@@ -215,6 +269,14 @@ async def run_poller():
                     "Poll cycle #%d complete — %d API hit(s)",
                     poller_state.total_cycles, hits,
                 )
+            except RateLimitError as exc:
+                poller_state.last_error = f"Rate limited: {exc}"
+                poller_state.consecutive_errors += 1
+                backoff = min(60 * poller_state.consecutive_errors, 300)
+                logger.warning("Rate limited — backing off %ds", backoff)
+                log_poll("matches", "rate_limited", error_msg=str(exc)[:500])
+                await asyncio.sleep(backoff)
+                continue
             except Exception as exc:
                 poller_state.last_error = str(exc)[:500]
                 poller_state.consecutive_errors += 1

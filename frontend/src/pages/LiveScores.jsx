@@ -1,26 +1,134 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { toPng } from 'html-to-image'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, LabelList,
 } from 'recharts'
 import { useFetch } from '../hooks/useFetch'
 import {
-  getLiveStatus, getLiveMatches, getLiveScorecard, getIPLSchedule,
+  getLiveStatus, getLiveMatches, getLiveScorecard,
   getLiveMatchup, getLiveProjectedScore, getLiveVenueInsights,
   getLivePlayerForm, getLivePhaseAnalysis, getLiveTeamH2H,
   batchLookupPlayers,
 } from '../lib/api'
-import { getTeamColor, getTeamAbbr } from '../constants/teams'
+import { getTeamColor, getTeamAbbr, getTeamLogo } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import Loading from '../components/ui/Loading'
 import SEO from '../components/SEO'
+import { useBallEvents, OverProgressTile, BallEventNotifications } from '../components/live/BallEvents'
 
 const POLL_INTERVAL = 3_000
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** Fixes provider glitches like "6Bengaluru wickets" (matches backend sanitize). */
+function sanitizeResultStatus(text) {
+  if (!text || typeof text !== 'string') return text || ''
+  const cities =
+    'Bengaluru|Bangalore|Hyderabad|Mumbai|Chennai|Kolkata|Jaipur|Lucknow|Ahmedabad|Guwahati|Raipur|Delhi|Chandigarh|Dharamshala'
+  let t = text.replace(
+    new RegExp(`([0-9])(${cities})\\b`, 'gi'),
+    '$1 $2',
+  )
+  t = t.replace(
+    new RegExp(`([0-9])\\s+(?:${cities})\\s+wickets\\b`, 'gi'),
+    '$1 wickets',
+  )
+  return t
+}
+
+function collectInningsPlayers(scorecard) {
+  const innings = scorecard?.scorecard || []
+  const bats = []
+  const bowls = []
+  for (const inn of innings) {
+    const iname = inn.inning || ''
+    for (const b of inn.batsmen || inn.batting || []) {
+      bats.push({
+        name: b.name || b.fullName || '—',
+        runs: Number(b.runs) || 0,
+        balls: Number(b.balls) || 0,
+        fours: Number(b.fours) || 0,
+        sixes: Number(b.sixes) || 0,
+        sr: Number(b.sr) || 0,
+        inning: iname,
+        image: b.image || '',
+        dismissalDetail: b.dismissalDetail || b.dismissal || '',
+      })
+    }
+    for (const w of inn.bowlers || inn.bowling || []) {
+      bowls.push({
+        name: w.name || w.fullName || '—',
+        overs: Number(w.overs) || 0,
+        maidens: Number(w.maidens) || 0,
+        runs: Number(w.runs) || 0,
+        wickets: Number(w.wickets) || 0,
+        economy: Number(w.economy) || 0,
+        inning: iname,
+        image: w.image || '',
+      })
+    }
+  }
+  return { bats, bowls }
+}
+
+function buildMatchReportDerived(scorecard) {
+  const { bats, bowls } = collectInningsPlayers(scorecard)
+  const byRuns = [...bats].sort((a, b) => b.runs - a.runs)
+  const byWkts = [...bowls].sort((a, b) => b.wickets - a.wickets || a.runs - b.runs)
+  const byEco = [...bowls].filter((x) => x.overs >= 1).sort((a, b) => a.economy - b.economy)
+  const bySR = [...bats].filter(b => b.balls >= 10).sort((a, b) => b.sr - a.sr)
+  const topBat = byRuns[0]
+  const topBowl = byWkts[0]
+  const bestEco = byEco[0]
+  const bestSR = bySR[0]
+
+  const innings = scorecard?.scorecard || []
+  const teams = scorecard?.teams || []
+  const inningsGrouped = innings.map((inn) => {
+    const iname = inn.inning || ''
+    const battingTeam = teams.find(t => iname.toLowerCase().includes(t.toLowerCase())) || iname
+    const batters = (inn.batsmen || inn.batting || [])
+      .map(b => ({
+        name: b.name || b.fullName || '—',
+        runs: Number(b.runs) || 0, balls: Number(b.balls) || 0,
+        fours: Number(b.fours) || 0, sixes: Number(b.sixes) || 0,
+        sr: Number(b.sr) || 0, image: b.image || '',
+        dismissalDetail: b.dismissalDetail || b.dismissal || '',
+      }))
+      .sort((a, b) => b.runs - a.runs)
+    const bowlers = (inn.bowlers || inn.bowling || [])
+      .map(w => ({
+        name: w.name || w.fullName || '—',
+        overs: Number(w.overs) || 0, maidens: Number(w.maidens) || 0,
+        runs: Number(w.runs) || 0, wickets: Number(w.wickets) || 0,
+        economy: Number(w.economy) || 0, image: w.image || '',
+      }))
+      .sort((a, b) => b.wickets - a.wickets || a.runs - b.runs)
+    return { iname, battingTeam, batters, bowlers }
+  })
+
+  const perTeam = teams.map(team => {
+    const batting = inningsGrouped.find(i => i.battingTeam === team)
+    const bowling = inningsGrouped.find(i => i.battingTeam !== team)
+    return { name: team, batters: batting?.batters || [], bowlers: bowling?.bowlers || [] }
+  })
+
+  const batChart = byRuns.slice(0, 8).map((b) => ({
+    name: b.name.length > 14 ? `${b.name.slice(0, 12)}…` : b.name,
+    runs: b.runs, img: b.image, fullName: b.name,
+  }))
+  const bowlChart = byWkts.slice(0, 8).map((b) => ({
+    name: b.name.length > 14 ? `${b.name.slice(0, 12)}…` : b.name,
+    wickets: b.wickets, img: b.image, fullName: b.name,
+  }))
+  const batStrip = byRuns.slice(0, 8)
+  const bowlStrip = byWkts.slice(0, 8)
+  return { topBat, topBowl, bestEco, bestSR, perTeam, batChart, bowlChart, bats, bowls, batStrip, bowlStrip }
+}
 
 function fmtScore(s) {
   if (!s) return '—'
@@ -91,40 +199,6 @@ function teamLink(name) {
 function venueLink(name) {
   if (!name) return '/venues'
   return `/venues/${encodeURIComponent(name)}`
-}
-
-/* ── Countdown hook ─────────────────────────────────────────── */
-function useCountdown(targetISO) {
-  const [diff, setDiff] = useState(() => {
-    if (!targetISO) return null
-    return Math.max(0, new Date(targetISO).getTime() - Date.now())
-  })
-
-  useEffect(() => {
-    if (!targetISO) return
-    const tick = () => setDiff(Math.max(0, new Date(targetISO).getTime() - Date.now()))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [targetISO])
-
-  if (diff === null || diff <= 0) return null
-  const d = Math.floor(diff / 86400000)
-  const h = Math.floor((diff % 86400000) / 3600000)
-  const m = Math.floor((diff % 3600000) / 60000)
-  const s = Math.floor((diff % 60000) / 1000)
-  return { days: d, hours: h, minutes: m, seconds: s }
-}
-
-function CountdownBox({ label, value }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-2xl sm:text-3xl font-mono font-black text-accent-cyan tabular-nums">
-        {String(value).padStart(2, '0')}
-      </span>
-      <span className="text-[9px] uppercase tracking-widest text-text-muted mt-1">{label}</span>
-    </div>
-  )
 }
 
 /* ── Live Score Summary Card ──────────────────────────────────
@@ -217,7 +291,13 @@ function LiveScoreHero({ match, onClick, isSelected }) {
           <p className={`text-xs font-semibold text-center pt-2 border-t border-border-subtle/50 ${
             isLive ? 'text-accent-lime' : match.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
           }`}>
-            {match.status}
+            {sanitizeResultStatus(match.status)}
+          </p>
+        )}
+
+        {match.playerOfMatch?.name && (
+          <p className="text-[10px] sm:text-xs text-center text-accent-amber font-semibold">
+            Player of the match: <span className="text-text-primary">{match.playerOfMatch.name}</span>
           </p>
         )}
 
@@ -244,7 +324,8 @@ function LiveScoreHero({ match, onClick, isSelected }) {
 
 /* ── Detailed Scorecard View ──────────────────────────────────
    Two-section layout:
-   1. Match summary hero (scores, toss, venue)
+   1. Match summary hero: scores → status → chase target → notifications →
+      current over → active players → venue/toss
    2. Full batting/bowling tables per innings
 */
 function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) {
@@ -296,11 +377,13 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
     return () => clearInterval(intervalRef.current)
   }, [fetchData])
 
+  const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded)
+  const { notifications, overBalls, overComp } = useBallEvents(scorecard, isLive)
+
   if (loading) return <Loading />
   if (error) return <div className="text-accent-magenta text-sm p-4 rounded-xl border border-accent-magenta/20 bg-accent-magenta/5">{error}</div>
   if (!scorecard) return null
 
-  const isLive = scorecard.matchStarted && !scorecard.matchEnded
   const rawTeams = scorecard.teams || []
   const rawTeamInfo = scorecard.teamInfo || []
 
@@ -395,31 +478,11 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             })}
           </div>
 
-          {/* Match info row */}
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary border-t border-border-subtle/50 pt-3">
-            {scorecard.venue && (
-              <Link to={venueLink(scorecard.venue)} className="flex items-center gap-1.5 hover:text-accent-cyan transition-colors">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-                </svg>
-                {scorecard.venue}
-              </Link>
-            )}
-            {scorecard.tossWinner && (
-              <span className="flex items-center gap-1.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-amber">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
-                </svg>
-                Toss: <span className="text-text-primary font-semibold">{scorecard.tossWinner}</span> — {scorecard.tossChoice}
-              </span>
-            )}
-          </div>
-
           {/* Status */}
           <p className={`mt-3 text-sm sm:text-base font-bold text-center ${
             isLive ? 'text-accent-lime' : scorecard.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
           }`}>
-            {scorecard.status}
+            {sanitizeResultStatus(scorecard.status)}
           </p>
 
           {/* Runs needed in balls — shown only during 2nd innings chase */}
@@ -442,20 +505,75 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
             if (ballsRemaining <= 0) return null
             const rrr = (runsNeeded / (ballsRemaining / 6)).toFixed(2)
             return (
-              <div className="mt-2 flex items-center justify-center gap-3 text-sm">
-                <span className="px-3 py-1 rounded-full bg-accent-amber/10 border border-accent-amber/30 text-accent-amber font-bold">
-                  Need {runsNeeded} run{runsNeeded !== 1 ? 's' : ''} in {ballsRemaining} ball{ballsRemaining !== 1 ? 's' : ''}
-                </span>
-                <span className="text-text-muted">
-                  RRR: <span className="text-accent-amber font-mono font-bold">{rrr}</span>
-                </span>
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-sm">
+                  <span className="inline-flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 px-3 py-1.5 rounded-full bg-accent-amber/10 border border-accent-amber/30 font-bold text-sm text-center max-w-full">
+                    <span className="text-accent-amber shrink-0">Need</span>
+                    <span className="text-accent-lime inline-flex items-center gap-0.5">
+                      <span aria-hidden="true">⚡</span>
+                      <span className="tabular-nums">{runsNeeded}</span>
+                      <span>run{runsNeeded !== 1 ? 's' : ''}</span>
+                    </span>
+                    <span className="text-text-secondary font-semibold shrink-0">in</span>
+                    <span className="text-accent-cyan inline-flex items-center gap-0.5">
+                      <span aria-hidden="true">🏏</span>
+                      <span className="tabular-nums">{ballsRemaining}</span>
+                      <span>ball{ballsRemaining !== 1 ? 's' : ''}</span>
+                    </span>
+                  </span>
+                  <span className="text-text-muted">
+                    RRR: <span className="text-accent-amber font-mono font-bold">{rrr}</span>
+                  </span>
+                </div>
               </div>
             )
           })()}
+          {scorecard.playerOfMatch?.name && (
+            <p className="mt-1.5 text-xs sm:text-sm text-center text-accent-amber font-semibold">
+              Player of the match:{' '}
+              <span className="text-text-primary">{scorecard.playerOfMatch.name}</span>
+            </p>
+          )}
+
+          {/* Ball event notifications — inline inside scorecard */}
+          {isLive && notifications.length > 0 && (
+            <div className="mt-3">
+              <BallEventNotifications notifications={notifications} />
+            </div>
+          )}
+
+          {/* Current over — ball-by-ball (after target/chase, before active players) */}
+          {isLive && overComp != null && (
+            <div className="mt-3">
+              <OverProgressTile balls={overBalls} overComp={overComp} />
+            </div>
+          )}
 
           {/* Active players inline */}
           {isLive && scorecard.scorecard && scorecard.scorecard.length > 0 && (
             <ActivePlayersInline scorecard={scorecard} playerLookup={playerLookup} />
+          )}
+
+          {/* Venue & toss — last: context after live action */}
+          {(scorecard.venue || scorecard.tossWinner) && (
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary border-t border-border-subtle/50 pt-3 mt-4">
+              {scorecard.venue && (
+                <Link to={venueLink(scorecard.venue)} className="flex items-center gap-1.5 hover:text-accent-cyan transition-colors">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-cyan">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {scorecard.venue}
+                </Link>
+              )}
+              {scorecard.tossWinner && (
+                <span className="flex items-center gap-1.5 text-center sm:text-left">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-amber flex-shrink-0">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
+                  </svg>
+                  Toss: <span className="text-text-primary font-semibold">{scorecard.tossWinner}</span> — {scorecard.tossChoice}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -484,9 +602,101 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           ))
       })()}
 
+      {/* Playing XI — shown when lineup data is available */}
+      {scorecard.lineup && scorecard.lineup.length > 0 && (
+        <PlayingXI lineup={scorecard.lineup} teams={teams} teamInfo={teamInfo} />
+      )}
+
       {/* Mobile-only: analytics right below live score */}
       {mobileAnalyticsSlot && (
         <div className="xl:hidden">{mobileAnalyticsSlot}</div>
+      )}
+    </div>
+  )
+}
+
+
+/* ── Playing XI — Both teams side-by-side ──────────────────── */
+function PlayingXI({ lineup, teams, teamInfo }) {
+  const [expanded, setExpanded] = useState(true)
+
+  if (!lineup || lineup.length === 0) return null
+
+  return (
+    <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full px-4 py-3 bg-surface-hover border-b border-border-subtle flex items-center justify-between cursor-pointer hover:bg-surface-hover/80 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent-cyan">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          <span className="text-sm font-bold text-text-primary tracking-wide">Playing XI</span>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`w-4 h-4 text-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-0">
+          {lineup.map((teamLineup, tIdx) => {
+            const teamName = teamLineup.team || teams[tIdx] || ''
+            const teamImg = teamLineup.teamImg || teamInfo[tIdx]?.img || ''
+            const color = getTeamColor(teamName)
+            const players = teamLineup.players || []
+
+            return (
+              <div key={tIdx} className={`${tIdx === 0 && lineup.length > 1 ? 'sm:border-r border-b sm:border-b-0 border-border-subtle' : ''}`}>
+                {/* Team header */}
+                <div className="px-4 py-3 flex items-center gap-2.5 border-b border-border-subtle/50" style={{ background: `${color}08` }}>
+                  {teamImg ? (
+                    <img src={teamImg} alt={teamName} className="w-7 h-7 rounded-lg object-cover border border-border-subtle" />
+                  ) : (
+                    <TeamLogo team={teamName} size={28} />
+                  )}
+                  <span className="text-sm font-bold text-text-primary">{getTeamAbbr(teamName)}</span>
+                  <span className="text-xs text-text-muted ml-auto">{players.length} players</span>
+                </div>
+
+                {/* Player list */}
+                <div className="divide-y divide-border-subtle/30">
+                  {players.map((p, pIdx) => (
+                    <div key={pIdx} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover/50 transition-colors">
+                      <PlayerAvatar
+                        name={p.name}
+                        imageUrl={p.image || undefined}
+                        teamColor={color}
+                        size={40}
+                        showBorder={false}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-text-primary truncate">{p.name || '—'}</span>
+                          {p.captain && (
+                            <span className="flex-shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-amber/15 text-accent-amber border border-accent-amber/25">C</span>
+                          )}
+                          {p.wicketkeeper && (
+                            <span className="flex-shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/25">WK</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-xs text-text-muted font-mono tabular-nums flex-shrink-0">#{pIdx + 1}</span>
+                    </div>
+                  ))}
+                  {players.length === 0 && (
+                    <div className="px-4 py-6 text-center text-sm text-text-muted italic">
+                      Lineup not yet announced
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
@@ -525,6 +735,7 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
               <thead>
                 <tr className="text-text-muted border-b border-border-subtle">
                   <th className="text-left py-1.5 px-3 font-medium">Batter</th>
+                  <th className="text-left py-1.5 px-2 font-medium hidden md:table-cell min-w-[120px]">How out</th>
                   <th className="text-center py-1.5 px-1 font-medium">R</th>
                   <th className="text-center py-1.5 px-1 font-medium">B</th>
                   <th className="text-center py-1.5 px-1 font-medium">4s</th>
@@ -541,27 +752,35 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
                   const fours = b.fours ?? b['4s'] ?? 0
                   const sixes = b.sixes ?? b['6s'] ?? 0
                   const sr = b.sr ?? (balls > 0 ? ((runs / balls) * 100).toFixed(1) : '0.0')
-                  const dismissal = b.dismissal || ''
-                  const isNotOut = dismissal.toLowerCase().includes('not out') || dismissal === ''
+                  const howOut = (b.dismissalDetail || b.dismissal || '').trim()
+                  const isNotOut = !howOut || howOut.toLowerCase() === 'not out'
 
                   return (
                     <tr key={bi} className={`border-b border-border-subtle/30 hover:bg-surface-hover/50 ${
                       isNotOut && isLive ? 'bg-accent-lime/5' : ''
                     }`}>
                       <td className="py-1.5 px-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <PlayerAvatar name={displayName} imageUrl={livePlayerImageUrl(b.image)} size={26} showBorder />
-                          {isNotOut && isLive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-lime animate-pulse flex-shrink-0" />
-                          )}
-                          <LiveScorePlayerName
-                            name={name}
-                            displayName={displayName}
-                            lookup={playerLookup}
-                            title={dismissal || 'not out'}
-                            className="text-sm"
-                          />
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <PlayerAvatar name={displayName} imageUrl={livePlayerImageUrl(b.image)} size={26} showBorder />
+                            {isNotOut && isLive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-lime animate-pulse flex-shrink-0" />
+                            )}
+                            <LiveScorePlayerName
+                              name={name}
+                              displayName={displayName}
+                              lookup={playerLookup}
+                              title={howOut || 'not out'}
+                              className="text-sm"
+                            />
+                          </div>
+                          <p className="md:hidden text-[10px] text-text-muted leading-snug pl-8">
+                            {howOut || 'not out'}
+                          </p>
                         </div>
+                      </td>
+                      <td className="py-1.5 px-2 text-[10px] text-text-muted leading-snug hidden md:table-cell align-top max-w-[200px]">
+                        {howOut || '—'}
                       </td>
                       <td className={`text-center py-1.5 px-1 font-mono font-bold ${
                         runs >= 50 ? 'text-accent-lime' : runs >= 30 ? 'text-accent-cyan' : 'text-text-primary'
@@ -645,7 +864,7 @@ function ActivePlayersInline({ scorecard, playerLookup = {} }) {
   const lastInnings = scorecard.scorecard[scorecard.scorecard.length - 1]
   const allBatsmen = lastInnings?.batsmen || lastInnings?.batting || []
   const notOutBatsmen = allBatsmen.filter(b => {
-    const d = (b.dismissal || '').toLowerCase()
+    const d = (b.dismissalDetail || b.dismissal || '').toLowerCase()
     return d.includes('not out') || d === ''
   })
 
@@ -675,7 +894,7 @@ function ActivePlayersInline({ scorecard, playerLookup = {} }) {
   if (activePlayers.length === 0) return null
 
   return (
-    <div className="mt-4 pt-3 border-t border-border-subtle/50">
+    <div className="mt-3">
       <div className="flex items-center gap-1.5 mb-3">
         <span className="w-2 h-2 rounded-full bg-accent-lime animate-pulse" />
         <span className="text-xs font-bold text-text-muted uppercase tracking-wider">At the Crease</span>
@@ -779,21 +998,21 @@ const MATCHUP_STAT_COLORS = [
   { bg: 'bg-[#1A0D1F]', border: 'border-[#FF2D7825]', text: 'text-[#FF2D78]' },
 ]
 
-function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
+function MatchupRivalryCard({ batters, bowler, playerImages = {}, matchId }) {
   const [data, setData] = useState({})
   const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
     if (!bowler || batters.length === 0) { setInitialLoad(false); return }
     Promise.all(
-      batters.map(b => getLiveMatchup(b, bowler).catch(() => ({ batter: b, bowler, found: false })))
+      batters.map(b => getLiveMatchup(b, bowler, matchId).catch(() => ({ batter: b, bowler, found: false })))
     ).then(results => {
       const map = {}
       results.forEach(r => { map[r.batter] = r })
       setData(map)
     }).finally(() => setInitialLoad(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batters.join(','), bowler])
+  }, [batters.join(','), bowler, matchId])
 
   if (initialLoad && Object.keys(data).length === 0) return <AnalyticsSkeleton />
 
@@ -803,6 +1022,7 @@ function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
     <div className="space-y-5">
       {entries.map(m => {
         if (!m.found) {
+          const hasLive = m.this_match_batter || m.this_match_bowler
           return (
             <div key={m.batter} className="rounded-xl overflow-hidden bg-[#0A0A0F] border border-border-subtle">
               <div className="h-1 bg-gradient-to-r from-[#FFB800]/30 to-[#00E5FF]/30" />
@@ -821,7 +1041,24 @@ function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
                   <p className="text-sm font-bold text-text-primary text-center truncate w-full">{m.bowler}</p>
                 </div>
               </div>
-              <div className="text-center pb-4 text-text-muted text-sm">No IPL history between these players</div>
+              {hasLive && (
+                <div className="text-center py-3 mx-4 mb-3 rounded-xl bg-accent-lime/10 border border-accent-lime/20 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wider text-accent-lime font-bold">This match</p>
+                  {m.this_match_batter && (
+                    <p className="text-xl font-black font-mono text-text-primary">
+                      {m.this_match_batter.runs} ({m.this_match_batter.balls})
+                    </p>
+                  )}
+                  {m.this_match_bowler && (
+                    <p className="text-sm font-mono text-accent-cyan">
+                      {m.this_match_bowler.wickets}/{m.this_match_bowler.runs_conceded} ({m.this_match_bowler.overs} ov)
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="text-center pb-4 text-text-muted text-sm">
+                {hasLive ? 'No prior IPL ball-by-ball H2H in our database for this pair.' : 'No IPL history between these players'}
+              </div>
             </div>
           )
         }
@@ -860,13 +1097,34 @@ function MatchupRivalryCard({ batters, bowler, playerImages = {} }) {
               </div>
             </div>
 
+            {(m.this_match_batter || m.this_match_bowler) && (
+              <div className="text-center py-3 mx-4 rounded-xl bg-gradient-to-r from-accent-lime/10 to-accent-cyan/10 border border-accent-lime/25 space-y-1">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-accent-lime font-bold">This match (scorecard)</p>
+                {m.this_match_batter && (
+                  <p className="text-lg font-black font-mono text-text-primary">
+                    {m.this_match_batter.runs}<span className="text-text-muted text-base font-bold"> ({m.this_match_batter.balls})</span>
+                    <span className="block text-[10px] font-normal text-text-muted normal-case">
+                      SR {m.this_match_batter.strike_rate ?? '—'}
+                      {m.this_match_batter.dismissal ? ` · ${m.this_match_batter.dismissal}` : ''}
+                    </span>
+                  </p>
+                )}
+                {m.this_match_bowler && (
+                  <p className="text-sm font-mono text-accent-cyan">
+                    Spell {m.this_match_bowler.wickets}/{m.this_match_bowler.runs_conceded} ({m.this_match_bowler.overs} ov)
+                    {m.this_match_bowler.economy != null ? ` · eco ${m.this_match_bowler.economy}` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="text-center py-3 mx-4 rounded-full bg-gradient-to-r from-[#FFB80008] to-[#00E5FF08] border border-[#FFB80015]">
-              <p className="text-[10px] uppercase tracking-[0.1em] text-[#FFB800] font-semibold mb-0.5">Runs Scored</p>
+              <p className="text-[10px] uppercase tracking-[0.1em] text-[#FFB800] font-semibold mb-0.5">IPL career (all balls vs this bowler)</p>
               <p className="text-4xl font-black text-text-primary font-mono leading-none">{m.runs || 0}</p>
             </div>
 
             <p className="sm:hidden text-[10px] text-text-muted text-center leading-snug px-3 pt-2">
-              Past IPL only: totals for this batter against this bowler (not today’s live ball).
+              Large total is historical IPL ball-by-ball data. “This match” is from the live scorecard.
             </p>
 
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-1.5 p-3 pt-2 sm:pt-3">
@@ -1089,7 +1347,7 @@ function VenueDNACard({ venue }) {
 }
 
 /* ── Card 4: Player Form Tracker ─────────────────────────────── */
-function PlayerFormCard({ players }) {
+function PlayerFormCard({ players, matchId }) {
   const [formData, setFormData] = useState({})
   const [initialLoad, setInitialLoad] = useState(true)
 
@@ -1097,7 +1355,7 @@ function PlayerFormCard({ players }) {
     if (!players || players.length === 0) { setInitialLoad(false); return }
     Promise.all(
       players.map(p =>
-        getLivePlayerForm(p.name, p.role).catch(() => ({ player: p.name, role: p.role, last_5: [] }))
+        getLivePlayerForm(p.name, p.role, matchId).catch(() => ({ player: p.name, role: p.role, last_5: [] }))
       )
     ).then(results => {
       const map = {}
@@ -1105,7 +1363,7 @@ function PlayerFormCard({ players }) {
       setFormData(map)
     }).finally(() => setInitialLoad(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players.map(p => `${p.name}-${p.role}`).join(',')])
+  }, [players.map(p => `${p.name}-${p.role}`).join(','), matchId])
 
   if (initialLoad && Object.keys(formData).length === 0) return <AnalyticsSkeleton />
 
@@ -1125,7 +1383,7 @@ function PlayerFormCard({ players }) {
       {entries.map(f => {
         const isBat = f.role === 'bat'
         const last5 = f.last_5 || []
-        if (last5.length === 0) return null
+        if (last5.length === 0 && !f.this_match) return null
 
         const chartData = last5.map((inn, i) => ({
           inn: `${i + 1}`,
@@ -1133,7 +1391,9 @@ function PlayerFormCard({ players }) {
           opponent: inn.opponent ? getTeamAbbr(inn.opponent) : '',
         })).reverse()
 
-        const refValue = isBat ? f.career_avg : f.career_economy
+        let refValue = isBat ? f.career_avg : f.career_economy
+        if (isBat && refValue != null && refValue > 150) refValue = null
+
         const primaryColor = isBat ? '#06d6a0' : '#f72585'
 
         return (
@@ -1146,39 +1406,73 @@ function PlayerFormCard({ players }) {
                   <p className="text-[9px] text-text-muted uppercase">{isBat ? 'Batting' : 'Bowling'}</p>
                 </div>
               </div>
-              <div className="text-right text-[10px] text-text-muted">
+              <div className="text-right text-[10px] text-text-muted max-w-[55%]">
                 {isBat ? (
                   <>
-                    <span>Last 5 Avg: <span className="font-mono text-accent-cyan">{f.avg_last_5 ?? '—'}</span></span>
-                    <span className="ml-2">Career: <span className="font-mono text-text-secondary">{f.career_avg ?? '—'}</span></span>
+                    <span>Last 5 avg: <span className="font-mono text-accent-cyan">{f.avg_last_5 ?? '—'}</span></span>
+                    <span className="ml-2">IPL DB avg: <span className="font-mono text-text-secondary">{f.career_avg ?? '—'}</span></span>
+                    <span className="block text-[8px] text-text-muted mt-0.5">DB = historical ball-by-ball, not this innings</span>
                   </>
                 ) : (
                   <>
-                    <span>Last 5 Econ: <span className="font-mono text-accent-magenta">{f.avg_econ_last_5 ?? '—'}</span></span>
-                    <span className="ml-2">Career: <span className="font-mono text-text-secondary">{f.career_economy ?? '—'}</span></span>
+                    <span>Last 5 econ: <span className="font-mono text-accent-magenta">{f.avg_econ_last_5 ?? '—'}</span></span>
+                    <span className="ml-2">IPL DB: <span className="font-mono text-text-secondary">{f.career_economy ?? '—'}</span></span>
                   </>
                 )}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={90}>
-              {isBat ? (
-                <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
-                  <Tooltip content={<AnalyticsTooltip />} />
-                  {refValue && <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'Avg', fontSize: 8, fill: '#8d99ae' }} />}
-                  <Bar dataKey="value" name="Runs" fill={primaryColor} radius={[4, 4, 0, 0]} barSize={24} />
-                </BarChart>
-              ) : (
-                <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
-                  <Tooltip content={<AnalyticsTooltip />} />
-                  {refValue && <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'Avg', fontSize: 8, fill: '#8d99ae' }} />}
-                  <Line type="monotone" dataKey="value" name="Economy" stroke={primaryColor} strokeWidth={2} dot={{ r: 3, fill: primaryColor }} />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
+
+            {f.this_match && (
+              <div className="mb-3 p-3 rounded-lg border border-accent-lime/35 bg-accent-lime/5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-accent-lime mb-1">This match (live scorecard)</p>
+                {isBat ? (
+                  <p className="text-2xl font-black font-mono text-text-primary">
+                    {f.this_match.runs}
+                    <span className="text-base text-text-muted font-bold"> ({f.this_match.balls})</span>
+                    <span className="ml-2 text-sm text-accent-cyan">SR {f.this_match.strike_rate ?? '—'}</span>
+                  </p>
+                ) : (
+                  <p className="text-2xl font-black font-mono text-text-primary">
+                    {f.this_match.wickets}/{f.this_match.runs_conceded}
+                    <span className="text-base text-text-muted font-bold"> ({f.this_match.overs} ov)</span>
+                    {f.this_match.economy != null && (
+                      <span className="ml-2 text-sm text-accent-magenta">eco {f.this_match.economy}</span>
+                    )}
+                  </p>
+                )}
+                {isBat && f.this_match.dismissal && (
+                  <p className="text-[10px] text-text-muted mt-1">{f.this_match.dismissal}</p>
+                )}
+              </div>
+            )}
+
+            {last5.length > 0 ? (
+              <ResponsiveContainer width="100%" height={90}>
+                {isBat ? (
+                  <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                    <Tooltip content={<AnalyticsTooltip />} />
+                    {refValue != null && (
+                      <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'DB avg', fontSize: 8, fill: '#8d99ae' }} />
+                    )}
+                    <Bar dataKey="value" name="Runs" fill={primaryColor} radius={[4, 4, 0, 0]} barSize={24} />
+                  </BarChart>
+                ) : (
+                  <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="opponent" tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#8d99ae' }} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+                    <Tooltip content={<AnalyticsTooltip />} />
+                    {refValue != null && (
+                      <ReferenceLine y={refValue} stroke="#8d99ae" strokeDasharray="3 3" label={{ value: 'DB avg', fontSize: 8, fill: '#8d99ae' }} />
+                    )}
+                    <Line type="monotone" dataKey="value" name="Economy" stroke={primaryColor} strokeWidth={2} dot={{ r: 3, fill: primaryColor }} />
+                  </LineChart>
+                )}
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-[11px] text-text-muted py-2">No prior IPL innings in our database for this player.</p>
+            )}
           </div>
         )
       })}
@@ -1342,14 +1636,16 @@ function ScorecardWithAnalytics({ matchId }) {
   }, [])
 
   const isLive = liveScorecard?.matchStarted && !liveScorecard?.matchEnded
-  const hasScorecard = isLive
+  const hasScorecardData = Boolean(liveScorecard?.scorecard?.length)
 
-  const analyticsPanel = hasScorecard ? <LiveAnalyticsPanel scorecard={liveScorecard} /> : null
+  const analyticsPanel = hasScorecardData ? (
+    <LiveAnalyticsPanel scorecard={liveScorecard} isLive={isLive} matchId={matchId} />
+  ) : null
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
       {/* Scorecard — main column */}
-      <div className={hasScorecard ? 'xl:col-span-7' : 'xl:col-span-12'}>
+      <div className={hasScorecardData ? 'xl:col-span-7' : 'xl:col-span-12'}>
         <DetailedScorecard
           matchId={matchId}
           onScorecardUpdate={handleScorecardUpdate}
@@ -1358,7 +1654,7 @@ function ScorecardWithAnalytics({ matchId }) {
       </div>
 
       {/* Live Analytics — desktop side panel only (hidden on mobile since it appears inline) */}
-      {hasScorecard && (
+      {hasScorecardData && (
         <div className="hidden xl:block xl:col-span-5 xl:sticky xl:top-4 xl:self-start">
           {analyticsPanel}
         </div>
@@ -1369,7 +1665,7 @@ function ScorecardWithAnalytics({ matchId }) {
 
 
 /* ── Live Analytics Panel (Main Container) ───────────────────── */
-function LiveAnalyticsPanel({ scorecard }) {
+function LiveAnalyticsPanel({ scorecard, isLive, matchId }) {
   const [expanded, setExpanded] = useState(true)
 
   const lastInnings = scorecard.scorecard?.[scorecard.scorecard.length - 1]
@@ -1477,7 +1773,12 @@ function LiveAnalyticsPanel({ scorecard }) {
       ),
       show: activeBatters.length > 0 && !!currentBowler,
       render: () => (
-        <MatchupRivalryCard batters={activeBatters} bowler={currentBowler} playerImages={playerImages} />
+        <MatchupRivalryCard
+          batters={activeBatters}
+          bowler={currentBowler}
+          playerImages={playerImages}
+          matchId={matchId}
+        />
       ),
     },
     {
@@ -1520,7 +1821,7 @@ function LiveAnalyticsPanel({ scorecard }) {
         </svg>
       ),
       show: formPlayers.length > 0,
-      render: () => <PlayerFormCard players={formPlayers} />,
+      render: () => <PlayerFormCard players={formPlayers} matchId={matchId} />,
     },
     {
       id: 'phase',
@@ -1574,6 +1875,15 @@ function LiveAnalyticsPanel({ scorecard }) {
             </svg>
           </span>
           Analytics
+          {isLive ? (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-magenta/20 text-accent-magenta">
+              Live
+            </span>
+          ) : (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-hover text-text-muted">
+              Match card
+            </span>
+          )}
         </h3>
         <svg
           viewBox="0 0 24 24"
@@ -1623,198 +1933,281 @@ function LiveAnalyticsPanel({ scorecard }) {
 }
 
 
-/* ── IPL Schedule Tab ─────────────────────────────────────────── */
-function IPLScheduleView() {
-  const { data: schedule, loading, error } = useFetch(() => getIPLSchedule(), [])
-  const [teamFilter, setTeamFilter] = useState('all')
-  const scrollRef = useRef(null)
-  const countdown = useCountdown(schedule?.nextMatch?.dateTimeGMT)
+/* ── Match report modal (cached live scorecard + Recharts + downloads) ─ */
+export function MatchReportModal({ apiMatchId, title, onClose }) {
+  const chartRef = useRef(null)
+  const { data: sc, loading, error } = useFetch(
+    () => getLiveScorecard(apiMatchId),
+    [apiMatchId],
+  )
 
-  const teams = useMemo(() => {
-    if (!schedule?.matches) return []
-    const s = new Set()
-    schedule.matches.forEach(m => { s.add(m.home); s.add(m.away) })
-    return [...s].sort()
-  }, [schedule])
+  const derived = useMemo(() => (sc ? buildMatchReportDerived(sc) : null), [sc])
 
-  const filteredMatches = useMemo(() => {
-    if (!schedule?.matches) return []
-    if (teamFilter === 'all') return schedule.matches
-    return schedule.matches.filter(m => m.home === teamFilter || m.away === teamFilter)
-  }, [schedule, teamFilter])
+  const downloadPng = async () => {
+    if (!chartRef.current) return
+    try {
+      const dataUrl = await toPng(chartRef.current, { pixelRatio: 2, backgroundColor: '#0A0A0F' })
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `ipl-match-report-${apiMatchId}.png`
+      a.click()
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
-  useEffect(() => {
-    if (!schedule?.nextMatch || !scrollRef.current) return
-    const el = scrollRef.current.querySelector(`[data-match="${schedule.nextMatch.match}"]`)
-    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
-  }, [schedule])
-
-  if (loading) return <Loading />
-  if (error) return <div className="text-accent-magenta text-sm p-4">{error}</div>
-  if (!schedule) return null
-
-  const nextM = schedule.nextMatch
-  const completedCount = schedule.matches.filter(m => m.status === 'completed').length
+  const downloadTxt = () => {
+    if (!sc || !derived) return
+    const lines = [
+      title || sc.name,
+      sc.venue ? `Venue: ${sc.venue}` : '',
+      `Date: ${sc.date || ''}`,
+      sanitizeResultStatus(sc.status || ''),
+      sc.matchWinner ? `Winner: ${sc.matchWinner}` : '',
+      sc.playerOfMatch?.name ? `Player of the match: ${sc.playerOfMatch.name}` : '',
+      '',
+      '--- Top batsman (runs) ---',
+      derived.topBat
+        ? `${derived.topBat.name}: ${derived.topBat.runs} (${derived.topBat.balls} balls, SR ${derived.topBat.sr || '—'})`
+        : '—',
+      '',
+      '--- Top bowler (wickets) ---',
+      derived.topBowl
+        ? `${derived.topBowl.name}: ${derived.topBowl.wickets}/${derived.topBowl.runs} (${derived.topBowl.overs} ov, eco ${derived.topBowl.economy})`
+        : '—',
+      '',
+      '--- All batsmen ---',
+      ...derived.bats.map((b) => {
+        const how = b.dismissalDetail ? ` · ${b.dismissalDetail}` : ''
+        return `${b.name} (${b.inning}): ${b.runs} (${b.balls}), ${b.fours}x4 ${b.sixes}x6${how}`
+      }),
+      '',
+      '--- All bowlers ---',
+      ...derived.bowls.map(
+        (b) => `${b.name} (${b.inning}): ${b.overs}-${b.maidens}-${b.runs}-${b.wickets}, eco ${b.economy}`,
+      ),
+    ]
+    const blob = new Blob([lines.filter(Boolean).join('\n')], { type: 'text/plain;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `ipl-match-report-${apiMatchId}.txt`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
 
   return (
-    <div className="space-y-6">
-      {nextM && countdown && (
-        <div className="rounded-2xl border border-accent-cyan/20 bg-gradient-to-br from-accent-cyan/5 via-surface-card to-accent-magenta/5 p-6 sm:p-8">
-          <div className="text-center">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-accent-cyan font-bold mb-4">Next Match</p>
-            <div className="flex items-center justify-center gap-4 sm:gap-8 mb-6">
-              <div className="flex flex-col items-center gap-2">
-                <TeamLogo team={nextM.home} size={48} />
-                <span className="text-sm sm:text-base font-bold text-text-primary">{getTeamAbbr(nextM.home)}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-black text-text-muted">VS</span>
-                <span className="text-[10px] text-text-muted mt-1">Match #{nextM.match}</span>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <TeamLogo team={nextM.away} size={48} />
-                <span className="text-sm sm:text-base font-bold text-text-primary">{getTeamAbbr(nextM.away)}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-3 sm:gap-5 mb-4">
-              <CountdownBox label="Days" value={countdown.days} />
-              <span className="text-xl font-bold text-text-muted mt-[-16px]">:</span>
-              <CountdownBox label="Hours" value={countdown.hours} />
-              <span className="text-xl font-bold text-text-muted mt-[-16px]">:</span>
-              <CountdownBox label="Mins" value={countdown.minutes} />
-              <span className="text-xl font-bold text-text-muted mt-[-16px]">:</span>
-              <CountdownBox label="Secs" value={countdown.seconds} />
-            </div>
-            <div className="flex items-center justify-center gap-4 text-xs text-text-secondary">
-              <span className="flex items-center gap-1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-                  <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-                </svg>
-                {(() => {
-                  const d = new Date(nextM.date + 'T00:00:00')
-                  return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-3xl w-full max-h-[90vh] overflow-y-auto rounded-2xl border border-border-subtle bg-surface-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-border-subtle bg-surface-card/95 backdrop-blur">
+          <h3 className="text-lg font-bold text-text-primary pr-4">{title || 'Match report'}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-text-muted hover:text-text-primary hover:bg-surface-hover"
+          >
+            Close
+          </button>
+        </div>
+        <div className="p-5 space-y-6">
+          {loading && <Loading />}
+          {error && <p className="text-accent-magenta text-sm">{error}</p>}
+          {!loading && !error && sc && (
+            <>
+              <div ref={chartRef} className="rounded-xl overflow-hidden" style={{ background: '#0A0A0F' }}>
+                {/* Branding strip */}
+                <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                  <div className="flex items-center gap-2">
+                    <img src="/logo.png" alt="" className="w-5 h-5 rounded-lg object-cover" onError={e => { e.target.style.display='none' }} />
+                    <span className="font-bold text-xs text-white/70 tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Crickrida</span>
+                  </div>
+                  <span className="text-[9px] font-mono text-white/25 uppercase tracking-[0.2em]">Match Report</span>
+                </div>
+
+                {/* Team scores banner */}
+                <div className="px-5 py-4">
+                  <div className="flex items-center justify-center gap-6 sm:gap-10">
+                    {sc.teams?.slice(0, 2).map((t, idx) => {
+                      const s = sc.score?.find(x => (x.inning || '').toLowerCase().includes(t.toLowerCase()))
+                      const logo = getTeamLogo(t)
+                      const color = getTeamColor(t)
+                      return (
+                        <React.Fragment key={t}>
+                          {idx === 1 && <span className="text-white/15 text-xs font-bold uppercase tracking-widest">vs</span>}
+                          <div className="flex items-center gap-3">
+                            {logo
+                              ? <img src={logo} alt="" className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg object-contain" />
+                              : <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center font-bold text-white text-sm" style={{ background: color }}>{getTeamAbbr(t)}</div>
+                            }
+                            <div>
+                              <div className="text-xs sm:text-sm font-bold text-white/80">{getTeamAbbr(t)}</div>
+                              <div className="text-xl sm:text-2xl font-mono font-black" style={{ color }}>{fmtScore(s)}</div>
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      )
+                    })}
+                  </div>
+                  <div className="text-center mt-3 space-y-1">
+                    <p className="text-[10px] sm:text-[11px] font-mono text-white/35">{sc.venue}{sc.date ? ` · ${sc.date}` : ''}</p>
+                    {sc.tossWinner && <p className="text-[9px] text-white/25 font-mono">Toss: {sc.tossWinner} — {sc.tossChoice}</p>}
+                    <p className="text-xs font-semibold text-[#B8FF00]">{sanitizeResultStatus(sc.status)}</p>
+                  </div>
+                </div>
+
+                {/* Man of the Match */}
+                {sc.playerOfMatch?.name && (
+                  <div className="mx-5 mb-3 flex items-center gap-4 px-4 py-3 rounded-xl" style={{ border: '1px solid #FFB80030', background: '#FFB80008' }}>
+                    {livePlayerImageUrl(sc.playerOfMatch.image) ? (
+                      <img src={livePlayerImageUrl(sc.playerOfMatch.image)} alt="" className="w-14 h-14 rounded-full object-cover" style={{ border: '2px solid #FFB80050' }} />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg" style={{ background: '#FFB80020', color: '#FFB800' }}>★</div>
+                    )}
+                    <div>
+                      <span className="text-[9px] font-mono uppercase tracking-[0.15em] font-bold" style={{ color: '#FFB800' }}>Man of the Match</span>
+                      <p className="text-base font-bold text-white mt-0.5">{sc.playerOfMatch.name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Key highlights */}
+                {derived && (() => {
+                  const cards = [
+                    derived.topBat && { label: 'Most Runs', name: derived.topBat.name, image: derived.topBat.image, value: `${derived.topBat.runs} (${derived.topBat.balls}b)`, sub: `SR ${derived.topBat.sr || '—'}`, color: '#00E5FF' },
+                    derived.bestSR && derived.bestSR.name !== derived.topBat?.name && { label: 'Highest SR', name: derived.bestSR.name, image: derived.bestSR.image, value: `SR ${derived.bestSR.sr}`, sub: `${derived.bestSR.runs} (${derived.bestSR.balls}b)`, color: '#B8FF00' },
+                    derived.topBowl && { label: 'Best Figures', name: derived.topBowl.name, image: derived.topBowl.image, value: `${derived.topBowl.wickets}/${derived.topBowl.runs}`, sub: `${derived.topBowl.overs} ov`, color: '#FF2D78' },
+                    derived.bestEco && derived.bestEco.name !== derived.topBowl?.name && { label: 'Best Economy', name: derived.bestEco.name, image: derived.bestEco.image, value: `eco ${derived.bestEco.economy}`, sub: `${derived.bestEco.wickets}/${derived.bestEco.runs}`, color: '#8B5CF6' },
+                  ].filter(Boolean)
+                  return (
+                    <div className="flex justify-center gap-2 px-5 mb-3 flex-wrap">
+                      {cards.map(h => (
+                        <div key={h.label} className="rounded-lg p-3 text-center flex-1 min-w-[120px] max-w-[180px]" style={{ background: `${h.color}08`, border: `1px solid ${h.color}25` }}>
+                          <span className="text-[8px] font-mono uppercase tracking-wider block mb-2" style={{ color: h.color }}>{h.label}</span>
+                          <div className="flex justify-center mb-2">
+                            {livePlayerImageUrl(h.image)
+                              ? <img src={livePlayerImageUrl(h.image)} alt="" className="w-12 h-12 rounded-full object-cover" style={{ border: `2px solid ${h.color}40` }} />
+                              : <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: `${h.color}15`, color: h.color }}>{h.name?.[0] || '?'}</div>
+                            }
+                          </div>
+                          <p className="text-[10px] font-bold text-white truncate">{h.name}</p>
+                          <p className="text-base font-mono font-black mt-0.5" style={{ color: h.color }}>{h.value}</p>
+                          <p className="text-[9px] font-mono text-white/35">{h.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )
                 })()}
-              </span>
-              <span className="flex items-center gap-1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                </svg>
-                {nextM.time} IST
-              </span>
-              <span className="flex items-center gap-1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-                </svg>
-                {nextM.venue}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Progress bar */}
-      <div className="rounded-xl border border-border-subtle bg-surface-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Season Progress</span>
-          <span className="text-xs font-mono text-text-secondary">{completedCount} / {schedule.totalMatches} matches</span>
-        </div>
-        <div className="w-full h-2 rounded-full bg-surface-dark overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-accent-cyan to-accent-lime transition-all duration-500"
-            style={{ width: `${(completedCount / schedule.totalMatches) * 100}%` }}
-          />
-        </div>
-      </div>
+                {/* Batting by team */}
+                {derived?.perTeam?.length > 0 && (
+                  <div className="px-5 mb-3">
+                    <p className="text-[9px] font-mono text-white/25 uppercase tracking-[0.15em] mb-2">Batting</p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {derived.perTeam.map(team => {
+                        const color = getTeamColor(team.name)
+                        return (
+                          <div key={`bat-${team.name}`} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${color}30` }}>
+                            <div className="px-3 py-1.5 flex items-center gap-2" style={{ background: `${color}15` }}>
+                              <div className="w-3.5 h-3.5 rounded" style={{ background: color }} />
+                              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{getTeamAbbr(team.name)}</span>
+                            </div>
+                            <div className="p-1.5 space-y-0.5">
+                              {team.batters.slice(0, 5).map(b => (
+                                <div key={b.name} className="flex items-center gap-2 py-1.5 px-2 rounded-md" style={{ background: 'rgba(255,255,255,0.015)' }}>
+                                  {livePlayerImageUrl(b.image)
+                                    ? <img src={livePlayerImageUrl(b.image)} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.08)' }} />
+                                    : <div className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                                  }
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-semibold text-white/75 truncate">{b.name}</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-xs font-mono font-bold" style={{ color }}>{b.runs}<span className="text-white/25">({b.balls})</span></p>
+                                    <p className="text-[8px] font-mono text-white/25">{b.fours}×4 {b.sixes}×6 SR {b.sr || '—'}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
-      {/* Team filter */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Filter</span>
-        <select
-          value={teamFilter}
-          onChange={e => setTeamFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-xs border border-border-subtle text-text-primary focus:outline-none focus:border-accent-cyan appearance-none pr-8"
-          style={{
-            backgroundColor: '#111118',
-            color: '#e2e8f0',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2300E5FF' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 8px center',
-          }}
-        >
-          <option value="all" style={{ backgroundColor: '#111118', color: '#e2e8f0' }}>All Teams</option>
-          {teams.map(t => <option key={t} value={t} style={{ backgroundColor: '#111118', color: '#e2e8f0' }}>{t}</option>)}
-        </select>
-        {teamFilter !== 'all' && <span className="text-xs text-text-secondary">{filteredMatches.length} matches</span>}
-      </div>
+                {/* Bowling by team */}
+                {derived?.perTeam?.length > 0 && (
+                  <div className="px-5 mb-3">
+                    <p className="text-[9px] font-mono text-white/25 uppercase tracking-[0.15em] mb-2">Bowling</p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {derived.perTeam.map(team => {
+                        const color = getTeamColor(team.name)
+                        return (
+                          <div key={`bowl-${team.name}`} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${color}30` }}>
+                            <div className="px-3 py-1.5 flex items-center gap-2" style={{ background: `${color}15` }}>
+                              <div className="w-3.5 h-3.5 rounded" style={{ background: color }} />
+                              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{getTeamAbbr(team.name)}</span>
+                            </div>
+                            <div className="p-1.5 space-y-0.5">
+                              {team.bowlers.slice(0, 4).map(b => (
+                                <div key={b.name} className="flex items-center gap-2 py-1.5 px-2 rounded-md" style={{ background: 'rgba(255,255,255,0.015)' }}>
+                                  {livePlayerImageUrl(b.image)
+                                    ? <img src={livePlayerImageUrl(b.image)} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.08)' }} />
+                                    : <div className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                                  }
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-semibold text-white/75 truncate">{b.name}</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-xs font-mono font-bold" style={{ color }}>{b.wickets}/{b.runs}<span className="text-white/25"> ({b.overs}ov)</span></p>
+                                    <p className="text-[8px] font-mono text-white/25">eco {b.economy}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
-      {/* Schedule table */}
-      <div ref={scrollRef} className="rounded-xl border border-border-subtle bg-surface-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface-hover text-text-muted border-b border-border-subtle">
-                <th className="text-center py-3 px-3 font-medium text-xs uppercase tracking-wider w-12">#</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Date</th>
-                <th className="text-center py-3 px-3 font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Day</th>
-                <th className="text-center py-3 px-3 font-medium text-xs uppercase tracking-wider">Time</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Home</th>
-                <th className="text-center py-3 px-2 font-medium text-xs uppercase tracking-wider w-8"></th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider">Away</th>
-                <th className="text-left py-3 px-3 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Venue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMatches.map((m) => {
-                const d = new Date(m.date + 'T00:00:00')
-                const dayStr = DAYS[d.getDay()]
-                const dateStr = `${d.getDate()} ${MONTHS[d.getMonth()]}`
-                const isNext = nextM && m.match === nextM.match
-                const isToday = m.date === new Date().toISOString().slice(0, 10)
-                const isCompleted = m.status === 'completed'
-                const isLive = m.status === 'live'
+                {/* Watermark */}
+                <div className="px-5 pb-4 pt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <img src="/logo.png" alt="" className="w-3.5 h-3.5 rounded object-cover opacity-30" onError={e => { e.target.style.display='none' }} />
+                    <span className="text-[9px] font-mono text-white/20 tracking-wide">@Crickrida · Cricket via Stats</span>
+                  </div>
+                  <span className="text-[8px] font-mono text-white/10">{sc.date || ''}</span>
+                </div>
+              </div>
 
-                let rowClass = 'border-b border-border-subtle/50 transition-colors'
-                if (isLive) rowClass += ' bg-accent-magenta/5 border-l-2 border-l-accent-magenta'
-                else if (isNext) rowClass += ' bg-accent-cyan/5 border-l-2 border-l-accent-cyan'
-                else if (isToday) rowClass += ' bg-accent-amber/5 border-l-2 border-l-accent-amber'
-                else if (isCompleted) rowClass += ' opacity-50'
-                else rowClass += ' hover:bg-surface-hover/50'
-
-                return (
-                  <tr key={m.match} data-match={m.match} className={rowClass}>
-                    <td className="text-center py-3 px-3 font-mono text-xs text-text-muted">{m.match}</td>
-                    <td className="py-3 px-3 text-xs font-medium text-text-primary whitespace-nowrap">{dateStr}</td>
-                    <td className="text-center py-3 px-3 text-xs text-text-secondary hidden sm:table-cell">{dayStr}</td>
-                    <td className="text-center py-3 px-3 text-xs font-mono text-text-secondary whitespace-nowrap">
-                      {m.time}
-                      {isLive && (
-                        <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] font-bold text-accent-magenta">
-                          <span className="w-1.5 h-1.5 rounded-full bg-accent-magenta animate-pulse" />
-                          LIVE
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo team={m.home} size={20} />
-                        <span className="text-xs font-semibold text-text-primary hidden lg:inline">{m.home}</span>
-                        <span className="text-xs font-semibold text-text-primary lg:hidden">{getTeamAbbr(m.home)}</span>
-                      </div>
-                    </td>
-                    <td className="text-center py-3 px-2 text-[10px] font-bold text-text-muted">vs</td>
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
-                        <TeamLogo team={m.away} size={20} />
-                        <span className="text-xs font-semibold text-text-primary hidden lg:inline">{m.away}</span>
-                        <span className="text-xs font-semibold text-text-primary lg:hidden">{getTeamAbbr(m.away)}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-xs text-text-secondary hidden md:table-cell">{m.venue}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={downloadPng}
+                  disabled={!derived?.perTeam?.length}
+                  className="rounded-lg px-4 py-2 text-xs font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/25 disabled:opacity-40"
+                >
+                  Download Image (PNG)
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadTxt}
+                  className="rounded-lg px-4 py-2 text-xs font-bold bg-accent-lime/15 text-accent-lime border border-accent-lime/30 hover:bg-accent-lime/25"
+                >
+                  Download full report (TXT)
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1858,7 +2251,6 @@ function SetupGuide() {
 /* ── Main Page ─────────────────────────────────────────────── */
 export default function LiveScores() {
   const { data: status, loading: statusLoading } = useFetch(() => getLiveStatus(), [])
-  const [tab, setTab] = useState('live')
   const [matches, setMatches] = useState([])
   const [matchesLoading, setMatchesLoading] = useState(true)
   const [matchesError, setMatchesError] = useState(null)
@@ -1879,13 +2271,12 @@ export default function LiveScores() {
   }, [])
 
   useEffect(() => {
-    if (tab !== 'live') return
     fetchMatches()
     if (autoRefresh) {
       intervalRef.current = setInterval(fetchMatches, POLL_INTERVAL)
     }
     return () => clearInterval(intervalRef.current)
-  }, [autoRefresh, fetchMatches, tab])
+  }, [autoRefresh, fetchMatches])
 
   useEffect(() => {
     if (!selectedMatch && matches.length > 0) {
@@ -1919,7 +2310,7 @@ export default function LiveScores() {
   const seoJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'IPL 2026 Live Scores & Schedule — Crickrida',
+    name: 'IPL 2026 Live Scores — Crickrida',
     description: seoDescription,
     url: 'https://crickrida.rkjat.in/live',
     inLanguage: 'en',
@@ -1946,7 +2337,7 @@ export default function LiveScores() {
   return (
     <div className="min-h-screen">
       <SEO
-        title="IPL 2026 Live Scores & Schedule — Crickrida"
+        title="IPL 2026 Live Scores — Crickrida"
         description={seoDescription}
         url="https://crickrida.rkjat.in/live"
         keywords="IPL 2026 live score, IPL live cricket score, IPL scorecard, IPL schedule 2026, cricket live score today, IPL match today, ball by ball score, IPL points table, T20 live score, Indian Premier League 2026"
@@ -1963,147 +2354,106 @@ export default function LiveScores() {
                 <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
               </svg>
             </span>
-            IPL 2026
+            IPL 2026 Live
           </h1>
-          <p className="text-xs text-text-muted mt-1">Live scores, schedules & real-time match updates</p>
+          <p className="text-xs text-text-muted mt-1">Live scores & real-time match updates</p>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-surface-card rounded-lg border border-border-subtle p-1">
-          <button
-            onClick={() => setTab('live')}
-            className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              tab === 'live'
-                ? 'bg-accent-magenta/20 text-accent-magenta'
-                : 'text-text-muted hover:text-text-secondary'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${tab === 'live' ? 'bg-accent-magenta animate-pulse' : 'bg-text-muted'}`} />
-              Live Scores
-              {liveCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-magenta/30 text-accent-magenta text-[9px] font-bold">
-                  {liveCount}
-                </span>
-              )}
-            </span>
-          </button>
-          <button
-            onClick={() => setTab('schedule')}
-            className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              tab === 'schedule'
-                ? 'bg-accent-cyan/20 text-accent-cyan'
-                : 'text-text-muted hover:text-text-secondary'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              Schedule
-            </span>
-          </button>
-        </div>
+        {liveCount > 0 && (
+          <span className="px-3 py-1.5 rounded-full bg-accent-magenta/20 text-accent-magenta text-xs font-bold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-magenta animate-pulse" />
+            {liveCount} Live
+          </span>
+        )}
       </div>
 
-      {/* Live Scores Tab */}
-      {tab === 'live' && (
+      {/* Live Scores Content */}
+      {!apiAvailable && matches.length === 0 ? (
+        <SetupGuide />
+      ) : (
         <>
-          {!apiAvailable && matches.length === 0 ? (
-            <SetupGuide />
+          <div className="mb-3" />
+
+          {matchesLoading ? (
+            <Loading />
+          ) : matchesError ? (
+            <div className="rounded-xl border border-accent-magenta/30 bg-accent-magenta/5 p-4">
+              <p className="text-sm text-accent-magenta">{matchesError}</p>
+              <button onClick={fetchMatches} className="mt-2 text-xs text-accent-cyan hover:underline">Try again</button>
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="rounded-xl border border-border-subtle bg-bg-card p-8 text-center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-text-muted mx-auto mb-3">
+                <circle cx="12" cy="12" r="10" /><path d="M8 12h8M12 8v8" strokeWidth="1" />
+              </svg>
+              <p className="text-sm text-text-secondary">No matches currently available</p>
+              <p className="text-xs text-text-muted mt-1">Check back during IPL match days</p>
+            </div>
           ) : (
             <>
-              {/* Spacer */}
-              <div className="mb-3" />
+              <div className="mb-5">
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                  {sortedMatches.map(m => {
+                    const mLive = m.matchStarted && !m.matchEnded
+                    const sel = selectedMatch === m.id
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedMatch(m.id)}
+                        className={`flex-shrink-0 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                          sel
+                            ? 'border-accent-cyan bg-accent-cyan/10 text-accent-cyan'
+                            : 'border-border-subtle bg-bg-card text-text-secondary hover:bg-bg-card-hover'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {mLive && <span className="w-1.5 h-1.5 rounded-full bg-accent-magenta animate-pulse" />}
+                          <span>{getTeamAbbr(m.teams?.[0] || '')} vs {getTeamAbbr(m.teams?.[1] || '')}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-              {matchesLoading ? (
-                <Loading />
-              ) : matchesError ? (
-                <div className="rounded-xl border border-accent-magenta/30 bg-accent-magenta/5 p-4">
-                  <p className="text-sm text-accent-magenta">{matchesError}</p>
-                  <button onClick={fetchMatches} className="mt-2 text-xs text-accent-cyan hover:underline">Try again</button>
-                </div>
-              ) : matches.length === 0 ? (
-                <div className="rounded-xl border border-border-subtle bg-surface-card p-8 text-center">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-text-muted mx-auto mb-3">
-                    <circle cx="12" cy="12" r="10" /><path d="M8 12h8M12 8v8" strokeWidth="1" />
-                  </svg>
-                  <p className="text-sm text-text-secondary">No matches currently available</p>
-                  <p className="text-xs text-text-muted mt-1">Check back during IPL match days</p>
-                </div>
+              {selectedMatch ? (
+                <ScorecardWithAnalytics matchId={selectedMatch} />
               ) : (
-                <>
-                  {/* Match selector chips (always visible) */}
-                  <div className="mb-5">
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-                      {sortedMatches.map(m => {
-                        const mLive = m.matchStarted && !m.matchEnded
-                        const sel = selectedMatch === m.id
-                        return (
-                          <button
-                            key={m.id}
-                            onClick={() => setSelectedMatch(m.id)}
-                            className={`flex-shrink-0 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
-                              sel
-                                ? 'border-accent-cyan bg-accent-cyan/10 text-accent-cyan'
-                                : 'border-border-subtle bg-surface-card text-text-secondary hover:bg-surface-hover'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {mLive && <span className="w-1.5 h-1.5 rounded-full bg-accent-magenta animate-pulse" />}
-                              <span>{getTeamAbbr(m.teams?.[0] || '')} vs {getTeamAbbr(m.teams?.[1] || '')}</span>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Row 1: Scorecard + Live Analytics side by side */}
-                  {selectedMatch ? (
-                    <ScorecardWithAnalytics matchId={selectedMatch} />
-                  ) : (
-                    <div className="rounded-2xl border border-border-subtle bg-surface-card p-12 text-center">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12 text-text-muted mx-auto mb-4">
-                        <rect x="2" y="3" width="20" height="18" rx="2" /><path d="M8 7h8M8 11h5M8 15h7" />
-                      </svg>
-                      <p className="text-sm text-text-secondary">Select a match to view the scorecard</p>
-                    </div>
-                  )}
-
-                  {/* Row 2: Matches list below */}
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-sm font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-text-muted">
-                          <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-                        </svg>
-                        All Matches
-                      </h2>
-                      <span className="text-[10px] text-text-muted font-mono">
-                        {liveCount} live · {matches.length} total
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {sortedMatches.map(m => (
-                        <LiveScoreHero
-                          key={m.id}
-                          match={m}
-                          isSelected={selectedMatch === m.id}
-                          onClick={() => setSelectedMatch(m.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
+                <div className="rounded-2xl border border-border-subtle bg-bg-card p-12 text-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12 text-text-muted mx-auto mb-4">
+                    <rect x="2" y="3" width="20" height="18" rx="2" /><path d="M8 7h8M8 11h5M8 15h7" />
+                  </svg>
+                  <p className="text-sm text-text-secondary">Select a match to view the scorecard</p>
+                </div>
               )}
+
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-text-muted">
+                      <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                    </svg>
+                    All Matches
+                  </h2>
+                  <span className="text-[10px] text-text-muted font-mono">
+                    {liveCount} live · {matches.length} total
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {sortedMatches.map(m => (
+                    <LiveScoreHero
+                      key={m.id}
+                      match={m}
+                      isSelected={selectedMatch === m.id}
+                      onClick={() => setSelectedMatch(m.id)}
+                    />
+                  ))}
+                </div>
+              </div>
             </>
           )}
         </>
       )}
-
-      {/* Schedule Tab */}
-      {tab === 'schedule' && <IPLScheduleView />}
     </div>
   )
 }

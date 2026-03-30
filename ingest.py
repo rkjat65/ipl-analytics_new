@@ -308,8 +308,89 @@ class MatchExtractor:
 
 
 # ---------------------------------------------------------------------------
+# Schema + incremental ingest
+# ---------------------------------------------------------------------------
+
+def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
+    """Create tables if they do not exist."""
+    for ddl in (DDL_MATCHES, DDL_INNINGS, DDL_DELIVERIES, DDL_PLAYERS):
+        con.execute(ddl)
+
+
+def delete_match_rows(con: duckdb.DuckDBPyConnection, match_id: str) -> None:
+    """Remove one match so it can be re-ingested without orphan deliveries."""
+    con.execute("DELETE FROM deliveries WHERE match_id = ?", [match_id])
+    con.execute("DELETE FROM innings WHERE match_id = ?", [match_id])
+    con.execute("DELETE FROM matches WHERE match_id = ?", [match_id])
+
+
+def ingest_json_paths(
+    db_path: Path | str,
+    paths: list[Path],
+    *,
+    replace_existing_match: bool = True,
+) -> MatchExtractor:
+    """Load specific JSON files into DuckDB; seed ``delivery_id`` from MAX(delivery_id).
+
+    Use after adding Sportmonks-exported files (``sm_<fixture_id>.json``) without a full re-ingest.
+    When ``replace_existing_match`` is True, any existing rows for the same ``match_id`` are removed first.
+    """
+    con = duckdb.connect(str(db_path))
+    ensure_schema(con)
+
+    last_id = con.execute(
+        "SELECT COALESCE(MAX(delivery_id), 0) FROM deliveries"
+    ).fetchone()[0]
+
+    extractor = MatchExtractor()
+    extractor._delivery_id = int(last_id)  # noqa: SLF001
+
+    for path in paths:
+        match_id = path.stem
+        if replace_existing_match:
+            delete_match_rows(con, match_id)
+        with path.open("rb") as fh:
+            data = orjson.loads(fh.read())
+        extractor.process(match_id, data)
+
+    _load_to_duckdb_rowwise(con, extractor)
+    con.close()
+    return extractor
+
+
+# ---------------------------------------------------------------------------
 # DB loader
 # ---------------------------------------------------------------------------
+
+def _load_to_duckdb_rowwise(
+    con: duckdb.DuckDBPyConnection,
+    extractor: MatchExtractor,
+) -> None:
+    """Insert extracted rows without pandas (stable on stacks where pd+DuckDB segfaults)."""
+
+    def insert_table(table: str, rows: list[dict]) -> None:
+        if not rows:
+            return
+        cols = list(rows[0].keys())
+        colnames = ", ".join(cols)
+        placeholders = ", ".join(["?" for _ in cols])
+        sql = f"INSERT OR REPLACE INTO {table} ({colnames}) VALUES ({placeholders})"
+        for row in rows:
+            con.execute(sql, [row.get(c) for c in cols])
+
+    insert_table("matches", extractor.matches)
+    insert_table("innings", extractor.innings)
+    insert_table("deliveries", extractor.deliveries)
+
+    for pid, name in extractor.players.items():
+        con.execute(
+            """
+            INSERT INTO players (player_id, name) VALUES (?, ?)
+            ON CONFLICT (player_id) DO UPDATE SET name = EXCLUDED.name
+            """,
+            [pid, name],
+        )
+
 
 def _load_to_duckdb(
     con: duckdb.DuckDBPyConnection,
@@ -373,6 +454,12 @@ def main() -> None:
         "--batch", type=int, default=200,
         help="Flush to DB every N files (reduces memory usage)"
     )
+    parser.add_argument(
+        "--only",
+        nargs="*",
+        metavar="GLOB",
+        help="Ingest only these glob(s) relative to --src (e.g. sm_123.json). Seeds delivery_id from DB.",
+    )
     args = parser.parse_args()
 
     src_dir = Path(args.src)
@@ -380,7 +467,22 @@ def main() -> None:
         log.error("Source directory %s does not exist.", src_dir)
         sys.exit(1)
 
-    json_files = sorted(src_dir.glob("*.json"))
+    if args.only:
+        json_files: list[Path] = []
+        for pattern in args.only:
+            json_files.extend(sorted(src_dir.glob(pattern)))
+        # de-duplicate while preserving order
+        seen: set[Path] = set()
+        uniq: list[Path] = []
+        for p in json_files:
+            rp = p.resolve()
+            if rp not in seen:
+                seen.add(rp)
+                uniq.append(p)
+        json_files = uniq
+    else:
+        json_files = sorted(src_dir.glob("*.json"))
+
     if not json_files:
         log.error("No JSON files found in %s", src_dir)
         sys.exit(1)
@@ -396,34 +498,52 @@ def main() -> None:
             con.execute(f"DROP TABLE IF EXISTS {tbl}")
 
     # Create schema
-    for ddl in (DDL_MATCHES, DDL_INNINGS, DDL_DELIVERIES, DDL_PLAYERS):
-        con.execute(ddl)
+    ensure_schema(con)
 
-    extractor = MatchExtractor()
-    errors: list[str] = []
+    if args.only:
+        last_id = con.execute(
+            "SELECT COALESCE(MAX(delivery_id), 0) FROM deliveries"
+        ).fetchone()[0]
+        extractor = MatchExtractor()
+        extractor._delivery_id = int(last_id)  # noqa: SLF001
+        errors: list[str] = []
+        for path in tqdm(json_files, desc="Ingesting (--only)", unit="file"):
+            match_id = path.stem
+            try:
+                delete_match_rows(con, match_id)
+                with path.open("rb") as fh:
+                    data = orjson.loads(fh.read())
+                extractor.process(match_id, data)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Skipping %s — %s: %s", path.name, type(exc).__name__, exc)
+                errors.append(str(path))
+        _load_to_duckdb_rowwise(con, extractor)
+    else:
+        extractor = MatchExtractor()
+        errors: list[str] = []
 
-    for i, path in enumerate(tqdm(json_files, desc="Ingesting", unit="file"), start=1):
-        match_id = path.stem
-        try:
-            with path.open("rb") as fh:
-                data = orjson.loads(fh.read())
-            extractor.process(match_id, data)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("Skipping %s — %s: %s", path.name, type(exc).__name__, exc)
-            errors.append(str(path))
+        for i, path in enumerate(tqdm(json_files, desc="Ingesting", unit="file"), start=1):
+            match_id = path.stem
+            try:
+                with path.open("rb") as fh:
+                    data = orjson.loads(fh.read())
+                extractor.process(match_id, data)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Skipping %s — %s: %s", path.name, type(exc).__name__, exc)
+                errors.append(str(path))
 
-        # Flush every `batch` files to keep memory bounded
-        if i % args.batch == 0:
-            _load_to_duckdb(con, extractor)
-            extractor = MatchExtractor()
-            # Reset delivery_id counter relative to what was loaded
-            last_id = con.execute(
-                "SELECT COALESCE(MAX(delivery_id), 0) FROM deliveries"
-            ).fetchone()[0]
-            extractor._delivery_id = last_id  # noqa: SLF001
+            # Flush every `batch` files to keep memory bounded
+            if i % args.batch == 0:
+                _load_to_duckdb(con, extractor)
+                extractor = MatchExtractor()
+                # Reset delivery_id counter relative to what was loaded
+                last_id = con.execute(
+                    "SELECT COALESCE(MAX(delivery_id), 0) FROM deliveries"
+                ).fetchone()[0]
+                extractor._delivery_id = last_id  # noqa: SLF001
 
-    # Final flush
-    _load_to_duckdb(con, extractor)
+        # Final flush
+        _load_to_duckdb(con, extractor)
 
     # Summary
     print("\n" + "=" * 60)
