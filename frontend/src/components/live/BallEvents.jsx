@@ -42,9 +42,10 @@ function bowlersSnapshot(scorecard) {
 function activeInningsScore(scorecard) {
   const scores = scorecard?.score || []
   for (let i = scores.length - 1; i >= 0; i--) {
-    if (parseFloat(scores[i].o || 0) > 0) return scores[i]
+    if (parseFloat(scores[i].o || 0) > 0) return { ...scores[i], _inningsIdx: i }
   }
-  return scores[scores.length - 1] || null
+  const last = scores[scores.length - 1] || null
+  return last ? { ...last, _inningsIdx: scores.length - 1 } : null
 }
 
 function parseOvers(o) {
@@ -109,21 +110,32 @@ export function useBallEvents(scorecard, isLive, matchId) {
     }
   }, [fetchBalls, isLive, matchId])
 
-  // Client-side diff fallback when server ball data is not available
+  // Client-side diff for notifications + fallback ball display
   useEffect(() => {
     if (!isLive || !scorecard?.scorecard?.length) {
       prevRef.current = null
       return
     }
 
-    if (serverSynced) {
-      // Still run notification logic from scorecard diffs
-      const currScore = activeInningsScore(scorecard)
-      const currBat = batsmenSnapshot(scorecard)
-      const currBowl = bowlersSnapshot(scorecard)
-      const prev = prevRef.current
-      prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
+    const currScore = activeInningsScore(scorecard)
+    const currBat = batsmenSnapshot(scorecard)
+    const currBowl = bowlersSnapshot(scorecard)
+    const prev = prevRef.current
 
+    const inningsChanged = prev?.score && currScore &&
+      prev.score._inningsIdx !== currScore._inningsIdx
+
+    if (inningsChanged) {
+      prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
+      if (!serverSynced) {
+        setOverBalls([])
+        setOverComp(0)
+      }
+      return
+    }
+
+    if (serverSynced) {
+      prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
       if (!prev || !prev.score || !currScore) return
 
       const prevO = parseOvers(prev.score.o)
@@ -137,11 +149,6 @@ export function useBallEvents(scorecard, isLive, matchId) {
     }
 
     // Full client-side fallback (no server ball data)
-    const currScore = activeInningsScore(scorecard)
-    const currBat = batsmenSnapshot(scorecard)
-    const currBowl = bowlersSnapshot(scorecard)
-
-    const prev = prevRef.current
     prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
 
     if (!prev || !prev.score) {
@@ -159,6 +166,12 @@ export function useBallEvents(scorecard, isLive, matchId) {
     const dW = (+currScore.w || 0) - (+prev.score.w || 0)
 
     if (prevO.total === currO.total && dR === 0 && dW === 0) return
+
+    if (currO.total < prevO.total) {
+      setOverBalls([])
+      setOverComp(0)
+      return
+    }
 
     const newOverStarted = currO.comp > prevO.comp
     setOverComp(currO.comp)
