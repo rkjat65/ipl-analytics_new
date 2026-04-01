@@ -18,7 +18,7 @@ import TeamLogo from '../components/ui/TeamLogo'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import Loading from '../components/ui/Loading'
 import SEO from '../components/SEO'
-import { useBallEvents, OverProgressTile, BallEventNotifications } from '../components/live/BallEvents'
+import { useBallEvents, OverProgressTile, PreviousOversAccordion, BallEventNotifications } from '../components/live/BallEvents'
 
 const POLL_INTERVAL = 3_000
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -378,7 +378,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
   }, [fetchData])
 
   const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded)
-  const { notifications, overBalls, overComp } = useBallEvents(scorecard, isLive)
+  const { notifications, overBalls, overComp, allOvers, currentInnings, serverSynced } = useBallEvents(scorecard, isLive, matchId)
 
   if (loading) return <Loading />
   if (error) return <div className="text-accent-magenta text-sm p-4 rounded-xl border border-accent-magenta/20 bg-accent-magenta/5">{error}</div>
@@ -544,8 +544,11 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
 
           {/* Current over — ball-by-ball (after target/chase, before active players) */}
           {isLive && overComp != null && (
-            <div className="mt-3">
+            <div className="mt-3 space-y-2">
               <OverProgressTile balls={overBalls} overComp={overComp} />
+              {serverSynced && allOvers.length > 1 && (
+                <PreviousOversAccordion allOvers={allOvers} currentOverNumber={overComp} currentInnings={currentInnings} />
+              )}
             </div>
           )}
 

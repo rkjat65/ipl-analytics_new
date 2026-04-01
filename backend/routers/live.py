@@ -10,10 +10,12 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
+from ..ball_sync import build_balls_response, sync_balls_for_match
 from ..cricket_api import get_cricket_api
 from ..ipl_schedule import compute_schedule_with_status
 from ..live_db import (
     get_all_matches,
+    get_ball_sync_state,
     get_last_poll_time,
     get_match,
     get_matches_for_admin,
@@ -210,3 +212,57 @@ def admin_track_match(
     set_match_tracking(body.match_id, body.tracked)
     label = "pinned" if body.tracked is True else ("disabled" if body.tracked is False else "auto")
     return {"detail": f"Match {body.match_id} tracking set to {label}"}
+
+
+# ── Ball-by-ball endpoints ───────────────────────────────────
+
+
+@router.get("/balls/{match_id}")
+def live_balls(match_id: str):
+    """Return ball-by-ball data for a match (current over, previous over, all overs).
+
+    Returns synced=false if ball sync has not been enabled for this match.
+    """
+    return build_balls_response(match_id)
+
+
+class BallSyncRequest(BaseModel):
+    match_id: str
+
+
+@router.post("/admin/sync-balls")
+async def admin_sync_balls(
+    body: BallSyncRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Fetch all ball-by-ball data from SportMonks for a match and store it.
+
+    After this initial sync, the poller will automatically keep adding
+    new balls on each cycle. Admin only. Costs 1 API hit.
+    """
+    _require_admin(authorization)
+    try:
+        result = await sync_balls_for_match(body.match_id)
+    except Exception as exc:
+        raise HTTPException(502, f"Ball sync failed: {exc}")
+    return result
+
+
+@router.get("/admin/ball-sync-status/{match_id}")
+def admin_ball_sync_status(
+    match_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """Check ball sync status for a match. Admin only."""
+    _require_admin(authorization)
+    state = get_ball_sync_state(match_id)
+    if not state:
+        return {"matchId": match_id, "synced": False}
+    return {
+        "matchId": match_id,
+        "synced": bool(state["is_synced"]),
+        "ballCount": state["last_ball_count"],
+        "lastBallId": state["last_ball_id"],
+        "lastSyncedAt": state["synced_at"],
+        "syncMode": state["sync_mode"],
+    }

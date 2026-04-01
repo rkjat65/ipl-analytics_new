@@ -508,7 +508,9 @@ class SportmonksProvider(CricketAPIProvider):
             out.append(entry)
         return out
 
-    async def fetch_scorecard(self, match_id: str) -> dict:
+    async def fetch_scorecard(self, match_id: str, *, include_balls: bool = False) -> dict:
+        _BALLS_SUFFIX = ",balls.batsman,balls.bowler,balls.score,balls.catchstump"
+
         include_tiers = [
             # Full nested includes (richest data)
             "localteam,visitorteam,runs,batting.batsman,batting.bowler,batting.score,"
@@ -531,17 +533,28 @@ class SportmonksProvider(CricketAPIProvider):
             "localteam,visitorteam,runs",
         ]
 
-        # Start from the last known good tier for this match to minimize API hits
-        start_idx = self._last_good_tier.get(match_id, 0)
-        ordered_tiers = list(range(start_idx, len(include_tiers))) + list(range(0, start_idx))
+        # When ball sync is enabled, try with balls first, then fall back to without.
+        # The API may reject the combined includes — the tier system handles that.
+        if include_balls:
+            balls_tiers = [t + _BALLS_SUFFIX for t in include_tiers]
+            all_tiers = balls_tiers + include_tiers
+        else:
+            all_tiers = include_tiers
+
+        # Use separate tier cache keys so balls-mode doesn't pollute scorecard-only
+        tier_cache_key = f"{match_id}:balls" if include_balls else match_id
+        start_idx = self._last_good_tier.get(tier_cache_key, 0)
+        if start_idx >= len(all_tiers):
+            start_idx = 0
+        ordered_tiers = list(range(start_idx, len(all_tiers))) + list(range(0, start_idx))
 
         data: dict = {}
         last_err: Exception | None = None
         for tier_idx in ordered_tiers:
-            inc = include_tiers[tier_idx]
+            inc = all_tiers[tier_idx]
             try:
                 data = await self._call(f"fixtures/{match_id}", include=inc)
-                self._last_good_tier[match_id] = tier_idx
+                self._last_good_tier[tier_cache_key] = tier_idx
                 break
             except RateLimitError:
                 logger.warning("fixtures/%s: rate limited — stopping tier attempts", match_id)
@@ -612,6 +625,9 @@ class SportmonksProvider(CricketAPIProvider):
             out_sc["playerOfMatch"] = pom
         if lineup:
             out_sc["lineup"] = lineup
+        # Attach raw fixture for ball extraction (internal, stripped before serving)
+        if include_balls:
+            out_sc["_raw_fixture"] = m
         return out_sc
 
     async def fetch_fixture_raw_for_ingest(self, match_id: str) -> dict:

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking } from '../lib/api'
+import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking, syncBalls } from '../lib/api'
 import SEO from '../components/SEO'
 
 function LiveScorePanel({ token }) {
@@ -13,6 +13,7 @@ function LiveScorePanel({ token }) {
   const [busy, setBusy] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [toggling, setToggling] = useState(null)
+  const [syncing, setSyncing] = useState(null)
 
   const loadConfig = useCallback(() => {
     if (!token) return
@@ -85,6 +86,16 @@ function LiveScorePanel({ token }) {
       loadMatches()
     } catch {}
     finally { setToggling(null) }
+  }
+
+  const handleSyncBalls = async (matchId) => {
+    setSyncing(matchId)
+    try {
+      const res = await syncBalls(token, matchId)
+      setActionMsg(res.detail || `Synced ${res.ballCount} balls`)
+      loadMatches()
+    } catch (err) { setActionMsg(err.message) }
+    finally { setSyncing(null) }
   }
 
   if (loading || !config) return null
@@ -247,7 +258,7 @@ function LiveScorePanel({ token }) {
                     IPL Matches ({iplMatches.length})
                   </h4>
                   {iplMatches.map(m => (
-                    <MatchRow key={m.matchId} m={m} toggling={toggling} onToggle={handleToggle} onReset={handleReset} />
+                    <MatchRow key={m.matchId} m={m} toggling={toggling} onToggle={handleToggle} onReset={handleReset} syncing={syncing} onSyncBalls={handleSyncBalls} />
                   ))}
                 </div>
               )}
@@ -258,7 +269,7 @@ function LiveScorePanel({ token }) {
                     Other Live Matches ({otherMatches.length})
                   </h4>
                   {otherMatches.map(m => (
-                    <MatchRow key={m.matchId} m={m} toggling={toggling} onToggle={handleToggle} onReset={handleReset} />
+                    <MatchRow key={m.matchId} m={m} toggling={toggling} onToggle={handleToggle} onReset={handleReset} syncing={syncing} onSyncBalls={handleSyncBalls} />
                   ))}
                 </div>
               )}
@@ -309,7 +320,7 @@ function LiveScorePanel({ token }) {
   )
 }
 
-function MatchRow({ m, toggling, onToggle, onReset }) {
+function MatchRow({ m, toggling, onToggle, onReset, syncing, onSyncBalls }) {
   const isOn = m.effectivelyTracked
   const statusColor = m.matchStatus === 'live' ? 'bg-green-400'
     : m.matchStatus === 'upcoming' ? 'bg-accent-amber'
@@ -321,48 +332,79 @@ function MatchRow({ m, toggling, onToggle, onReset }) {
     : m.trackingMode === 'disabled' ? 'text-accent-magenta'
     : 'text-text-muted'
 
-  return (
-    <div className={`flex items-center gap-3 py-2.5 px-3 rounded-lg border transition-colors
-      ${isOn ? 'bg-green-500/5 border-green-500/20' : 'bg-[#0A0A0F] border-[#1E1E2A]'}`}>
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor} ${m.matchStatus === 'live' ? 'animate-pulse' : ''}`} />
+  const bs = m.ballSync
+  const isSynced = bs?.synced
 
-      <div className="flex-1 min-w-0">
-        <div className="text-xs text-text-primary font-medium truncate">
-          {m.teams?.length === 2 ? m.teams.join(' vs ') : m.name || m.matchId}
+  return (
+    <div className={`flex flex-col gap-1.5 py-2.5 px-3 rounded-lg border transition-colors
+      ${isOn ? 'bg-green-500/5 border-green-500/20' : 'bg-[#0A0A0F] border-[#1E1E2A]'}`}>
+      <div className="flex items-center gap-3">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor} ${m.matchStatus === 'live' ? 'animate-pulse' : ''}`} />
+
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-text-primary font-medium truncate">
+            {m.teams?.length === 2 ? m.teams.join(' vs ') : m.name || m.matchId}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] font-mono text-text-muted capitalize">{m.matchStatus}</span>
+            {m.status && <span className="text-[10px] font-mono text-text-secondary truncate">{m.status}</span>}
+            {m.score?.length > 0 && (
+              <span className="text-[10px] font-mono text-accent-lime truncate hidden sm:inline">
+                {m.score.map(s => `${s.inning?.split(' ')?.[0] || ''} ${s.r || s.score || ''}`).join(' | ')}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] font-mono text-text-muted capitalize">{m.matchStatus}</span>
-          {m.status && <span className="text-[10px] font-mono text-text-secondary truncate">{m.status}</span>}
-          {m.score?.length > 0 && (
-            <span className="text-[10px] font-mono text-accent-lime truncate hidden sm:inline">
-              {m.score.map(s => `${s.inning?.split(' ')?.[0] || ''} ${s.r || s.score || ''}`).join(' | ')}
+
+        <span className={`text-[9px] font-mono flex-shrink-0 ${modeColor}`}>{modeLabel}</span>
+
+        {m.trackingMode !== 'auto' && (
+          <button
+            onClick={() => onReset(m.matchId)}
+            disabled={toggling === m.matchId}
+            title="Reset to auto"
+            className="text-[10px] text-text-muted hover:text-text-secondary font-mono transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            Reset
+          </button>
+        )}
+
+        <button
+          onClick={() => onToggle(m.matchId, isOn)}
+          disabled={toggling === m.matchId}
+          className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-50
+            ${isOn ? 'bg-green-500/40' : 'bg-[#2A2A3A]'}`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full transition-transform
+            ${isOn ? 'translate-x-4 bg-green-400' : 'translate-x-0 bg-text-muted'}`} />
+        </button>
+      </div>
+
+      {/* Ball sync row */}
+      {(m.matchStatus === 'live' || m.matchStatus === 'completed' || isSynced) && (
+        <div className="flex items-center gap-2 ml-5">
+          <button
+            onClick={() => onSyncBalls(m.matchId)}
+            disabled={syncing === m.matchId}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold transition-all disabled:opacity-50 flex items-center gap-1.5
+              ${isSynced
+                ? 'bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan hover:bg-accent-cyan/20'
+                : 'bg-accent-amber/10 border border-accent-amber/20 text-accent-amber hover:bg-accent-amber/20'
+              }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-3 h-3 ${syncing === m.matchId ? 'animate-spin' : ''}`}>
+              <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            {syncing === m.matchId ? 'Syncing...' : isSynced ? 'Re-sync Balls' : 'Sync Balls'}
+          </button>
+          {isSynced && (
+            <span className="text-[9px] font-mono text-text-muted">
+              {bs.ballCount} balls
+              {bs.lastSyncedAt && ` · ${new Date(bs.lastSyncedAt).toLocaleTimeString()}`}
             </span>
           )}
         </div>
-      </div>
-
-      <span className={`text-[9px] font-mono flex-shrink-0 ${modeColor}`}>{modeLabel}</span>
-
-      {m.trackingMode !== 'auto' && (
-        <button
-          onClick={() => onReset(m.matchId)}
-          disabled={toggling === m.matchId}
-          title="Reset to auto"
-          className="text-[10px] text-text-muted hover:text-text-secondary font-mono transition-colors disabled:opacity-50 flex-shrink-0"
-        >
-          Reset
-        </button>
       )}
-
-      <button
-        onClick={() => onToggle(m.matchId, isOn)}
-        disabled={toggling === m.matchId}
-        className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-50
-          ${isOn ? 'bg-green-500/40' : 'bg-[#2A2A3A]'}`}
-      >
-        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full transition-transform
-          ${isOn ? 'translate-x-4 bg-green-400' : 'translate-x-0 bg-text-muted'}`} />
-      </button>
     </div>
   )
 }

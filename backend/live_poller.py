@@ -12,9 +12,11 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from .ball_sync import process_balls_from_fixture
 from .cricket_api import RateLimitError, get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
+    get_ball_sync_state,
     get_scorecard,
     get_setting,
     get_today_api_hits,
@@ -128,9 +130,23 @@ async def _poll_once() -> int:
 
     rate_limited = False
     for mid in tracked_ids:
+        # Check if this match has ball sync enabled — if so, piggyback balls
+        # on the same API call (0 extra hits)
+        ball_sync = get_ball_sync_state(mid)
+        wants_balls = bool(ball_sync and ball_sync["is_synced"])
+
         try:
-            sc = await api.fetch_scorecard(mid)
+            sc = await api.fetch_scorecard(mid, include_balls=wants_balls)
             hits += 1
+
+            # Extract and store balls from the same response (0 extra API hits)
+            raw_fixture = sc.pop("_raw_fixture", None)
+            if wants_balls and raw_fixture:
+                try:
+                    process_balls_from_fixture(mid, raw_fixture)
+                except Exception as exc:
+                    logger.warning("Ball processing failed for %s: %s", mid, exc)
+
             if not sc.get("playerOfMatch"):
                 prev = get_scorecard(mid)
                 if prev and prev.get("playerOfMatch"):

@@ -302,6 +302,17 @@ export const setMatchTracking = (token, matchId, tracked) => {
     return res.json()
   })
 }
+export const syncBalls = (token, matchId) => {
+  return fetch(`${window.location.origin}/api/live/admin/sync-balls`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ match_id: matchId }),
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Ball sync failed') })
+    return res.json()
+  })
+}
+export const getLiveBalls = (matchId) => fetchAPI(`/live/balls/${encodeURIComponent(matchId)}`)
 
 // Admin
 export const getAdminUsers = (token) => {

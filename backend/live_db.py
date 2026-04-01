@@ -61,6 +61,51 @@ def init_live_db():
             value TEXT NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS live_balls (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            match_id        TEXT NOT NULL,
+            ball_id         INTEGER NOT NULL,
+            innings         INTEGER NOT NULL,
+            scoreboard      TEXT NOT NULL,
+            over_num        INTEGER NOT NULL,
+            ball_in_over    INTEGER NOT NULL,
+            ball_decimal    REAL NOT NULL,
+            batter          TEXT,
+            bowler          TEXT,
+            non_striker     TEXT,
+            runs_batter     INTEGER DEFAULT 0,
+            runs_extras     INTEGER DEFAULT 0,
+            runs_total      INTEGER DEFAULT 0,
+            extra_type      TEXT,
+            extra_runs      INTEGER DEFAULT 0,
+            is_wicket       INTEGER DEFAULT 0,
+            wicket_kind     TEXT,
+            player_out      TEXT,
+            fielder         TEXT,
+            team_score      INTEGER,
+            team_wickets    INTEGER,
+            team_id         INTEGER,
+            batting_team    TEXT,
+            raw_data        TEXT,
+            created_at      TEXT NOT NULL,
+            UNIQUE(match_id, ball_id)
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_live_balls_match
+        ON live_balls(match_id, scoreboard, ball_decimal)
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ball_sync_state (
+            match_id        TEXT PRIMARY KEY,
+            is_synced       INTEGER DEFAULT 0,
+            last_ball_id    INTEGER,
+            last_ball_count INTEGER DEFAULT 0,
+            synced_at       TEXT,
+            sync_mode       TEXT DEFAULT 'manual'
+        )
+    """)
     # Migration: add is_tracked column (NULL = auto, 1 = force on, 0 = force off)
     try:
         conn.execute("ALTER TABLE live_matches ADD COLUMN is_tracked INTEGER")
@@ -326,6 +371,111 @@ def set_setting(key: str, value: str):
     conn.commit()
 
 
+# ── ball-by-ball operations ───────────────────────────────────
+
+def upsert_balls(match_id: str, balls: list[dict]) -> int:
+    """Insert or ignore ball rows. Returns number of new rows inserted."""
+    conn = get_live_db()
+    now = _now_iso()
+    inserted = 0
+    for b in balls:
+        try:
+            conn.execute(
+                """INSERT OR IGNORE INTO live_balls
+                   (match_id, ball_id, innings, scoreboard, over_num, ball_in_over,
+                    ball_decimal, batter, bowler, non_striker,
+                    runs_batter, runs_extras, runs_total,
+                    extra_type, extra_runs, is_wicket, wicket_kind,
+                    player_out, fielder, team_score, team_wickets,
+                    team_id, batting_team, raw_data, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    match_id, b["ball_id"], b["innings"], b["scoreboard"],
+                    b["over_num"], b["ball_in_over"], b["ball_decimal"],
+                    b.get("batter"), b.get("bowler"), b.get("non_striker"),
+                    b.get("runs_batter", 0), b.get("runs_extras", 0), b.get("runs_total", 0),
+                    b.get("extra_type"), b.get("extra_runs", 0),
+                    int(bool(b.get("is_wicket"))), b.get("wicket_kind"),
+                    b.get("player_out"), b.get("fielder"),
+                    b.get("team_score"), b.get("team_wickets"),
+                    b.get("team_id"), b.get("batting_team"),
+                    b.get("raw_data"), now,
+                ),
+            )
+            inserted += conn.total_changes  # approximate
+        except Exception:
+            pass
+    conn.commit()
+    return inserted
+
+
+def upsert_ball_sync_state(
+    match_id: str, *, is_synced: int = 1, last_ball_id: int | None = None,
+    ball_count: int = 0, mode: str = "manual",
+):
+    conn = get_live_db()
+    conn.execute(
+        """INSERT INTO ball_sync_state
+           (match_id, is_synced, last_ball_id, last_ball_count, synced_at, sync_mode)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(match_id) DO UPDATE SET
+             is_synced       = excluded.is_synced,
+             last_ball_id    = excluded.last_ball_id,
+             last_ball_count = excluded.last_ball_count,
+             synced_at       = excluded.synced_at,
+             sync_mode       = excluded.sync_mode""",
+        (match_id, is_synced, last_ball_id, ball_count, _now_iso(), mode),
+    )
+    conn.commit()
+
+
+def get_ball_sync_state(match_id: str) -> dict | None:
+    conn = get_live_db()
+    row = conn.execute(
+        "SELECT * FROM ball_sync_state WHERE match_id = ?", (match_id,)
+    ).fetchone()
+    if not row:
+        return None
+    return dict(row)
+
+
+def get_synced_match_ids() -> list[str]:
+    """Return match IDs that have ball sync enabled."""
+    conn = get_live_db()
+    rows = conn.execute(
+        "SELECT match_id FROM ball_sync_state WHERE is_synced = 1"
+    ).fetchall()
+    return [r["match_id"] for r in rows]
+
+
+def get_balls_for_match(match_id: str) -> list[dict]:
+    """Return all balls for a match ordered by scoreboard and ball position."""
+    conn = get_live_db()
+    rows = conn.execute(
+        """SELECT * FROM live_balls
+           WHERE match_id = ?
+           ORDER BY scoreboard, ball_decimal""",
+        (match_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_ball_count(match_id: str) -> int:
+    conn = get_live_db()
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM live_balls WHERE match_id = ?", (match_id,)
+    ).fetchone()
+    return row["cnt"] if row else 0
+
+
+def get_max_ball_id(match_id: str) -> int | None:
+    conn = get_live_db()
+    row = conn.execute(
+        "SELECT MAX(ball_id) AS mx FROM live_balls WHERE match_id = ?", (match_id,)
+    ).fetchone()
+    return row["mx"] if row else None
+
+
 def get_matches_for_admin() -> list[dict]:
     """Return all matches with their tracking state for the admin UI."""
     conn = get_live_db()
@@ -354,6 +504,7 @@ def get_matches_for_admin() -> list[dict]:
         else:
             effective = is_ipl and status == "live"
 
+        bs = get_ball_sync_state(r["match_id"])
         result.append({
             "matchId": r["match_id"],
             "name": match_data.get("name", ""),
@@ -367,5 +518,10 @@ def get_matches_for_admin() -> list[dict]:
             "trackingMode": "pinned" if raw_tracked == 1 else ("disabled" if raw_tracked == 0 else "auto"),
             "effectivelyTracked": effective,
             "updatedAt": r["updated_at"],
+            "ballSync": {
+                "synced": bool(bs and bs["is_synced"]),
+                "ballCount": bs["last_ball_count"] if bs else 0,
+                "lastSyncedAt": bs["synced_at"] if bs else None,
+            } if bs else None,
         })
     return result

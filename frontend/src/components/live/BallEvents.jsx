@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import PlayerAvatar from '../ui/PlayerAvatar'
+import { getLiveBalls } from '../../lib/api'
 
 /* ══════════════════════════════════════════════════════════════
    Ball-by-ball event detection, notifications, confetti,
@@ -56,28 +57,85 @@ function parseOvers(o) {
 
 // ── useBallEvents Hook ──────────────────────────────────────
 
-export function useBallEvents(scorecard, isLive) {
+const BALL_POLL_INTERVAL = 3000
+
+export function useBallEvents(scorecard, isLive, matchId) {
   const prevRef = useRef(null)
   const [notifications, setNotifications] = useState([])
   const [overBalls, setOverBalls] = useState([])
-  // overComp = completed overs (e.g. 4 when score reads 4.2).
-  // Ball labels become 4.1 … 4.6, display title = "Over 5".
   const [overComp, setOverComp] = useState(0)
+  const [previousOver, setPreviousOver] = useState(null)
+  const [allOvers, setAllOvers] = useState([])
+  const [currentInnings, setCurrentInnings] = useState(1)
+  const [serverSynced, setServerSynced] = useState(false)
   const idRef = useRef(0)
+  const ballPollRef = useRef(null)
+  const prevBallCountRef = useRef(0)
 
+  // Poll server ball data when live and matchId is available
+  const fetchBalls = useCallback(() => {
+    if (!matchId || !isLive) return
+    getLiveBalls(matchId)
+      .then(data => {
+        if (!data || !data.synced) {
+          setServerSynced(false)
+          return
+        }
+        setServerSynced(true)
+        setAllOvers(data.allOvers || [])
+        if (data.currentInnings) setCurrentInnings(data.currentInnings)
+
+        if (data.currentOver) {
+          const co = data.currentOver
+          setOverComp(co.overNumber)
+          const isNewData = data.totalBalls !== prevBallCountRef.current
+          prevBallCountRef.current = data.totalBalls
+          setOverBalls(co.balls.map(b => ({ ...b, isNew: isNewData && b === co.balls[co.balls.length - 1] })))
+        }
+        if (data.previousOver) {
+          setPreviousOver(data.previousOver)
+        }
+      })
+      .catch(() => {
+        setServerSynced(false)
+      })
+  }, [matchId, isLive])
+
+  useEffect(() => {
+    if (!isLive || !matchId) return
+    fetchBalls()
+    ballPollRef.current = setInterval(fetchBalls, BALL_POLL_INTERVAL)
+    return () => clearInterval(ballPollRef.current)
+  }, [fetchBalls, isLive, matchId])
+
+  // Client-side diff fallback when server ball data is not available
   useEffect(() => {
     if (!isLive || !scorecard?.scorecard?.length) {
       prevRef.current = null
       return
     }
 
-    const bs = scorecard.ballState
-    const fromServer = bs != null && typeof bs.overComp === 'number'
-    if (fromServer) {
-      setOverComp(bs.overComp)
-      setOverBalls((bs.balls || []).map(b => ({ ...b, isNew: false })))
+    if (serverSynced) {
+      // Still run notification logic from scorecard diffs
+      const currScore = activeInningsScore(scorecard)
+      const currBat = batsmenSnapshot(scorecard)
+      const currBowl = bowlersSnapshot(scorecard)
+      const prev = prevRef.current
+      prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
+
+      if (!prev || !prev.score || !currScore) return
+
+      const prevO = parseOvers(prev.score.o)
+      const currO = parseOvers(currScore.o)
+      const dR = (+currScore.r || 0) - (+prev.score.r || 0)
+      const dW = (+currScore.w || 0) - (+prev.score.w || 0)
+      if (prevO.total === currO.total && dR === 0 && dW === 0) return
+
+      _emitNotifications(prev, currBat, currBowl, dW, dR, currO, prevO, idRef, setNotifications)
+      return
     }
 
+    // Full client-side fallback (no server ball data)
     const currScore = activeInningsScore(scorecard)
     const currBat = batsmenSnapshot(scorecard)
     const currBowl = bowlersSnapshot(scorecard)
@@ -86,7 +144,7 @@ export function useBallEvents(scorecard, isLive) {
     prevRef.current = { score: currScore ? { ...currScore } : null, bat: { ...currBat }, bowl: { ...currBowl } }
 
     if (!prev || !prev.score) {
-      if (!fromServer && currScore) {
+      if (currScore) {
         const o = parseOvers(currScore.o)
         setOverComp(o.comp)
       }
@@ -102,71 +160,44 @@ export function useBallEvents(scorecard, isLive) {
     if (prevO.total === currO.total && dR === 0 && dW === 0) return
 
     const newOverStarted = currO.comp > prevO.comp
-    if (!fromServer) {
-      setOverComp(currO.comp)
-    }
+    setOverComp(currO.comp)
 
     let result = String(Math.max(dR, 0))
     let type = 'run'
-    let evBatter = null
-    let evBowler = null
     const newLegalBalls = currO.total - prevO.total
 
     for (const [name, c] of Object.entries(currBat)) {
       const p = prev.bat[name]
       if (!p) continue
-      if (c.sixes > p.sixes) { result = '6'; type = 'six'; evBatter = { name, ...c }; break }
-      if (c.fours > p.fours) { result = '4'; type = 'four'; evBatter = { name, ...c }; break }
+      if (c.sixes > p.sixes) { result = '6'; type = 'six'; break }
+      if (c.fours > p.fours) { result = '4'; type = 'four'; break }
     }
 
-    if (dW > 0) {
-      result = 'W'; type = 'wicket'
-      for (const [name, c] of Object.entries(currBowl)) {
-        const p = prev.bowl[name]
-        if (p && c.wickets > p.wickets) { evBowler = { name, ...c }; break }
-      }
-    }
+    if (dW > 0) { result = 'W'; type = 'wicket' }
 
     const isExtra = newLegalBalls === 0 && dR > 0
 
-    if (!fromServer) {
-      if (newOverStarted && currO.balls === 0) {
-        setOverBalls([])
-      } else if (newLegalBalls > 0 || isExtra) {
-        const ball = {
-          ballNum: currO.balls,
-          overComp: currO.comp,
-          result: isExtra ? `+${dR}` : result,
-          type: isExtra ? 'extra' : type,
-          runs: dR,
-          isNew: true,
-        }
-        setOverBalls(prev => {
-          if (newOverStarted) return [ball]
-          return [...prev.filter(b => b.overComp === currO.comp), ball]
-        })
-      } else if (newOverStarted) {
-        setOverBalls([])
+    if (newOverStarted && currO.balls === 0) {
+      setOverBalls([])
+    } else if (newLegalBalls > 0 || isExtra) {
+      const ball = {
+        ballNum: currO.balls,
+        overComp: currO.comp,
+        result: isExtra ? `+${dR}` : result,
+        type: isExtra ? 'extra' : type,
+        runs: dR,
+        isNew: true,
       }
+      setOverBalls(prev => {
+        if (newOverStarted) return [ball]
+        return [...prev.filter(b => b.overComp === currO.comp), ball]
+      })
+    } else if (newOverStarted) {
+      setOverBalls([])
     }
 
-    // ─ Generate notifications ─
-    const notifs = []
-    const ts = Date.now()
-
-    if (type === 'four' && evBatter) notifs.push({ id: ++idRef.current, type: 'FOUR', player: evBatter.name, image: evBatter.image, runs: evBatter.runs, balls: evBatter.balls, ts })
-    if (type === 'six' && evBatter) notifs.push({ id: ++idRef.current, type: 'SIX', player: evBatter.name, image: evBatter.image, runs: evBatter.runs, balls: evBatter.balls, ts })
-    if (dW > 0 && evBowler) notifs.push({ id: ++idRef.current, type: 'WICKET', player: evBowler.name, image: evBowler.image, wickets: evBowler.wickets, ts })
-
-    for (const [name, c] of Object.entries(currBat)) {
-      const p = prev.bat[name]
-      if (!p) continue
-      if (p.runs < 50 && c.runs >= 50 && c.runs < 100) notifs.push({ id: ++idRef.current, type: 'FIFTY', player: name, image: c.image, runs: c.runs, balls: c.balls, ts })
-      if (p.runs < 100 && c.runs >= 100) notifs.push({ id: ++idRef.current, type: 'CENTURY', player: name, image: c.image, runs: c.runs, balls: c.balls, ts })
-    }
-
-    if (notifs.length) setNotifications(n => [...n, ...notifs])
-  }, [scorecard, isLive])
+    _emitNotifications(prev, currBat, currBowl, dW, dR, currO, prevO, idRef, setNotifications)
+  }, [scorecard, isLive, serverSynced])
 
   // Auto-dismiss after 5s
   useEffect(() => {
@@ -182,7 +213,43 @@ export function useBallEvents(scorecard, isLive) {
     return () => clearTimeout(t)
   }, [overBalls])
 
-  return { notifications, overBalls, overComp }
+  return { notifications, overBalls, overComp, previousOver, allOvers, currentInnings, serverSynced }
+}
+
+function _emitNotifications(prev, currBat, currBowl, dW, dR, currO, prevO, idRef, setNotifications) {
+  const notifs = []
+  const ts = Date.now()
+  let evBatter = null
+  let evBowler = null
+  let type = 'run'
+
+  for (const [name, c] of Object.entries(currBat)) {
+    const p = prev.bat[name]
+    if (!p) continue
+    if (c.sixes > p.sixes) { type = 'six'; evBatter = { name, ...c }; break }
+    if (c.fours > p.fours) { type = 'four'; evBatter = { name, ...c }; break }
+  }
+
+  if (dW > 0) {
+    type = 'wicket'
+    for (const [name, c] of Object.entries(currBowl)) {
+      const p = prev.bowl[name]
+      if (p && c.wickets > p.wickets) { evBowler = { name, ...c }; break }
+    }
+  }
+
+  if (type === 'four' && evBatter) notifs.push({ id: ++idRef.current, type: 'FOUR', player: evBatter.name, image: evBatter.image, runs: evBatter.runs, balls: evBatter.balls, ts })
+  if (type === 'six' && evBatter) notifs.push({ id: ++idRef.current, type: 'SIX', player: evBatter.name, image: evBatter.image, runs: evBatter.runs, balls: evBatter.balls, ts })
+  if (dW > 0 && evBowler) notifs.push({ id: ++idRef.current, type: 'WICKET', player: evBowler.name, image: evBowler.image, wickets: evBowler.wickets, ts })
+
+  for (const [name, c] of Object.entries(currBat)) {
+    const p = prev.bat[name]
+    if (!p) continue
+    if (p.runs < 50 && c.runs >= 50 && c.runs < 100) notifs.push({ id: ++idRef.current, type: 'FIFTY', player: name, image: c.image, runs: c.runs, balls: c.balls, ts })
+    if (p.runs < 100 && c.runs >= 100) notifs.push({ id: ++idRef.current, type: 'CENTURY', player: name, image: c.image, runs: c.runs, balls: c.balls, ts })
+  }
+
+  if (notifs.length) setNotifications(n => [...n, ...notifs])
 }
 
 
@@ -203,89 +270,206 @@ export function OverProgressTile({ balls, overComp, maxOvers = 20 }) {
 
   const displayOver = overComp + 1
   if (displayOver > maxOvers) return null
-  const legalBalls = balls.filter(b => b.type !== 'extra')
-  const extras = balls.filter(b => b.type === 'extra')
   const totalRuns = balls.reduce((s, b) => s + (b.runs || 0), 0)
 
-  const slots = Array.from({ length: 6 }, (_, i) => {
-    const pos = i + 1
-    return legalBalls.find(b => b.ballNum === pos) || null
-  })
+  const allBalls = useMemo(() => {
+    const slots = []
+    let legalIdx = 0
 
-  const nextPos = slots.findIndex(s => s === null)
-  const filledCount = slots.filter(Boolean).length
+    for (const b of balls) {
+      if (b.type === 'extra') {
+        slots.push({ ...b, slotLabel: null })
+      } else {
+        legalIdx++
+        slots.push({ ...b, slotLabel: `${overComp}.${legalIdx}` })
+      }
+    }
+
+    const filledLegal = legalIdx
+    for (let i = filledLegal + 1; i <= 6; i++) {
+      slots.push({ empty: true, slotLabel: `${overComp}.${i}`, isNext: i === filledLegal + 1 })
+    }
+    return slots
+  }, [balls, overComp])
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
-      <div className="px-3 py-3 sm:px-4 flex flex-row items-center gap-2 sm:gap-4">
-        <div className="flex-shrink-0 text-center min-w-[40px] sm:min-w-[52px]">
-          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Over</p>
-          <p className="text-2xl font-black text-text-primary font-mono leading-none mt-0.5">{displayOver}</p>
+      <div className="px-3 pt-2.5 pb-1 sm:px-4 flex items-center justify-between">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Over</span>
+          <span className="text-lg font-black text-text-primary font-mono leading-none">{displayOver}</span>
         </div>
-
-        <div className="flex-1 flex items-center min-w-0">
-          <div className="relative w-full min-w-0 py-1">
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/[0.04] -translate-y-1/2 rounded-full" />
-            <div
-              className="absolute top-1/2 left-0 h-0.5 bg-accent-cyan/20 -translate-y-1/2 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min((filledCount / 6) * 100, 100)}%` }}
-            />
-
-            <div className="relative flex flex-nowrap items-center justify-evenly pb-0.5">
-              {slots.map((ball, i) => {
-                const c = ball ? ballColor(ball.result) : null
-                const isNext = !ball && i === nextPos && nextPos < 6
-                const label = `${overComp}.${i + 1}`
-                return (
-                  <div key={i} className="flex flex-col items-center gap-0.5 z-10">
-                    <div
-                      className={`
-                        w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
-                        text-[11px] sm:text-sm font-bold border-2 transition-all duration-300
-                        ${ball
-                          ? `${c.bg} ${c.border} ${c.text} ${ball.isNew ? 'animate-ball-pop' : ''}`
-                          : isNext
-                            ? 'bg-accent-cyan/5 border-accent-cyan/30 text-accent-cyan/40 animate-ball-pulse'
-                            : 'bg-white/[0.02] border-white/[0.05] text-white/[0.08]'
-                        }
-                      `}
-                      style={ball ? { boxShadow: c.glow } : {}}
-                    >
-                      {ball ? (
-                        <span className={ball.isNew ? 'animate-ball-travel' : ''}>{ball.result}</span>
-                      ) : (
-                        <span className="text-[10px] sm:text-xs">•</span>
-                      )}
-                    </div>
-                    <span className={`text-[7px] sm:text-[9px] font-mono ${ball ? 'text-text-secondary' : 'text-text-muted/50'}`}>{label}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {extras.length > 0 && (
-          <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-            <div className="flex gap-1 flex-wrap justify-center max-w-[5rem]">
-              {extras.map((e, i) => (
-                <div key={i} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan animate-ball-pop">
-                  {e.result}
-                </div>
-              ))}
-            </div>
-            <span className="text-[7px] sm:text-[8px] text-text-muted uppercase tracking-wider">Extras</span>
-          </div>
-        )}
-
-        <div className="flex-shrink-0 text-center min-w-[40px] sm:min-w-[44px]">
-          <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Runs</p>
-          <p className={`text-2xl font-black font-mono leading-none mt-0.5 ${
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Runs</span>
+          <span className={`text-lg font-black font-mono leading-none ${
             totalRuns >= 15 ? 'text-accent-amber' : totalRuns >= 8 ? 'text-accent-cyan' : 'text-text-primary'
-          }`}>{totalRuns}</p>
+          }`}>{totalRuns}</span>
+        </div>
+      </div>
+
+      <div className="px-3 pb-3 sm:px-4">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+          {allBalls.map((ball, i) => {
+            if (ball.empty) {
+              return (
+                <div key={i} className="flex flex-col items-center gap-0.5">
+                  <div className={`
+                    w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center
+                    text-[11px] sm:text-sm font-bold border-2 transition-all duration-300
+                    ${ball.isNext
+                      ? 'bg-accent-cyan/5 border-accent-cyan/30 text-accent-cyan/40 animate-ball-pulse'
+                      : 'bg-white/[0.02] border-white/[0.05] text-white/[0.08]'
+                    }
+                  `}>
+                    <span className="text-[10px] sm:text-xs">•</span>
+                  </div>
+                  <span className="text-[7px] sm:text-[9px] font-mono text-text-muted/50">{ball.slotLabel}</span>
+                </div>
+              )
+            }
+
+            const isExtra = ball.type === 'extra'
+            const c = ballColor(ball.result)
+            return (
+              <div key={i} className="flex flex-col items-center gap-0.5">
+                <div
+                  className={`
+                    w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center
+                    text-[11px] sm:text-sm font-bold border-2 transition-all duration-300
+                    ${isExtra
+                      ? 'border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan'
+                      : `${c.bg} ${c.border} ${c.text}`
+                    }
+                    ${ball.isNew ? 'animate-ball-pop' : ''}
+                  `}
+                  style={!isExtra ? { boxShadow: c.glow } : {}}
+                >
+                  <span className={ball.isNew ? 'animate-ball-travel' : ''}>{ball.result}</span>
+                </div>
+                {ball.slotLabel ? (
+                  <span className="text-[7px] sm:text-[9px] font-mono text-text-secondary">{ball.slotLabel}</span>
+                ) : (
+                  <span className="text-[7px] sm:text-[8px] font-mono text-accent-cyan/50">ext</span>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
+  )
+}
+
+
+// ── Previous Overs Accordion ────────────────────────────────
+
+function SmallBallChip({ result }) {
+  const c = ballColor(result)
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-[10px] sm:text-[11px] font-bold border ${c.border} ${c.bg} ${c.text}`}
+      style={{ boxShadow: c.glow !== 'none' ? c.glow.replace('14px', '8px') : 'none' }}
+    >
+      {result}
+    </span>
+  )
+}
+
+function InningsAccordion({ teamName, overs, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const sorted = useMemo(() => [...overs].sort((a, b) => b.overNumber - a.overNumber), [overs])
+
+  if (!sorted.length) return null
+
+  return (
+    <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-3 py-2.5 sm:px-4 flex items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">
+            {teamName ? `${teamName} Previous Overs` : 'Previous Overs'}
+          </span>
+          <span className="text-[10px] font-mono text-text-muted/60">
+            ({sorted.length})
+          </span>
+        </div>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`w-4 h-4 text-text-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="border-t border-border-subtle divide-y divide-border-subtle/50">
+          {sorted.map(ov => {
+            const balls = ov.balls || []
+            return (
+              <div key={ov.overNumber} className="px-3 py-2 sm:px-4 flex items-center gap-3">
+                <div className="flex-shrink-0 w-10 sm:w-12 text-center">
+                  <span className="text-xs font-black text-text-secondary font-mono">
+                    {ov.overNumber + 1}
+                  </span>
+                </div>
+
+                <div className="flex-1 flex items-center justify-center gap-1 min-w-0 flex-wrap">
+                  {balls.map((b, i) => (
+                    <SmallBallChip key={i} result={b.result} />
+                  ))}
+                </div>
+
+                <div className="flex-shrink-0 text-right min-w-[32px]">
+                  <span className={`text-sm font-black font-mono ${
+                    ov.runs >= 15 ? 'text-accent-amber' : ov.runs >= 8 ? 'text-accent-cyan' : 'text-text-primary'
+                  }`}>
+                    {ov.runs}
+                  </span>
+                  {ov.wickets > 0 && (
+                    <span className="text-[9px] font-mono text-red-400 ml-0.5">/{ov.wickets}w</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function PreviousOversAccordion({ allOvers, currentOverNumber, currentInnings }) {
+  const inningsGroups = useMemo(() => {
+    if (!allOvers?.length) return []
+    const groups = {}
+    for (const ov of allOvers) {
+      const inn = ov.innings || 1
+      const isCurrentOver = inn === currentInnings && ov.overNumber === currentOverNumber
+      if (isCurrentOver) continue
+      if (!groups[inn]) groups[inn] = { innings: inn, team: ov.battingTeam || '', overs: [] }
+      groups[inn].overs.push(ov)
+    }
+    return Object.values(groups).sort((a, b) => b.innings - a.innings)
+  }, [allOvers, currentOverNumber, currentInnings])
+
+  if (!inningsGroups.length) return null
+
+  return (
+    <>
+      {inningsGroups.map(group => (
+        <InningsAccordion
+          key={group.innings}
+          teamName={group.team}
+          overs={group.overs}
+          defaultOpen={group.innings === currentInnings}
+        />
+      ))}
+    </>
   )
 }
 
