@@ -72,9 +72,8 @@ export function useBallEvents(scorecard, isLive, matchId) {
   const ballPollRef = useRef(null)
   const prevBallCountRef = useRef(0)
 
-  // Poll server ball data when live and matchId is available
   const fetchBalls = useCallback(() => {
-    if (!matchId || !isLive) return
+    if (!matchId) return
     getLiveBalls(matchId)
       .then(data => {
         if (!data || !data.synced) {
@@ -99,13 +98,15 @@ export function useBallEvents(scorecard, isLive, matchId) {
       .catch(() => {
         setServerSynced(false)
       })
-  }, [matchId, isLive])
+  }, [matchId])
 
   useEffect(() => {
-    if (!isLive || !matchId) return
+    if (!matchId) return
     fetchBalls()
-    ballPollRef.current = setInterval(fetchBalls, BALL_POLL_INTERVAL)
-    return () => clearInterval(ballPollRef.current)
+    if (isLive) {
+      ballPollRef.current = setInterval(fetchBalls, BALL_POLL_INTERVAL)
+      return () => clearInterval(ballPollRef.current)
+    }
   }, [fetchBalls, isLive, matchId])
 
   // Client-side diff fallback when server ball data is not available
@@ -375,11 +376,15 @@ function SmallBallChip({ result }) {
   )
 }
 
-function InningsAccordion({ teamName, overs, defaultOpen = false }) {
+function InningsAccordion({ teamName, overs, defaultOpen = false, isComplete = false }) {
   const [open, setOpen] = useState(defaultOpen)
   const sorted = useMemo(() => [...overs].sort((a, b) => b.overNumber - a.overNumber), [overs])
 
   if (!sorted.length) return null
+
+  const title = isComplete
+    ? (teamName ? `${teamName} Over-by-Over` : 'Over-by-Over')
+    : (teamName ? `${teamName} Previous Overs` : 'Previous Overs')
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
@@ -389,7 +394,7 @@ function InningsAccordion({ teamName, overs, defaultOpen = false }) {
       >
         <div className="flex items-center gap-2">
           <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">
-            {teamName ? `${teamName} Previous Overs` : 'Previous Overs'}
+            {title}
           </span>
           <span className="text-[10px] font-mono text-text-muted/60">
             ({sorted.length})
@@ -443,32 +448,36 @@ function InningsAccordion({ teamName, overs, defaultOpen = false }) {
   )
 }
 
-export function PreviousOversAccordion({ allOvers, currentOverNumber, currentInnings }) {
+export function PreviousOversAccordion({ allOvers, currentOverNumber, currentInnings, inningsComplete = false, matchComplete = false }) {
   const inningsGroups = useMemo(() => {
     if (!allOvers?.length) return []
     const groups = {}
     for (const ov of allOvers) {
       const inn = ov.innings || 1
-      const isCurrentOver = inn === currentInnings && ov.overNumber === currentOverNumber
-      if (isCurrentOver) continue
+      const isLiveOver = !inningsComplete && !matchComplete && inn === currentInnings && ov.overNumber === currentOverNumber
+      if (isLiveOver) continue
       if (!groups[inn]) groups[inn] = { innings: inn, team: ov.battingTeam || '', overs: [] }
       groups[inn].overs.push(ov)
     }
     return Object.values(groups).sort((a, b) => b.innings - a.innings)
-  }, [allOvers, currentOverNumber, currentInnings])
+  }, [allOvers, currentOverNumber, currentInnings, inningsComplete, matchComplete])
 
   if (!inningsGroups.length) return null
 
   return (
     <>
-      {inningsGroups.map(group => (
-        <InningsAccordion
-          key={group.innings}
-          teamName={group.team}
-          overs={group.overs}
-          defaultOpen={group.innings === currentInnings}
-        />
-      ))}
+      {inningsGroups.map(group => {
+        const isGroupComplete = matchComplete || (inningsComplete && group.innings < currentInnings) || (group.innings < currentInnings)
+        return (
+          <InningsAccordion
+            key={group.innings}
+            teamName={group.team}
+            overs={group.overs}
+            defaultOpen={false}
+            isComplete={isGroupComplete}
+          />
+        )
+      })}
     </>
   )
 }

@@ -378,7 +378,18 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
   }, [fetchData])
 
   const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded)
+  const matchComplete = !!(scorecard?.matchEnded)
   const { notifications, overBalls, overComp, allOvers, currentInnings, serverSynced } = useBallEvents(scorecard, isLive, matchId)
+
+  const inningsComplete = useMemo(() => {
+    if (!isLive || !scorecard?.score?.length) return false
+    const scores = scorecard.score
+    const currentInnScore = scores.find(s => (s.inningNumber || scores.indexOf(s) + 1) === currentInnings)
+    if (!currentInnScore) return false
+    const overs = parseFloat(currentInnScore.o || 0)
+    const wickets = parseInt(currentInnScore.w || 0, 10)
+    return overs >= 20 || wickets >= 10
+  }, [scorecard, isLive, currentInnings])
 
   if (loading) return <Loading />
   if (error) return <div className="text-accent-magenta text-sm p-4 rounded-xl border border-accent-magenta/20 bg-accent-magenta/5">{error}</div>
@@ -543,11 +554,19 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
           )}
 
           {/* Current over — ball-by-ball (after target/chase, before active players) */}
-          {isLive && overComp != null && (
+          {overComp != null && serverSynced && (
             <div className="mt-3 space-y-2">
-              <OverProgressTile balls={overBalls} overComp={overComp} />
-              {serverSynced && allOvers.length > 1 && (
-                <PreviousOversAccordion allOvers={allOvers} currentOverNumber={overComp} currentInnings={currentInnings} />
+              {isLive && !inningsComplete && (
+                <OverProgressTile balls={overBalls} overComp={overComp} />
+              )}
+              {allOvers.length > 0 && (
+                <PreviousOversAccordion
+                  allOvers={allOvers}
+                  currentOverNumber={overComp}
+                  currentInnings={currentInnings}
+                  inningsComplete={inningsComplete}
+                  matchComplete={matchComplete}
+                />
               )}
             </div>
           )}
