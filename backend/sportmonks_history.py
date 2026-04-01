@@ -140,8 +140,17 @@ async def try_promote_after_scorecard(match_id: str, scorecard: dict) -> int:
         return 0
     if not scorecard.get("matchEnded"):
         return 0
+
+    # Check isIPL from live_db first; fall back to scorecard series name so deploys
+    # that wiped live_db (ephemeral Railway filesystem) still auto-promote correctly.
     lm = get_match(match_id)
-    if not lm or not lm.get("isIPL"):
+    if lm:
+        is_ipl = bool(lm.get("isIPL"))
+    else:
+        series = (scorecard.get("series") or "").lower()
+        is_ipl = "indian premier league" in series or "ipl" in series
+
+    if not is_ipl:
         return 0
     try:
         _, hits = await promote_sportmonks_fixture(match_id, skip_if_in_db=True)

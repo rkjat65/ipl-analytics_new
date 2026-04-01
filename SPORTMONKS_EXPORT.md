@@ -161,6 +161,8 @@ ls -lt ipl_json/sm_*.json
 |------|-----------|----------|-------|-------|--------|
 | 2026-03-28 | 69518 | sm_69518 | RCB vs SRH | 225 | Auto-promoted |
 | 2026-03-29 | 69519 | sm_69519 | MI vs KKR | 247 | Auto-promoted |
+| 2026-03-30 | 69520 | sm_69520 | RR vs CSK | 199 | Auto-promoted |
+| 2026-03-31 | 69521 | sm_69521 | PBKS vs GT | 250 | Manual promote (auto-promotion bug fixed) |
 
 ---
 
