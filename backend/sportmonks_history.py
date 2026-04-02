@@ -129,6 +129,61 @@ async def promote_sportmonks_fixture(
     return True, 1
 
 
+async def get_completed_ipl_fixture_ids() -> list[str]:
+    """Return Sportmonks fixture IDs for IPL matches that are completed."""
+    api = get_cricket_api()
+    if not isinstance(api, SportmonksProvider):
+        raise RuntimeError("get_completed_ipl_fixture_ids requires SportmonksProvider")
+    matches = await api.fetch_matches()
+    return [
+        m["id"]
+        for m in matches
+        if m.get("id") and m.get("isIPL") and m.get("matchEnded")
+    ]
+
+
+async def promote_completed_ipl_fixtures(
+    *,
+    db_path: Path | None = None,
+    json_dir: Path | None = None,
+    season: str | int | None = None,
+    skip_if_in_db: bool = True,
+    max_fixtures: int | None = None,
+) -> tuple[int, int]:
+    """Fetch and ingest completed IPL fixtures from Sportmonks (idempotent)."""
+    fixture_ids = await get_completed_ipl_fixture_ids()
+    if max_fixtures is not None:
+        fixture_ids = fixture_ids[:max_fixtures]
+
+    promoted = 0
+    hits = 0
+    for fixture_id in fixture_ids:
+        try:
+            ok, h = await promote_sportmonks_fixture(
+                fixture_id,
+                db_path=db_path,
+                json_dir=json_dir,
+                season=season,
+                skip_if_in_db=skip_if_in_db,
+            )
+            hits += h
+            if ok:
+                promoted += 1
+        except Exception:
+            log.warning(
+                "promote_completed_ipl_fixtures: skipped %s due to error",
+                fixture_id,
+                exc_info=True,
+            )
+    log.info(
+        "promote_completed_ipl_fixtures: promoted=%d candidates=%d hits=%d",
+        promoted,
+        len(fixture_ids),
+        hits,
+    )
+    return promoted, hits
+
+
 async def try_promote_after_scorecard(match_id: str, scorecard: dict) -> int:
     """Called from live poller after caching a scorecard.
 

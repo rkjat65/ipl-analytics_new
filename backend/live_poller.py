@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from .ball_sync import process_balls_from_fixture
 from .cricket_api import RateLimitError, get_cricket_api
@@ -26,7 +26,10 @@ from .live_db import (
     upsert_matches,
     upsert_scorecard,
 )
-from .sportmonks_history import try_promote_after_scorecard
+from .sportmonks_history import (
+    promote_completed_ipl_fixtures,
+    try_promote_after_scorecard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,8 @@ MIN_POLL_INTERVAL_MS = 5_000        # 5 seconds (floor)
 MAX_POLL_INTERVAL_MS = 900_000      # 15 minutes (ceiling)
 IDLE_CHECK_INTERVAL = 300           # seconds between checks outside match windows
 DAILY_HIT_BUDGET = 9_500            # safety margin below 10 000
+
+LAST_DAILY_PROMOTION: date | None = None
 
 
 @dataclass
@@ -267,6 +272,26 @@ async def run_poller():
                     "Outside match window — next window at %s",
                     poller_state._next_window or "season over",
                 )
+
+                # Once-a-day catch-up: promote any completed IPL fixtures not yet in DuckDB.
+                global LAST_DAILY_PROMOTION
+                today = now.date()
+                if LAST_DAILY_PROMOTION != today:
+                    try:
+                        promoted, extra_hits = await promote_completed_ipl_fixtures()
+                        logger.info(
+                            "Daily auto-promote complete: %d promoted, %d hits",
+                            promoted,
+                            extra_hits,
+                        )
+                        LAST_DAILY_PROMOTION = today
+                    except Exception as exc:
+                        logger.warning(
+                            "Daily auto-promote failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
+
                 await asyncio.sleep(IDLE_CHECK_INTERVAL)
                 continue
 
