@@ -11,7 +11,7 @@ import orjson
 
 from .cricket_api import SportmonksProvider, get_cricket_api
 from .database import refresh_db
-from .live_db import get_match
+from .live_db import get_match, upsert_scorecard
 from .sportmonks_cricsheet_export import fixture_to_cricsheet, normalize_cricsheet_names_to_duckdb
 
 log = logging.getLogger(__name__)
@@ -125,6 +125,25 @@ async def promote_sportmonks_fixture(
     ingest_json_paths = _ingest_json_paths()
     ingest_json_paths(db, [out_path], replace_existing_match=True)
     refresh_db()
+    
+    # Cache in live_scores.db for dashboard visibility
+    try:
+        scorecard_cache = {
+            "id": match_id,
+            "matchEnded": True,
+            "matchStarted": True,
+            "status": "completed",
+            "teams": doc.get("info", {}).get("teams", []),
+            "matchWinner": doc.get("info", {}).get("outcome", {}).get("winner"),
+            "playerOfMatch": {
+                "name": (doc.get("info", {}).get("player_of_match") or [""])[0]
+            } if doc.get("info", {}).get("player_of_match") else None,
+        }
+        upsert_scorecard(match_id, scorecard_cache)
+        log.info("Cached %s in live_scores.db for dashboard", match_id)
+    except Exception as e:
+        log.warning("Failed to cache %s in live_scores.db: %s", match_id, e)
+    
     log.info("Promoted %s into DuckDB (connections refreshed)", match_id)
     return True, 1
 
