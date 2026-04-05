@@ -880,7 +880,7 @@ class SportmonksProvider(CricketAPIProvider):
                 "name": bname,
                 "fullName": bname,
                 "overs": bw.get("overs", 0),
-                "maidens": bw.get("medians", 0),
+                "maidens": bw.get("maidens") or bw.get("medians", 0),
                 "runs": bw.get("runs", 0),
                 "wickets": bw.get("wickets", 0),
                 "economy": bw.get("rate", 0),

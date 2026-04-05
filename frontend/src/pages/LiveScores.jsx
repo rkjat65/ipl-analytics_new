@@ -841,7 +841,13 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
                   const maidens = bw.maidens ?? bw.m ?? 0
                   const runs = bw.runs ?? bw.r ?? 0
                   const wickets = bw.wickets ?? bw.w ?? 0
-                  const econ = bw.economy ?? bw.eco ?? (overs > 0 ? (runs / overs).toFixed(1) : '0.0')
+                  const _oversToBalls = (o) => {
+                    const whole = Math.floor(o)
+                    const balls = Math.round((o - whole) * 10)
+                    return whole * 6 + balls
+                  }
+                  const totalBalls = _oversToBalls(Number(overs))
+                  const econ = bw.economy ?? bw.eco ?? (totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(1) : '0.0')
                   const dots = bw.dots ?? bw.dot_balls ?? '—'
 
                   return (

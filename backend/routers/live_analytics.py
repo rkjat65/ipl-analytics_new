@@ -58,12 +58,19 @@ def _live_batting_from_scorecard(scorecard: dict | None, display_name: str) -> d
     return best
 
 
+def _overs_to_balls(o: float) -> int:
+    """Convert over format (e.g. 3.2) to total balls (20)."""
+    overs = int(o)
+    balls = round((o - overs) * 10)
+    return overs * 6 + balls
+
+
 def _live_bowling_from_scorecard(scorecard: dict | None, display_name: str) -> dict | None:
     if not scorecard or not display_name:
         return None
     key = _norm_player_key(display_name)
     agg_w, agg_r = 0, 0
-    agg_o = 0.0
+    agg_balls = 0
     found = False
     for inn in scorecard.get("scorecard") or []:
         for bw in inn.get("bowlers") or inn.get("bowling") or []:
@@ -73,14 +80,20 @@ def _live_bowling_from_scorecard(scorecard: dict | None, display_name: str) -> d
             found = True
             agg_w += int(bw.get("wickets") or 0)
             agg_r += int(bw.get("runs") or 0)
-            agg_o += float(bw.get("overs") or 0)
+            # Correctly aggregate balls instead of summing floats
+            agg_balls += _overs_to_balls(float(bw.get("overs") or 0))
     if not found:
         return None
-    econ = round(agg_r * 6.0 / agg_o, 2) if agg_o else None
+    # Reconstruct overs for display (e.g. 3.2)
+    ov = agg_balls // 6
+    rem = agg_balls % 6
+    overs_display = float(ov) if rem == 0 else float(f"{ov}.{rem}")
+    # Calculate economy correctly using total ball count
+    econ = round(agg_r * 6.0 / agg_balls, 2) if agg_balls else None
     return {
         "wickets": agg_w,
         "runs_conceded": agg_r,
-        "overs": agg_o,
+        "overs": overs_display,
         "economy": econ,
     }
 
@@ -236,22 +249,24 @@ def projected_score(
     if not venue_avg_for_innings:
         venue_avg_for_innings = va.get("avg_score") or 160
 
-    remaining_overs = max(20 - current_overs, 0)
-    crr = current_score / current_overs if current_overs > 0 else 0
+    # Handle X.Y overs correctly for CRR and projections
+    balls_bowled = _overs_to_balls(current_overs)
+    remaining_balls = max(120 - balls_bowled, 0)
+    remaining_overs = remaining_balls / 6.0
+    
+    crr = (current_score * 6.0 / balls_bowled) if balls_bowled > 0 else 0
     venue_rpo = venue_avg_for_innings / 20 if venue_avg_for_innings else 8
 
-    overs_weight = min(current_overs / 10, 1.0)
+    overs_weight = min(balls_bowled / 60.0, 1.0)
     projected_rpo = overs_weight * crr + (1 - overs_weight) * venue_rpo
-    projected_crr = round(current_score + projected_rpo * remaining_overs, 0) if current_overs > 0 else venue_avg_for_innings
+    projected_crr = round(current_score + projected_rpo * remaining_overs, 0) if balls_bowled > 0 else venue_avg_for_innings
 
-    wicket_factor = max(0.75, 1 - current_wickets * 0.04)
-    conservative_rpo = projected_rpo * 0.85 * wicket_factor
+    conservative_rpo = projected_rpo * 0.85 * (max(0.75, 1 - current_wickets * 0.04))
     projected_conservative = round(current_score + conservative_rpo * remaining_overs, 0)
 
     accelerated_rpo = projected_rpo * 1.20
     projected_accelerated = round(current_score + accelerated_rpo * remaining_overs, 0)
 
-    balls_bowled = int(current_overs) * 6 + round((current_overs % 1) * 10)
     par_score = round(venue_avg_for_innings * balls_bowled / 120, 0) if venue_avg_for_innings else None
 
     result = {
