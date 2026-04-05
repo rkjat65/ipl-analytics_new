@@ -67,7 +67,7 @@
         "YBK Jaiswal": "sm_6820",
         "V Suryavanshi": "sm_57622",
         "K Rabada": "sm_70",
-        "Abhishek Sharma": "sm_36479",
+        "Ankit Sharma": "sm_36479",
         "M Prasidh Krishna": "sm_3374",
         "GD Phillips": "sm_216",
         "R Parag": "sm_4922",
@@ -93,7 +93,10 @@
       "decision": "bat",
       "winner": "Rajasthan Royals"
     },
-    "venue": "Narendra Modi Stadium"
+    "venue": "Narendra Modi Stadium",
+    "player_of_match": [
+      "Ravi Bishnoi"
+    ]
   },
   "innings": [
     {
@@ -403,7 +406,7 @@
           "deliveries": [
             {
               "batter": "V Suryavanshi",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 4,
@@ -413,7 +416,7 @@
             },
             {
               "batter": "V Suryavanshi",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 6,
@@ -423,7 +426,7 @@
             },
             {
               "batter": "V Suryavanshi",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 1,
@@ -433,7 +436,7 @@
             },
             {
               "batter": "YBK Jaiswal",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "V Suryavanshi",
               "runs": {
                 "batter": 0,
@@ -443,7 +446,7 @@
             },
             {
               "batter": "YBK Jaiswal",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "V Suryavanshi",
               "runs": {
                 "batter": 2,
@@ -453,7 +456,7 @@
             },
             {
               "batter": "YBK Jaiswal",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "V Suryavanshi",
               "runs": {
                 "batter": 0,
@@ -752,7 +755,7 @@
           "deliveries": [
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 0,
@@ -762,7 +765,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 4,
@@ -772,7 +775,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 0,
@@ -782,7 +785,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 0,
@@ -792,7 +795,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "YBK Jaiswal",
               "runs": {
                 "batter": 1,
@@ -802,7 +805,7 @@
             },
             {
               "batter": "YBK Jaiswal",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 0,
@@ -1188,7 +1191,7 @@
           "deliveries": [
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "SO Hetmyer",
               "runs": {
                 "batter": 1,
@@ -1198,7 +1201,7 @@
             },
             {
               "batter": "SO Hetmyer",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 4,
@@ -1208,7 +1211,7 @@
             },
             {
               "batter": "SO Hetmyer",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 0,
@@ -1229,7 +1232,7 @@
             },
             {
               "batter": "D Ferreira",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 0,
@@ -1239,7 +1242,7 @@
             },
             {
               "batter": "D Ferreira",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 1,
@@ -1249,7 +1252,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "D Ferreira",
               "runs": {
                 "batter": 0,
@@ -1353,7 +1356,7 @@
           "deliveries": [
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "RA Jadeja",
               "runs": {
                 "batter": 6,
@@ -1363,7 +1366,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "RA Jadeja",
               "runs": {
                 "batter": 1,
@@ -1373,7 +1376,7 @@
             },
             {
               "batter": "RA Jadeja",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 1,
@@ -1383,7 +1386,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "RA Jadeja",
               "runs": {
                 "batter": 0,
@@ -1396,7 +1399,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "RA Jadeja",
               "runs": {
                 "batter": 2,
@@ -1406,7 +1409,7 @@
             },
             {
               "batter": "Dhruv Jurel",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "RA Jadeja",
               "runs": {
                 "batter": 1,
@@ -1416,7 +1419,7 @@
             },
             {
               "batter": "RA Jadeja",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 0,
@@ -1429,7 +1432,7 @@
             },
             {
               "batter": "RA Jadeja",
-              "bowler": "Abhishek Sharma",
+              "bowler": "Ankit Sharma",
               "non_striker": "Dhruv Jurel",
               "runs": {
                 "batter": 0,
