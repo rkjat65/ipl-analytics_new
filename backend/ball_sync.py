@@ -362,6 +362,8 @@ def _build_over_data(over_num: int, balls: list[dict]) -> dict:
             "bowler": b.get("bowler"),
             "extraType": b.get("extra_type"),
             "isNew": False,
+            "_ballDecimal": b.get("ball_decimal"),
+            "_ballId": b.get("ball_id"),
         })
 
     return {
