@@ -12,6 +12,19 @@ from datetime import datetime, timedelta, timezone
 
 _default_path = os.path.join(os.path.dirname(__file__), "data", "live_scores.db")
 LIVE_DB_PATH = os.environ.get("LIVE_DB_PATH", _default_path)
+
+# All IPL franchise names (current + historical) for team-name-based detection
+_IPL_TEAMS: frozenset[str] = frozenset({
+    "Chennai Super Kings", "Mumbai Indians",
+    "Royal Challengers Bangalore", "Royal Challengers Bengaluru",
+    "Kolkata Knight Riders", "Delhi Capitals", "Delhi Daredevils",
+    "Punjab Kings", "Kings XI Punjab",
+    "Rajasthan Royals", "Sunrisers Hyderabad",
+    "Gujarat Titans", "Lucknow Super Giants",
+    "Rising Pune Supergiants", "Rising Pune Supergiant",
+    "Pune Warriors India", "Pune Warriors",
+    "Deccan Chargers", "Kochi Tuskers Kerala",
+})
 _local = threading.local()
 
 
@@ -121,6 +134,14 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _detect_ipl(m: dict) -> bool:
+    """Return True if match is an IPL match — by flag OR by team names."""
+    if m.get("isIPL"):
+        return True
+    teams = set(m.get("teams") or [])
+    return len(teams & _IPL_TEAMS) == 2
+
+
 def _match_status_label(m: dict) -> str:
     if m.get("matchStarted") and not m.get("matchEnded"):
         return "live"
@@ -155,7 +176,7 @@ def upsert_matches(matches: list[dict]):
                  is_ipl       = excluded.is_ipl,
                  match_status = excluded.match_status,
                  updated_at   = excluded.updated_at""",
-            (mid, json.dumps(m), int(bool(m.get("isIPL"))), _match_status_label(m), now),
+            (mid, json.dumps(m), int(_detect_ipl(m)), _match_status_label(m), now),
         )
     conn.commit()
 
@@ -451,21 +472,17 @@ def get_synced_match_ids() -> list[str]:
 def get_balls_for_match(match_id: str) -> list[dict]:
     """Return all balls for a match ordered by scoreboard and ball position.
 
-    Deduplicates by (scoreboard, ball_decimal): if Sportmonks re-sends a corrected
-    delivery with a new ball_id, we keep the LATEST record (highest ball_id) so
-    stats are not double-counted.
+    NOTE: Sportmonks stores a wide and the subsequent legal delivery at the same
+    ball_decimal position (e.g., wide at 1.4 and the next ball also 1.4).
+    Do NOT deduplicate by ball_decimal — that would drop valid wide/noball events.
+    True duplicates (same ball_id) are already prevented by UNIQUE(match_id, ball_id).
     """
     conn = get_live_db()
     rows = conn.execute(
         """SELECT * FROM live_balls
            WHERE match_id = ?
-             AND id IN (
-               SELECT MAX(id) FROM live_balls
-               WHERE match_id = ?
-               GROUP BY scoreboard, ball_decimal
-             )
-           ORDER BY scoreboard, ball_decimal""",
-        (match_id, match_id),
+           ORDER BY scoreboard, ball_decimal, ball_id""",
+        (match_id,),
     ).fetchall()
     return [dict(r) for r in rows]
 
