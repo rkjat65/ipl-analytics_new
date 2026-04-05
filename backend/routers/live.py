@@ -14,6 +14,7 @@ from ..ball_sync import build_balls_response, compute_innings_scores_from_balls,
 from ..cricket_api import get_cricket_api
 from ..ipl_schedule import compute_schedule_with_status
 from ..live_db import (
+    delete_balls_for_match,
     get_all_matches,
     get_ball_sync_state,
     get_last_poll_time,
@@ -258,6 +259,18 @@ async def admin_sync_balls(
     except Exception as exc:
         raise HTTPException(502, f"Ball sync failed: {exc}")
     return result
+
+
+@router.delete("/admin/balls/{match_id}")
+def admin_delete_balls(
+    match_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """Delete all stored balls for a match so the poller re-fetches them with
+    the latest parsing logic. Admin only."""
+    _require_admin(authorization)
+    deleted = delete_balls_for_match(match_id)
+    return {"matchId": match_id, "deletedBalls": deleted, "detail": "Poller will re-fetch on next cycle"}
 
 
 @router.get("/admin/ball-sync-status/{match_id}")

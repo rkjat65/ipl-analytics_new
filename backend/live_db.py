@@ -498,6 +498,15 @@ def get_synced_match_ids() -> list[str]:
     return [r["match_id"] for r in rows]
 
 
+def delete_balls_for_match(match_id: str) -> int:
+    """Delete all stored balls for a match so the poller re-fetches them."""
+    conn = get_live_db()
+    cur = conn.execute("DELETE FROM live_balls WHERE match_id = ?", (match_id,))
+    conn.execute("DELETE FROM ball_sync_state WHERE match_id = ?", (match_id,))
+    conn.commit()
+    return cur.rowcount
+
+
 def get_balls_for_match(match_id: str) -> list[dict]:
     """Return all balls for a match ordered by scoreboard and ball position.
 
