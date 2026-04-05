@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
-from .ball_sync import compute_innings_scores_from_balls, process_balls_from_fixture
+from .ball_sync import compute_innings_scores_from_balls, compute_scorecard_from_balls, process_balls_from_fixture
 from .cricket_api import RateLimitError, get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
@@ -154,6 +154,9 @@ async def _poll_once() -> int:
                     ball_scores = compute_innings_scores_from_balls(mid)
                     if ball_scores:
                         sc["score"] = ball_scores
+                    ball_scorecard = compute_scorecard_from_balls(mid)
+                    if ball_scorecard:
+                        sc["scorecard"] = ball_scorecard
                 except Exception as exc:
                     logger.warning("Ball processing failed for %s: %s", mid, exc)
 

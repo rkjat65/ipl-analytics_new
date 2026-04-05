@@ -328,7 +328,7 @@ function LiveScoreHero({ match, onClick, isSelected }) {
       current over → active players → venue/toss
    2. Full batting/bowling tables per innings
 */
-function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) {
+function DetailedScorecard({ matchId, onScorecardUpdate }) {
   const [scorecard, setScorecard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -629,10 +629,6 @@ function DetailedScorecard({ matchId, onScorecardUpdate, mobileAnalyticsSlot }) 
         <PlayingXI lineup={scorecard.lineup} teams={teams} teamInfo={teamInfo} />
       )}
 
-      {/* Mobile-only: analytics right below live score */}
-      {mobileAnalyticsSlot && (
-        <div className="xl:hidden">{mobileAnalyticsSlot}</div>
-      )}
     </div>
   )
 }
@@ -834,6 +830,7 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
                   <th className="text-center py-1.5 px-1 font-medium">R</th>
                   <th className="text-center py-1.5 px-1 font-medium">W</th>
                   <th className="text-center py-1.5 px-1 font-medium">Eco</th>
+                  <th className="text-center py-1.5 px-1 font-medium">Dots</th>
                 </tr>
               </thead>
               <tbody>
@@ -845,6 +842,7 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
                   const runs = bw.runs ?? bw.r ?? 0
                   const wickets = bw.wickets ?? bw.w ?? 0
                   const econ = bw.economy ?? bw.eco ?? (overs > 0 ? (runs / overs).toFixed(1) : '0.0')
+                  const dots = bw.dots ?? bw.dot_balls ?? '—'
 
                   return (
                     <tr key={bwi} className="border-b border-border-subtle/30 hover:bg-surface-hover/50">
@@ -868,6 +866,7 @@ function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = 
                       <td className={`text-center py-1.5 px-1 font-mono ${
                         econ <= 6 ? 'text-accent-lime' : econ >= 10 ? 'text-accent-magenta' : 'text-text-muted'
                       }`}>{econ}</td>
+                      <td className="text-center py-1.5 px-1 font-mono text-text-muted">{dots}</td>
                     </tr>
                   )
                 })}
@@ -1650,37 +1649,11 @@ function TeamH2HCard({ team1, team2 }) {
   )
 }
 
-/* ── Scorecard + Analytics Side-by-Side Wrapper ──────────────── */
+/* ── Scorecard Wrapper ───────────────────────────────────────── */
 function ScorecardWithAnalytics({ matchId }) {
-  const [liveScorecard, setLiveScorecard] = useState(null)
-  const handleScorecardUpdate = useCallback((data) => {
-    setLiveScorecard(data)
-  }, [])
-
-  const isLive = liveScorecard?.matchStarted && !liveScorecard?.matchEnded
-  const hasScorecardData = Boolean(liveScorecard?.scorecard?.length)
-
-  const analyticsPanel = hasScorecardData ? (
-    <LiveAnalyticsPanel scorecard={liveScorecard} isLive={isLive} matchId={matchId} />
-  ) : null
-
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-      {/* Scorecard — main column */}
-      <div className={hasScorecardData ? 'xl:col-span-7' : 'xl:col-span-12'}>
-        <DetailedScorecard
-          matchId={matchId}
-          onScorecardUpdate={handleScorecardUpdate}
-          mobileAnalyticsSlot={analyticsPanel}
-        />
-      </div>
-
-      {/* Live Analytics — desktop side panel only (hidden on mobile since it appears inline) */}
-      {hasScorecardData && (
-        <div className="hidden xl:block xl:col-span-5 xl:sticky xl:top-4 xl:self-start">
-          {analyticsPanel}
-        </div>
-      )}
+    <div>
+      <DetailedScorecard matchId={matchId} />
     </div>
   )
 }
