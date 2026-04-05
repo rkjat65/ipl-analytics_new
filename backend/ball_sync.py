@@ -44,12 +44,16 @@ def _player_name(p_raw) -> str:
 def _ball_decimal_parts(ball_val: float | int) -> tuple[int, int]:
     """Sportmonks ball index: 1.3 → over 1 (0-indexed), third delivery."""
     x = float(ball_val)
-    whole = int(math.floor(x + 1e-9))
+    whole = int(x)
+    # Sportmonks uses 1.1 for 1st over, 1.2 for 2nd ball, etc.
+    # We want over_num=0 for over 1.
+    over_num = max(0, whole - 1)
     frac = x - whole
     ball_ord = int(round(frac * 10 + 1e-9))
     if ball_ord == 0:
-        ball_ord = 1
-    return whole, ball_ord
+        # 1.0 cases — sometimes used as end of over marker
+        ball_ord = 6
+        over_num = max(0, over_num - 1)
 
 
 def _scoreboard_to_innings(sb: str) -> int:

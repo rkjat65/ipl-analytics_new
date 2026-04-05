@@ -468,7 +468,8 @@ class SportmonksProvider(CricketAPIProvider):
                 league_name = (league.get("data") or league).get("name", "") if isinstance(league.get("data"), dict) else league.get("name", "")
 
             # isIPL: match by season_id (if SEASON_ID env set) OR by league name fallback
-            _league_is_ipl = "indian premier league" in league_name.lower() or "ipl" in league_name.lower()
+            l_lower = league_name.lower()
+            _league_is_ipl = any(x in l_lower for x in ["indian premier league", "ipl", "premier league", "t20 league"])
             is_ipl = _league_is_ipl or (self._season_id > 0 and m.get("season_id") == self._season_id)
 
             toss_won_id = m.get("toss_won_team_id")

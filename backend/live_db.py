@@ -401,6 +401,17 @@ def upsert_balls(match_id: str, balls: list[dict]) -> int:
     inserted = 0
     for b in balls:
         try:
+            # Content-based deduplication: skip if ID differs but scoreboard, decimal, and runs match
+            # This handles cases where the provider rotates IDs for the same match events.
+            # We allow multiple entries at the same decimal ONLY if they have different extra_types (e.g. wide vs legal)
+            existing = conn.execute(
+                "SELECT ball_id FROM live_balls WHERE match_id=? AND scoreboard=? AND ball_decimal=? AND extra_type IS ? AND runs_total=?",
+                (match_id, b["scoreboard"], b["ball_decimal"], b["extra_type"], b.get("runs_total", 0))
+            ).fetchall()
+            if existing:
+                if any(row[0] != b["ball_id"] for row in existing):
+                    continue
+
             conn.execute(
                 """INSERT OR IGNORE INTO live_balls
                    (match_id, ball_id, innings, scoreboard, over_num, ball_in_over,
@@ -423,7 +434,7 @@ def upsert_balls(match_id: str, balls: list[dict]) -> int:
                     b.get("raw_data"), now,
                 ),
             )
-            inserted += conn.total_changes  # approximate
+            inserted += 1 # approximate if it didn't exist
         except Exception:
             pass
     conn.commit()
