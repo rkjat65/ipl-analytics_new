@@ -302,6 +302,15 @@ export const setMatchTracking = (token, matchId, tracked) => {
     return res.json()
   })
 }
+export const deleteBalls = (token, matchId) => {
+  return fetch(`${window.location.origin}/api/live/admin/balls/${encodeURIComponent(matchId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Delete balls failed') })
+    return res.json()
+  })
+}
 export const syncBalls = (token, matchId) => {
   return fetch(`${window.location.origin}/api/live/admin/sync-balls`, {
     method: 'POST',

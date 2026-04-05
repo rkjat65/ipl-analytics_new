@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking, syncBalls } from '../lib/api'
+import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking, deleteBalls, syncBalls } from '../lib/api'
 import SEO from '../components/SEO'
 
 function LiveScorePanel({ token }) {
@@ -91,8 +91,9 @@ function LiveScorePanel({ token }) {
   const handleSyncBalls = async (matchId) => {
     setSyncing(matchId)
     try {
+      await deleteBalls(token, matchId)
       const res = await syncBalls(token, matchId)
-      setActionMsg(res.detail || `Synced ${res.ballCount} balls`)
+      setActionMsg(res.detail || `Synced ${res.ballCount} balls (fresh)`)
       loadMatches()
     } catch (err) { setActionMsg(err.message) }
     finally { setSyncing(null) }
