@@ -42,15 +42,17 @@ def _player_name(p_raw) -> str:
 
 
 def _ball_decimal_parts(ball_val: float | int) -> tuple[int, int]:
-    """Sportmonks ball index: 1.3 → over 1 (0-indexed), third delivery.
+    """Sportmonks ball index → (over_num, ball_in_over).
 
-    X.0 values (2.0, 3.0 …) are treated as the 6th ball of over X (0-indexed:
-    over_num = X-1).  Previous versions decremented over_num again, mapping them
-    to the WRONG over.
+    Sportmonks uses 0-indexed overs: 0.1-0.6 for over 1, 1.1-1.6 for over 2,
+    etc.  ``over_num`` equals the integer part directly (0 for over 1,
+    1 for over 2, …).
+
+    X.0 values are treated as the 6th ball of over X.
     """
     x = float(ball_val)
     whole = int(x)
-    over_num = max(0, whole - 1)
+    over_num = whole
     frac = x - whole
     ball_ord = int(round(frac * 10 + 1e-9))
     if ball_ord == 0:
@@ -362,8 +364,6 @@ def _build_over_data(over_num: int, balls: list[dict]) -> dict:
             "bowler": b.get("bowler"),
             "extraType": b.get("extra_type"),
             "isNew": False,
-            "_ballDecimal": b.get("ball_decimal"),
-            "_ballId": b.get("ball_id"),
         })
 
     return {
