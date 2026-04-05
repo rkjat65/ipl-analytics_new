@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
-from ..ball_sync import build_balls_response, sync_balls_for_match
+from ..ball_sync import build_balls_response, compute_innings_scores_from_balls, sync_balls_for_match
 from ..cricket_api import get_cricket_api
 from ..ipl_schedule import compute_schedule_with_status
 from ..live_db import (
@@ -72,6 +72,14 @@ def live_scorecard(match_id: str):
         if match is None:
             raise HTTPException(404, "Match not found")
         return match
+    # If ball sync is active, override score with ball-computed data.
+    # Sportmonks runs.overs can freeze mid-match; ball data is always current.
+    ball_sync = get_ball_sync_state(match_id)
+    if ball_sync and ball_sync.get("is_synced"):
+        ball_scores = compute_innings_scores_from_balls(match_id)
+        if ball_scores:
+            sc = dict(sc)
+            sc["score"] = ball_scores
     return sc
 
 
