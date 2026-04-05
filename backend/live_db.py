@@ -449,13 +449,23 @@ def get_synced_match_ids() -> list[str]:
 
 
 def get_balls_for_match(match_id: str) -> list[dict]:
-    """Return all balls for a match ordered by scoreboard and ball position."""
+    """Return all balls for a match ordered by scoreboard and ball position.
+
+    Deduplicates by (scoreboard, ball_decimal): if Sportmonks re-sends a corrected
+    delivery with a new ball_id, we keep the LATEST record (highest ball_id) so
+    stats are not double-counted.
+    """
     conn = get_live_db()
     rows = conn.execute(
         """SELECT * FROM live_balls
            WHERE match_id = ?
+             AND id IN (
+               SELECT MAX(id) FROM live_balls
+               WHERE match_id = ?
+               GROUP BY scoreboard, ball_decimal
+             )
            ORDER BY scoreboard, ball_decimal""",
-        (match_id,),
+        (match_id, match_id),
     ).fetchall()
     return [dict(r) for r in rows]
 

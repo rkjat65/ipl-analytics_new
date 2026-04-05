@@ -23,6 +23,7 @@ from .live_db import (
     get_tracked_match_ids,
     log_poll,
     set_setting,
+    upsert_ball_sync_state,
     upsert_matches,
     upsert_scorecard,
 )
@@ -135,18 +136,21 @@ async def _poll_once() -> int:
 
     rate_limited = False
     for mid in tracked_ids:
-        # Check if this match has ball sync enabled — if so, piggyback balls
-        # on the same API call (0 extra hits)
+        # Always include balls for tracked matches — same API call, 0 extra hits.
+        # Ball-by-ball data is the ground truth for scoring/wickets; it corrects
+        # stale Sportmonks bowling/batting includes.
         ball_sync = get_ball_sync_state(mid)
-        wants_balls = bool(ball_sync and ball_sync["is_synced"])
+        if not ball_sync or not ball_sync.get("is_synced"):
+            # Auto-enable ball sync so we start storing balls from now on
+            upsert_ball_sync_state(mid, is_synced=1, mode="auto")
 
         try:
-            sc = await api.fetch_scorecard(mid, include_balls=wants_balls)
+            sc = await api.fetch_scorecard(mid, include_balls=True)
             hits += 1
 
             # Extract and store balls from the same response (0 extra API hits)
             raw_fixture = sc.pop("_raw_fixture", None)
-            if wants_balls and raw_fixture:
+            if raw_fixture:
                 try:
                     process_balls_from_fixture(mid, raw_fixture)
                     # Sportmonks runs.overs can lag behind live balls — override with

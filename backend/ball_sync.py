@@ -563,7 +563,9 @@ def compute_scorecard_from_balls(match_id: str) -> list[dict]:
                     bw["dots"] += 1
             if extra not in ("legbye", "bye"):
                 bw["runs"] += b.get("runs_total", 0)
-            if b.get("is_wicket") and b.get("wicket_kind") not in ("run out",):
+            # No-ball: bowler never gets wicket credit (only run-out possible off no-ball,
+            # which is already excluded). Wide: stumping still credits bowler.
+            if b.get("is_wicket") and b.get("wicket_kind") not in ("run out",) and extra != "noball":
                 bw["wickets"] += 1
             bw["ov_balls"][b.get("over_num", 0)].append(b)
 
