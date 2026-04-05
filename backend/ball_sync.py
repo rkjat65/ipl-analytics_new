@@ -42,18 +42,19 @@ def _player_name(p_raw) -> str:
 
 
 def _ball_decimal_parts(ball_val: float | int) -> tuple[int, int]:
-    """Sportmonks ball index: 1.3 → over 1 (0-indexed), third delivery."""
+    """Sportmonks ball index: 1.3 → over 1 (0-indexed), third delivery.
+
+    X.0 values (2.0, 3.0 …) are treated as the 6th ball of over X (0-indexed:
+    over_num = X-1).  Previous versions decremented over_num again, mapping them
+    to the WRONG over.
+    """
     x = float(ball_val)
     whole = int(x)
-    # Sportmonks uses 1.1 for 1st over, 1.2 for 2nd ball, etc.
-    # We want over_num=0 for over 1.
     over_num = max(0, whole - 1)
     frac = x - whole
     ball_ord = int(round(frac * 10 + 1e-9))
     if ball_ord == 0:
-        # 1.0 cases — sometimes used as end of over marker
         ball_ord = 6
-        over_num = max(0, over_num - 1)
     return over_num, ball_ord
 
 
@@ -94,11 +95,12 @@ def parse_sportmonks_ball(ball: dict, local_id: int | None, local_name: str, vis
     bye = int(sc.get("bye") or 0)
     nob = int(sc.get("noball") or 0)
     nob_extra = int(sc.get("noball_runs") or 0)
+    wide_flag = int(sc.get("wide") or 0)
     is_wicket = bool(sc.get("is_wicket") or sc.get("out"))
 
     extra_type = None
     extra_runs = 0
-    if "wide" in score_name and nob == 0:
+    if ("wide" in score_name or wide_flag) and nob == 0:
         extra_type = "wide"
         extra_runs = runs_field
         runs_batter = 0
@@ -277,7 +279,7 @@ def build_balls_response(match_id: str) -> dict:
         by_sb[b["scoreboard"]].append(b)
 
     last_sb = sorted(by_sb.keys())[-1]
-    innings_balls = by_sb[last_sb]
+    innings_balls = _fixup_balls(by_sb[last_sb])
 
     by_over: dict[int, list[dict]] = defaultdict(list)
     for b in innings_balls:
@@ -294,7 +296,7 @@ def build_balls_response(match_id: str) -> dict:
 
     all_overs = []
     for sb_key in sorted(by_sb.keys()):
-        sb_balls = by_sb[sb_key]
+        sb_balls = _fixup_balls(by_sb[sb_key])
         sb_by_over: dict[int, list[dict]] = defaultdict(list)
         for b in sb_balls:
             sb_by_over[b["over_num"]].append(b)
@@ -427,7 +429,7 @@ def compute_innings_scores_from_balls(match_id: str) -> list[dict]:
 
     scores = []
     for sb_key in sorted(by_sb.keys()):
-        sb_balls = by_sb[sb_key]
+        sb_balls = _fixup_balls(by_sb[sb_key])
         last = sb_balls[-1]
 
         r = last.get("team_score") or sum(b["runs_total"] for b in sb_balls)
@@ -463,6 +465,45 @@ def compute_innings_scores_from_balls(match_id: str) -> list[dict]:
     return scores
 
 
+def _fixup_balls(balls: list[dict]) -> list[dict]:
+    """Recompute over positions from ball_decimal and deduplicate missed extras.
+
+    Two problems are fixed:
+    1. Stored over_num may be wrong because of a prior _ball_decimal_parts bug
+       that mapped X.0 to the previous over.  Recomputing from ball_decimal fixes
+       this for already-stored data.
+    2. Sportmonks creates two entries for wides/no-balls at the same ball position.
+       When the score include isn't loaded, both get extra_type=None and inflate
+       the legal-ball count.  This pass infers the earlier duplicate as a wide.
+    """
+    from collections import defaultdict as _dd
+
+    balls = [dict(b) for b in balls]
+    for b in balls:
+        bd = b.get("ball_decimal")
+        if bd is not None:
+            ov, bio = _ball_decimal_parts(bd)
+            b["over_num"] = ov
+            b["ball_in_over"] = bio
+
+    groups: dict[tuple, list[int]] = _dd(list)
+    for i, b in enumerate(balls):
+        key = (b.get("over_num"), b.get("ball_in_over"))
+        groups[key].append(i)
+
+    for key, indices in groups.items():
+        if len(indices) <= 1:
+            continue
+        untyped = [i for i in indices if not balls[i].get("extra_type")]
+        if len(untyped) <= 1:
+            continue
+        untyped.sort(key=lambda i: balls[i].get("ball_id", 0))
+        for i in untyped[:-1]:
+            balls[i]["extra_type"] = "wide"
+            balls[i]["runs_total"] = max(balls[i].get("runs_total") or 0, 1)
+    return balls
+
+
 def compute_scorecard_from_balls(match_id: str) -> list[dict]:
     """Build batting/bowling scorecard from live_balls data.
 
@@ -480,7 +521,7 @@ def compute_scorecard_from_balls(match_id: str) -> list[dict]:
 
     innings_list = []
     for sb_key in sorted(by_sb.keys()):
-        sb_balls = by_sb[sb_key]
+        sb_balls = _fixup_balls(by_sb[sb_key])
         batting_team = sb_balls[0].get("batting_team", "")
 
         # ── Batting stats ─────────────────────────────────────────
@@ -569,7 +610,11 @@ def compute_scorecard_from_balls(match_id: str) -> list[dict]:
             if extra == "wide":
                 bw["runs"] += b.get("runs_total", 0)
             elif extra == "noball":
-                bw["runs"] += 1 + b.get("runs_batter", 0)
+                nb_bat = b.get("runs_batter", 0)
+                if nb_bat > 0:
+                    bw["runs"] += 1 + nb_bat
+                else:
+                    bw["runs"] += max(b.get("runs_total", 0), 1)
             elif extra in ("legbye", "bye"):
                 pass
             else:
