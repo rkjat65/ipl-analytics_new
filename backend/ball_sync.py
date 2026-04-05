@@ -54,6 +54,7 @@ def _ball_decimal_parts(ball_val: float | int) -> tuple[int, int]:
         # 1.0 cases — sometimes used as end of over marker
         ball_ord = 6
         over_num = max(0, over_num - 1)
+    return over_num, ball_ord
 
 
 def _scoreboard_to_innings(sb: str) -> int:
@@ -565,7 +566,13 @@ def compute_scorecard_from_balls(match_id: str) -> list[dict]:
                 bw["legal"] += 1
                 if b.get("runs_total", 0) == 0:
                     bw["dots"] += 1
-            if extra not in ("legbye", "bye"):
+            if extra == "wide":
+                bw["runs"] += b.get("runs_total", 0)
+            elif extra == "noball":
+                bw["runs"] += 1 + b.get("runs_batter", 0)
+            elif extra in ("legbye", "bye"):
+                pass
+            else:
                 bw["runs"] += b.get("runs_total", 0)
             # No-ball: bowler never gets wicket credit (only run-out possible off no-ball,
             # which is already excluded). Wide: stumping still credits bowler.

@@ -161,13 +161,19 @@ def clear_matches():
 
 
 def upsert_matches(matches: list[dict]):
-    """Insert or update match rows from a poller fetch."""
+    """Insert or update match rows from a poller fetch.
+
+    Also marks previously-live matches that no longer appear in the
+    livescores response as "completed" so they stop wasting API hits.
+    """
     conn = get_live_db()
     now = _now_iso()
+    seen_ids: set[str] = set()
     for m in matches:
         mid = m.get("id", "")
         if not mid:
             continue
+        seen_ids.add(str(mid))
         conn.execute(
             """INSERT INTO live_matches (match_id, data, is_ipl, match_status, updated_at)
                VALUES (?, ?, ?, ?, ?)
@@ -176,8 +182,20 @@ def upsert_matches(matches: list[dict]):
                  is_ipl       = excluded.is_ipl,
                  match_status = excluded.match_status,
                  updated_at   = excluded.updated_at""",
-            (mid, json.dumps(m), int(_detect_ipl(m)), _match_status_label(m), now),
+            (str(mid), json.dumps(m), int(_detect_ipl(m)), _match_status_label(m), now),
         )
+
+    if seen_ids:
+        stale = conn.execute(
+            "SELECT match_id FROM live_matches WHERE match_status = 'live'"
+        ).fetchall()
+        for row in stale:
+            if row["match_id"] not in seen_ids:
+                conn.execute(
+                    "UPDATE live_matches SET match_status = 'completed' WHERE match_id = ?",
+                    (row["match_id"],),
+                )
+
     conn.commit()
 
 

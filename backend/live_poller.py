@@ -153,16 +153,20 @@ async def _poll_once() -> int:
             if raw_fixture:
                 try:
                     process_balls_from_fixture(mid, raw_fixture)
-                    # Sportmonks runs.overs can lag behind live balls — override with
-                    # score computed from ball data so the display never freezes mid-over.
-                    ball_scores = compute_innings_scores_from_balls(mid)
-                    if ball_scores:
-                        sc["score"] = ball_scores
-                    ball_scorecard = compute_scorecard_from_balls(mid)
-                    if ball_scorecard:
-                        sc["scorecard"] = ball_scorecard
                 except Exception as exc:
-                    logger.warning("Ball processing failed for %s: %s", mid, exc)
+                    logger.warning("Ball storage failed for %s: %s", mid, exc)
+
+            # Always try to compute from stored balls — even if this cycle's
+            # storage failed, previous cycles may have stored usable data.
+            try:
+                ball_scores = compute_innings_scores_from_balls(mid)
+                if ball_scores:
+                    sc["score"] = ball_scores
+                ball_scorecard = compute_scorecard_from_balls(mid)
+                if ball_scorecard:
+                    sc["scorecard"] = ball_scorecard
+            except Exception as exc:
+                logger.warning("Ball scorecard compute failed for %s: %s", mid, exc)
 
             if not sc.get("playerOfMatch"):
                 prev = get_scorecard(mid)
