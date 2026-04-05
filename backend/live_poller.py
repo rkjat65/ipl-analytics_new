@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
-from .ball_sync import process_balls_from_fixture
+from .ball_sync import compute_innings_scores_from_balls, process_balls_from_fixture
 from .cricket_api import RateLimitError, get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
@@ -149,6 +149,11 @@ async def _poll_once() -> int:
             if wants_balls and raw_fixture:
                 try:
                     process_balls_from_fixture(mid, raw_fixture)
+                    # Sportmonks runs.overs can lag behind live balls — override with
+                    # score computed from ball data so the display never freezes mid-over.
+                    ball_scores = compute_innings_scores_from_balls(mid)
+                    if ball_scores:
+                        sc["score"] = ball_scores
                 except Exception as exc:
                     logger.warning("Ball processing failed for %s: %s", mid, exc)
 

@@ -218,6 +218,7 @@ class SportmonksProvider(CricketAPIProvider):
     def reset_tier_cache(self, match_id: str) -> None:
         """Reset cached include tier for a match so the next fetch tries the richest tier."""
         self._last_good_tier.pop(match_id, None)
+        self._last_good_tier.pop(f"{match_id}:balls", None)
 
     def is_configured(self) -> bool:
         return bool(self._token)

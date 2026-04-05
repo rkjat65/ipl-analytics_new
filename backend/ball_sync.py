@@ -403,3 +403,56 @@ def process_balls_from_fixture(match_id: str, fixture: dict) -> int:
     )
     logger.debug("Ball sync from fixture for %s: %d total balls (%d new)", match_id, total, new_count)
     return new_count
+
+
+def compute_innings_scores_from_balls(match_id: str) -> list[dict]:
+    """Compute live score summary from ball-by-ball data in live_balls.
+
+    Returns a list in the same format as cricket_api._build_scores().
+    Used to override stale Sportmonks runs.overs data during live matches.
+    Returns empty list if no ball data is available.
+    """
+    all_balls = get_balls_for_match(match_id)
+    if not all_balls:
+        return []
+
+    by_sb: dict[str, list[dict]] = defaultdict(list)
+    for b in all_balls:
+        by_sb[b["scoreboard"]].append(b)
+
+    scores = []
+    for sb_key in sorted(by_sb.keys()):
+        sb_balls = by_sb[sb_key]
+        last = sb_balls[-1]
+
+        r = last.get("team_score") or sum(b["runs_total"] for b in sb_balls)
+        w = last.get("team_wickets") or sum(1 for b in sb_balls if b["is_wicket"])
+
+        # Compute overs from legal deliveries (wideballs/noballs don't consume a ball)
+        legal = [b for b in sb_balls if b.get("extra_type") not in ("wide", "noball")]
+        if legal:
+            last_legal = legal[-1]
+            ov = last_legal["over_num"]   # 0-indexed: over 0 = first over
+            ball_ord = last_legal["ball_in_over"]
+            if ball_ord >= 6:
+                o: float = float(ov + 1)
+            else:
+                o = ov + ball_ord / 10.0
+        else:
+            o = 0.0
+
+        inning_num = _scoreboard_to_innings(sb_key)
+        batting_team = last.get("batting_team", "")
+        inning_label = f"{batting_team} (2nd)" if inning_num > 1 else batting_team
+
+        scores.append({
+            "inning": inning_label,
+            "team": batting_team,
+            "inningNumber": inning_num,
+            "r": r,
+            "w": w,
+            "o": o,
+            "score": f"{r}/{w} ({o})",
+        })
+
+    return scores
