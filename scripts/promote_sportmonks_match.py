@@ -30,17 +30,34 @@ except ImportError:
     pass
 
 
-async def _run(fixture_id: str, json_only: bool, db_path: Path | None) -> None:
+async def _run(
+    fixture_id: str | None,
+    json_only: bool,
+    db_path: Path | None,
+    all_fixtures: bool,
+) -> None:
     from backend.sportmonks_history import (
         export_sportmonks_fixture_to_json,
+        promote_completed_ipl_fixtures,
         promote_sportmonks_fixture,
     )
 
     if json_only:
+        if not fixture_id:
+            raise ValueError("fixture_id required for --json-only")
         path = await export_sportmonks_fixture_to_json(fixture_id)
         print(f"Wrote {path}")
         print(f"Ingest: python ingest.py --src ipl_json --only sm_{fixture_id}.json")
         return
+
+    if all_fixtures:
+        promoted, hits = await promote_completed_ipl_fixtures(db_path=db_path)
+        print(f"API calls: {hits}, promoted: {promoted} finished IPL fixtures")
+        return
+
+    if not fixture_id:
+        raise ValueError("fixture_id required unless --all is used")
+
     ingested, hits = await promote_sportmonks_fixture(
         fixture_id, db_path=db_path, skip_if_in_db=False
     )
@@ -49,15 +66,24 @@ async def _run(fixture_id: str, json_only: bool, db_path: Path | None) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Promote Sportmonks fixture into historical DuckDB")
-    p.add_argument("fixture_id", help="Sportmonks fixture id (same as live match id)")
+    p.add_argument(
+        "fixture_id",
+        nargs="?",
+        help="Sportmonks fixture id (same as live match id)",
+    )
     p.add_argument(
         "--json-only",
         action="store_true",
         help="Only write ipl_json/sm_<id>.json (no DuckDB)",
     )
+    p.add_argument(
+        "--all",
+        action="store_true",
+        help="Promote all completed IPL fixtures from Sportmonks (skip already ingested)",
+    )
     p.add_argument("--db", type=Path, default=None, help="DuckDB path (default: repo ipl.duckdb)")
     args = p.parse_args()
-    asyncio.run(_run(args.fixture_id, args.json_only, args.db))
+    asyncio.run(_run(args.fixture_id, args.json_only, args.db, args.all))
 
 
 if __name__ == "__main__":

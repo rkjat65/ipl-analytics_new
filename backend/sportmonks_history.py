@@ -11,7 +11,7 @@ import orjson
 
 from .cricket_api import SportmonksProvider, get_cricket_api
 from .database import refresh_db
-from .live_db import get_match
+from .live_db import get_match, upsert_scorecard
 from .sportmonks_cricsheet_export import fixture_to_cricsheet, normalize_cricsheet_names_to_duckdb
 
 log = logging.getLogger(__name__)
@@ -125,8 +125,82 @@ async def promote_sportmonks_fixture(
     ingest_json_paths = _ingest_json_paths()
     ingest_json_paths(db, [out_path], replace_existing_match=True)
     refresh_db()
+    
+    # Cache in live_scores.db for dashboard visibility
+    try:
+        scorecard_cache = {
+            "id": match_id,
+            "matchEnded": True,
+            "matchStarted": True,
+            "status": "completed",
+            "teams": doc.get("info", {}).get("teams", []),
+            "matchWinner": doc.get("info", {}).get("outcome", {}).get("winner"),
+            "playerOfMatch": {
+                "name": (doc.get("info", {}).get("player_of_match") or [""])[0]
+            } if doc.get("info", {}).get("player_of_match") else None,
+        }
+        upsert_scorecard(match_id, scorecard_cache)
+        log.info("Cached %s in live_scores.db for dashboard", match_id)
+    except Exception as e:
+        log.warning("Failed to cache %s in live_scores.db: %s", match_id, e)
+    
     log.info("Promoted %s into DuckDB (connections refreshed)", match_id)
     return True, 1
+
+
+async def get_completed_ipl_fixture_ids() -> list[str]:
+    """Return Sportmonks fixture IDs for IPL matches that are completed."""
+    api = get_cricket_api()
+    if not isinstance(api, SportmonksProvider):
+        raise RuntimeError("get_completed_ipl_fixture_ids requires SportmonksProvider")
+    matches = await api.fetch_matches()
+    return [
+        m["id"]
+        for m in matches
+        if m.get("id") and m.get("isIPL") and m.get("matchEnded")
+    ]
+
+
+async def promote_completed_ipl_fixtures(
+    *,
+    db_path: Path | None = None,
+    json_dir: Path | None = None,
+    season: str | int | None = None,
+    skip_if_in_db: bool = True,
+    max_fixtures: int | None = None,
+) -> tuple[int, int]:
+    """Fetch and ingest completed IPL fixtures from Sportmonks (idempotent)."""
+    fixture_ids = await get_completed_ipl_fixture_ids()
+    if max_fixtures is not None:
+        fixture_ids = fixture_ids[:max_fixtures]
+
+    promoted = 0
+    hits = 0
+    for fixture_id in fixture_ids:
+        try:
+            ok, h = await promote_sportmonks_fixture(
+                fixture_id,
+                db_path=db_path,
+                json_dir=json_dir,
+                season=season,
+                skip_if_in_db=skip_if_in_db,
+            )
+            hits += h
+            if ok:
+                promoted += 1
+        except Exception:
+            log.warning(
+                "promote_completed_ipl_fixtures: skipped %s due to error",
+                fixture_id,
+                exc_info=True,
+            )
+    log.info(
+        "promote_completed_ipl_fixtures: promoted=%d candidates=%d hits=%d",
+        promoted,
+        len(fixture_ids),
+        hits,
+    )
+    return promoted, hits
 
 
 async def try_promote_after_scorecard(match_id: str, scorecard: dict) -> int:

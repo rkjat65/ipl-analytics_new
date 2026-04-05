@@ -44,12 +44,16 @@ def _player_name(p_raw) -> str:
 def _ball_decimal_parts(ball_val: float | int) -> tuple[int, int]:
     """Sportmonks ball index: 1.3 → over 1 (0-indexed), third delivery."""
     x = float(ball_val)
-    whole = int(math.floor(x + 1e-9))
+    whole = int(x)
+    # Sportmonks uses 1.1 for 1st over, 1.2 for 2nd ball, etc.
+    # We want over_num=0 for over 1.
+    over_num = max(0, whole - 1)
     frac = x - whole
     ball_ord = int(round(frac * 10 + 1e-9))
     if ball_ord == 0:
-        ball_ord = 1
-    return whole, ball_ord
+        # 1.0 cases — sometimes used as end of over marker
+        ball_ord = 6
+        over_num = max(0, over_num - 1)
 
 
 def _scoreboard_to_innings(sb: str) -> int:
@@ -403,3 +407,207 @@ def process_balls_from_fixture(match_id: str, fixture: dict) -> int:
     )
     logger.debug("Ball sync from fixture for %s: %d total balls (%d new)", match_id, total, new_count)
     return new_count
+
+
+def compute_innings_scores_from_balls(match_id: str) -> list[dict]:
+    """Compute live score summary from ball-by-ball data in live_balls.
+
+    Returns a list in the same format as cricket_api._build_scores().
+    Used to override stale Sportmonks runs.overs data during live matches.
+    Returns empty list if no ball data is available.
+    """
+    all_balls = get_balls_for_match(match_id)
+    if not all_balls:
+        return []
+
+    by_sb: dict[str, list[dict]] = defaultdict(list)
+    for b in all_balls:
+        by_sb[b["scoreboard"]].append(b)
+
+    scores = []
+    for sb_key in sorted(by_sb.keys()):
+        sb_balls = by_sb[sb_key]
+        last = sb_balls[-1]
+
+        r = last.get("team_score") or sum(b["runs_total"] for b in sb_balls)
+        w = last.get("team_wickets") or sum(1 for b in sb_balls if b["is_wicket"])
+
+        # Compute overs from legal deliveries (wideballs/noballs don't consume a ball)
+        legal = [b for b in sb_balls if b.get("extra_type") not in ("wide", "noball")]
+        if legal:
+            last_legal = legal[-1]
+            ov = last_legal["over_num"]   # 0-indexed: over 0 = first over
+            ball_ord = last_legal["ball_in_over"]
+            if ball_ord >= 6:
+                o: float = float(ov + 1)
+            else:
+                o = ov + ball_ord / 10.0
+        else:
+            o = 0.0
+
+        inning_num = _scoreboard_to_innings(sb_key)
+        batting_team = last.get("batting_team", "")
+        inning_label = f"{batting_team} (2nd)" if inning_num > 1 else batting_team
+
+        scores.append({
+            "inning": inning_label,
+            "team": batting_team,
+            "inningNumber": inning_num,
+            "r": r,
+            "w": w,
+            "o": o,
+            "score": f"{r}/{w} ({o})",
+        })
+
+    return scores
+
+
+def compute_scorecard_from_balls(match_id: str) -> list[dict]:
+    """Build batting/bowling scorecard from live_balls data.
+
+    Returns list in same format as cricket_api._build_scorecard_array().
+    Used to override stale Sportmonks batting/bowling data when it freezes.
+    Returns empty list if no ball data available.
+    """
+    all_balls = get_balls_for_match(match_id)
+    if not all_balls:
+        return []
+
+    by_sb: dict[str, list[dict]] = defaultdict(list)
+    for b in all_balls:
+        by_sb[b["scoreboard"]].append(b)
+
+    innings_list = []
+    for sb_key in sorted(by_sb.keys()):
+        sb_balls = by_sb[sb_key]
+        batting_team = sb_balls[0].get("batting_team", "")
+
+        # ── Batting stats ─────────────────────────────────────────
+        bat_stats: dict[str, dict] = {}
+        bat_order: list[str] = []
+        dismissals: dict[str, tuple] = {}
+        last_ball = sb_balls[-1]
+
+        for b in sb_balls:
+            batter = b.get("batter") or ""
+            if not batter:
+                continue
+            if batter not in bat_stats:
+                bat_stats[batter] = {"runs": 0, "balls": 0, "fours": 0, "sixes": 0}
+                bat_order.append(batter)
+            s = bat_stats[batter]
+            s["runs"] += b.get("runs_batter", 0)
+            if b.get("extra_type") != "wide":
+                s["balls"] += 1
+            if b.get("runs_batter") == 4 and not b.get("extra_type"):
+                s["fours"] += 1
+            if b.get("runs_batter") == 6 and not b.get("extra_type"):
+                s["sixes"] += 1
+            if b.get("is_wicket"):
+                player_out = b.get("player_out") or batter
+                dismissals[player_out] = (
+                    b.get("wicket_kind") or "out",
+                    b.get("bowler") or "",
+                    b.get("fielder") or "",
+                )
+
+        active_batters = {last_ball.get("batter"), last_ball.get("non_striker")} - {None, ""}
+
+        batsmen_rows = []
+        for name in bat_order:
+            s = bat_stats[name]
+            balls = s["balls"]
+            sr = round(s["runs"] / balls * 100, 2) if balls else 0.0
+            is_out = name in dismissals
+            if is_out:
+                kind, bowler, fielder = dismissals[name]
+                if kind == "caught":
+                    detail = f"c {fielder} b {bowler}" if fielder else f"c&b {bowler}"
+                elif kind == "bowled":
+                    detail = f"b {bowler}"
+                elif kind == "lbw":
+                    detail = f"lbw b {bowler}"
+                elif kind == "stumped":
+                    detail = f"st {fielder} b {bowler}"
+                elif kind == "run out":
+                    detail = f"run out ({fielder})" if fielder else "run out"
+                else:
+                    detail = kind
+            else:
+                detail = "not out"
+            batsmen_rows.append({
+                "name": name,
+                "fullName": name,
+                "runs": s["runs"],
+                "balls": balls,
+                "fours": s["fours"],
+                "sixes": s["sixes"],
+                "sr": sr,
+                "dismissal": "out" if is_out else "not out",
+                "dismissalDetail": detail,
+                "active": name in active_batters and not is_out,
+                "image": "",
+            })
+
+        # ── Bowling stats ──────────────────────────────────────────
+        bowl_stats: dict[str, dict] = {}
+        bowl_order: list[str] = []
+        for b in sb_balls:
+            bowler = b.get("bowler") or ""
+            if not bowler:
+                continue
+            if bowler not in bowl_stats:
+                bowl_stats[bowler] = {"legal": 0, "runs": 0, "wickets": 0, "dots": 0, "ov_balls": defaultdict(list)}
+                bowl_order.append(bowler)
+            bw = bowl_stats[bowler]
+            extra = b.get("extra_type")
+            if extra not in ("wide", "noball"):
+                bw["legal"] += 1
+                if b.get("runs_total", 0) == 0:
+                    bw["dots"] += 1
+            if extra not in ("legbye", "bye"):
+                bw["runs"] += b.get("runs_total", 0)
+            # No-ball: bowler never gets wicket credit (only run-out possible off no-ball,
+            # which is already excluded). Wide: stumping still credits bowler.
+            if b.get("is_wicket") and b.get("wicket_kind") not in ("run out",) and extra != "noball":
+                bw["wickets"] += 1
+            bw["ov_balls"][b.get("over_num", 0)].append(b)
+
+        active_bowler = last_ball.get("bowler", "")
+        bowlers_rows = []
+        for name in bowl_order:
+            bw = bowl_stats[name]
+            legal = bw["legal"]
+            comp_ov = legal // 6
+            rem = legal % 6
+            overs_display = float(comp_ov) if rem == 0 else float(f"{comp_ov}.{rem}")
+            maidens = 0
+            for ov_balls in bw["ov_balls"].values():
+                legal_in_ov = [x for x in ov_balls if x.get("extra_type") not in ("wide", "noball")]
+                if len(legal_in_ov) == 6:
+                    charged = sum(x.get("runs_total", 0) for x in ov_balls if x.get("extra_type") not in ("legbye", "bye"))
+                    if charged == 0:
+                        maidens += 1
+            runs = bw["runs"]
+            eco = round(runs / (legal / 6), 2) if legal else 0.0
+            bowlers_rows.append({
+                "name": name,
+                "fullName": name,
+                "overs": overs_display,
+                "maidens": maidens,
+                "runs": runs,
+                "wickets": bw["wickets"],
+                "economy": eco,
+                "dots": bw["dots"],
+                "active": name == active_bowler,
+                "image": "",
+            })
+
+        innings_list.append({
+            "inning": batting_team,
+            "scoreboard": sb_key,
+            "batsmen": batsmen_rows,
+            "bowlers": bowlers_rows,
+        })
+
+    return innings_list

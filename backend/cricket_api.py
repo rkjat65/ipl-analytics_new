@@ -218,6 +218,7 @@ class SportmonksProvider(CricketAPIProvider):
     def reset_tier_cache(self, match_id: str) -> None:
         """Reset cached include tier for a match so the next fetch tries the richest tier."""
         self._last_good_tier.pop(match_id, None)
+        self._last_good_tier.pop(f"{match_id}:balls", None)
 
     def is_configured(self) -> bool:
         return bool(self._token)
@@ -467,7 +468,8 @@ class SportmonksProvider(CricketAPIProvider):
                 league_name = (league.get("data") or league).get("name", "") if isinstance(league.get("data"), dict) else league.get("name", "")
 
             # isIPL: match by season_id (if SEASON_ID env set) OR by league name fallback
-            _league_is_ipl = "indian premier league" in league_name.lower() or "ipl" in league_name.lower()
+            l_lower = league_name.lower()
+            _league_is_ipl = any(x in l_lower for x in ["indian premier league", "ipl", "premier league", "t20 league"])
             is_ipl = _league_is_ipl or (self._season_id > 0 and m.get("season_id") == self._season_id)
 
             toss_won_id = m.get("toss_won_team_id")
@@ -879,7 +881,7 @@ class SportmonksProvider(CricketAPIProvider):
                 "name": bname,
                 "fullName": bname,
                 "overs": bw.get("overs", 0),
-                "maidens": bw.get("medians", 0),
+                "maidens": bw.get("maidens") or bw.get("medians", 0),
                 "runs": bw.get("runs", 0),
                 "wickets": bw.get("wickets", 0),
                 "economy": bw.get("rate", 0),

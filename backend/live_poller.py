@@ -10,9 +10,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from .ball_sync import process_balls_from_fixture
+from .ball_sync import compute_innings_scores_from_balls, compute_scorecard_from_balls, process_balls_from_fixture
 from .cricket_api import RateLimitError, get_cricket_api
 from .ipl_schedule import is_match_window, next_match_window
 from .live_db import (
@@ -23,10 +23,14 @@ from .live_db import (
     get_tracked_match_ids,
     log_poll,
     set_setting,
+    upsert_ball_sync_state,
     upsert_matches,
     upsert_scorecard,
 )
-from .sportmonks_history import try_promote_after_scorecard
+from .sportmonks_history import (
+    promote_completed_ipl_fixtures,
+    try_promote_after_scorecard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +39,8 @@ MIN_POLL_INTERVAL_MS = 5_000        # 5 seconds (floor)
 MAX_POLL_INTERVAL_MS = 900_000      # 15 minutes (ceiling)
 IDLE_CHECK_INTERVAL = 300           # seconds between checks outside match windows
 DAILY_HIT_BUDGET = 9_500            # safety margin below 10 000
+
+LAST_DAILY_PROMOTION: date | None = None
 
 
 @dataclass
@@ -130,20 +136,31 @@ async def _poll_once() -> int:
 
     rate_limited = False
     for mid in tracked_ids:
-        # Check if this match has ball sync enabled — if so, piggyback balls
-        # on the same API call (0 extra hits)
+        # Always include balls for tracked matches — same API call, 0 extra hits.
+        # Ball-by-ball data is the ground truth for scoring/wickets; it corrects
+        # stale Sportmonks bowling/batting includes.
         ball_sync = get_ball_sync_state(mid)
-        wants_balls = bool(ball_sync and ball_sync["is_synced"])
+        if not ball_sync or not ball_sync.get("is_synced"):
+            # Auto-enable ball sync so we start storing balls from now on
+            upsert_ball_sync_state(mid, is_synced=1, mode="auto")
 
         try:
-            sc = await api.fetch_scorecard(mid, include_balls=wants_balls)
+            sc = await api.fetch_scorecard(mid, include_balls=True)
             hits += 1
 
             # Extract and store balls from the same response (0 extra API hits)
             raw_fixture = sc.pop("_raw_fixture", None)
-            if wants_balls and raw_fixture:
+            if raw_fixture:
                 try:
                     process_balls_from_fixture(mid, raw_fixture)
+                    # Sportmonks runs.overs can lag behind live balls — override with
+                    # score computed from ball data so the display never freezes mid-over.
+                    ball_scores = compute_innings_scores_from_balls(mid)
+                    if ball_scores:
+                        sc["score"] = ball_scores
+                    ball_scorecard = compute_scorecard_from_balls(mid)
+                    if ball_scorecard:
+                        sc["scorecard"] = ball_scorecard
                 except Exception as exc:
                     logger.warning("Ball processing failed for %s: %s", mid, exc)
 
@@ -267,6 +284,26 @@ async def run_poller():
                     "Outside match window — next window at %s",
                     poller_state._next_window or "season over",
                 )
+
+                # Once-a-day catch-up: promote any completed IPL fixtures not yet in DuckDB.
+                global LAST_DAILY_PROMOTION
+                today = now.date()
+                if LAST_DAILY_PROMOTION != today:
+                    try:
+                        promoted, extra_hits = await promote_completed_ipl_fixtures()
+                        logger.info(
+                            "Daily auto-promote complete: %d promoted, %d hits",
+                            promoted,
+                            extra_hits,
+                        )
+                        LAST_DAILY_PROMOTION = today
+                    except Exception as exc:
+                        logger.warning(
+                            "Daily auto-promote failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
+
                 await asyncio.sleep(IDLE_CHECK_INTERVAL)
                 continue
 

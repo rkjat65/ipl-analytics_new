@@ -335,6 +335,22 @@ def ingest_json_paths(
     Use after adding Sportmonks-exported files (``sm_<fixture_id>.json``) without a full re-ingest.
     When ``replace_existing_match`` is True, any existing rows for the same ``match_id`` are removed first.
     """
+    # Avoid conflicts with an already-open read-only connection for the same DB.
+    try:
+        from backend import database as _db
+
+        if Path(db_path).resolve() == Path(_db.DB_PATH).resolve():
+            existing_conn = getattr(_db._local, "conn", None)
+            if existing_conn is not None:
+                try:
+                    existing_conn.close()
+                except Exception:
+                    pass
+                _db._local.conn = None
+                _db._local.ver = -1
+    except Exception:
+        pass
+
     con = duckdb.connect(str(db_path))
     ensure_schema(con)
 

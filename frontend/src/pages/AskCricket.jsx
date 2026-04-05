@@ -31,6 +31,75 @@ function saveChatHistory(userEmail, messages) {
 
 const COLORS = ['#00E5FF', '#FF2D78', '#B8FF00', '#FFB800', '#A78BFA', '#34D399', '#F87171', '#60A5FA', '#FBBF24', '#E879F9']
 
+// Assign a stable colour per unique label value
+function labelColor(label, palette = COLORS) {
+  if (!label) return palette[0]
+  let hash = 0
+  for (let i = 0; i < label.length; i++) hash = label.charCodeAt(i) + ((hash << 5) - hash)
+  return palette[Math.abs(hash) % palette.length]
+}
+
+/* ── Timeline Chart — one row per match, shows date + label card ── */
+function TimelineChart({ data, chartConfig }) {
+  const { dateKey, labelKey, allKeys = [] } = chartConfig
+  // Extra info columns (everything that isn't the date or label)
+  const extraKeys = allKeys.filter(k => k !== dateKey && k !== labelKey)
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <div className="flex flex-col gap-2 py-2 min-w-[320px]">
+        {data.map((row, i) => {
+          const dateVal = row[dateKey] ? String(row[dateKey]).slice(0, 10) : '—'
+          const labelVal = labelKey ? String(row[labelKey] ?? '—') : null
+          const color = labelColor(labelVal)
+          return (
+            <div key={i} className="flex items-center gap-3 group">
+              {/* Match number */}
+              <span className="text-[10px] font-mono text-text-muted w-6 text-right shrink-0">
+                {i + 1}
+              </span>
+              {/* Date pill */}
+              <span className="text-[11px] font-mono text-text-muted bg-surface-dark/50 border border-border-subtle px-2 py-0.5 rounded shrink-0">
+                {dateVal}
+              </span>
+              {/* Colour bar */}
+              <div
+                className="h-7 rounded flex items-center px-3 transition-all"
+                style={{ background: color + '22', border: `1px solid ${color}55`, minWidth: 120, flex: 1 }}
+              >
+                <span className="text-xs font-bold truncate" style={{ color }}>
+                  {labelVal ?? '—'}
+                </span>
+              </div>
+              {/* Extra columns */}
+              {extraKeys.map(k => (
+                <span key={k} className="text-[11px] font-mono text-text-muted shrink-0">
+                  <span className="text-[9px] text-text-muted/50 mr-0.5">{k}:</span>
+                  {String(row[k] ?? '—')}
+                </span>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+      {/* Legend: unique labels */}
+      {labelKey && (() => {
+        const unique = [...new Set(data.map(r => String(r[labelKey] ?? '')))]
+        return (
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border-subtle/30">
+            {unique.map(lbl => (
+              <span key={lbl} className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: labelColor(lbl) }} />
+                <span style={{ color: labelColor(lbl) }}>{lbl}</span>
+              </span>
+            ))}
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
+
 function StatCard({ data }) {
   if (!data || data.length === 0) return null
   const row = data[0]
@@ -82,6 +151,10 @@ function AutoChart({ data, chartType, chartConfig }) {
 
   if (chartType === 'stat') {
     return <StatCard data={data} />
+  }
+
+  if (chartType === 'timeline') {
+    return <TimelineChart data={data} chartConfig={chartConfig} />
   }
 
   if (chartType === 'bar') {
