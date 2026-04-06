@@ -213,7 +213,11 @@ function LiveScoreHero({ match, onClick, isSelected }) {
     match.status.toLowerCase().includes('result') ||
     match.status.toLowerCase().includes('won by')
   )
+  const matchComplete = match.matchEnded || hasWinner || isCompletedStatus
   const isLive = match.matchStarted && !match.matchEnded && !hasWinner && !isCompletedStatus
+  const displayStatus = matchComplete && match.matchWinner
+    ? `Winner: ${match.matchWinner}`
+    : sanitizeResultStatus(match.status)
   const teams = match.teams || []
   const scores = match.score || []
   const teamInfo = match.teamInfo || []
@@ -238,14 +242,14 @@ function LiveScoreHero({ match, onClick, isSelected }) {
     >
       {/* Status bar */}
       <div className={`px-4 py-2 flex items-center justify-between ${
-        isLive ? 'bg-accent-magenta/10' : match.matchEnded ? 'bg-surface-hover' : 'bg-accent-amber/5'
+        isLive ? 'bg-accent-magenta/10' : matchComplete ? 'bg-surface-hover' : 'bg-accent-amber/5'
       }`}>
         {isLive ? (
           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-accent-magenta">
             <span className="w-2 h-2 rounded-full bg-accent-magenta animate-pulse" />
             Live
           </span>
-        ) : match.matchEnded ? (
+        ) : matchComplete ? (
           <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Completed</span>
         ) : (
           <span className="text-[10px] font-bold uppercase tracking-widest text-accent-amber">Upcoming</span>
@@ -295,11 +299,11 @@ function LiveScoreHero({ match, onClick, isSelected }) {
         })}
 
         {/* Match status */}
-        {match.status && (
+        {(displayStatus || match.status) && (
           <p className={`text-xs font-semibold text-center pt-2 border-t border-border-subtle/50 ${
-            isLive ? 'text-accent-lime' : match.matchEnded ? 'text-accent-cyan' : 'text-text-secondary'
+            isLive ? 'text-accent-lime' : matchComplete ? 'text-accent-cyan' : 'text-text-secondary'
           }`}>
-            {sanitizeResultStatus(match.status)}
+            {displayStatus}
           </p>
         )}
 
@@ -2320,11 +2324,20 @@ export default function LiveScores() {
   }, [autoRefresh, fetchMatches])
 
   useEffect(() => {
-    if (!selectedMatch && matches.length > 0) {
-      const live = matches.find(m => m.matchStarted && !m.matchEnded)
+    if (matches.length === 0) return
+
+    const live = matches.find(isLiveMatch)
+    const currentMatch = matches.find(m => m.id === selectedMatch)
+
+    if (!selectedMatch) {
       setSelectedMatch(live?.id || matches[0]?.id)
+      return
     }
-  }, [matches, selectedMatch])
+
+    if (live && currentMatch && !isLiveMatch(currentMatch)) {
+      setSelectedMatch(live.id)
+    }
+  }, [matches, selectedMatch, isLiveMatch])
 
   if (statusLoading) return <Loading />
 
