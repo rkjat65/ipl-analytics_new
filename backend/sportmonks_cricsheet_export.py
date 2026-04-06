@@ -130,7 +130,9 @@ def sm_ball_to_cricsheet_delivery(ball: dict, id_to_name: dict[int, str]) -> dic
         runs_total = runs_field
     elif nob:
         extras["noballs"] = 1
-        runs_batter = nob_extra
+        # noball_runs = no-ball penalty (1), not the batter's runs.
+        # Batter's contribution = total runs - 1 (penalty).
+        runs_batter = max(0, runs_field - 1)
         runs_extras = 1
         runs_total = runs_field
     elif leg_bye:

@@ -129,17 +129,17 @@ def live_matchup(
 
     rows = query("""
         SELECT
-            COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
+            COUNT(CASE WHEN extras_wides = 0 THEN 1 END) AS balls,
             SUM(runs_batter) AS runs,
             SUM(CASE WHEN extras_wides = 0 AND extras_noballs = 0
                       AND runs_batter = 0 AND runs_extras = 0 THEN 1 ELSE 0 END) AS dots,
-            SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0
+            SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0
                       THEN 1 ELSE 0 END) AS fours,
-            SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0
+            SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0
                       THEN 1 ELSE 0 END) AS sixes,
             SUM(CASE WHEN is_wicket AND player_dismissed = batter THEN 1 ELSE 0 END) AS dismissals,
             ROUND(SUM(runs_batter) * 100.0
-                / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr
+                / NULLIF(COUNT(CASE WHEN extras_wides = 0 THEN 1 END), 0), 2) AS sr
         FROM deliveries
         WHERE batter = ? AND bowler = ? AND is_super_over = false
     """, [db_batter, db_bowler])
@@ -386,7 +386,7 @@ def player_form(
             WITH batting AS (
                 SELECT m.date, i.bowling_team AS opponent,
                        SUM(d.runs_batter) AS runs,
-                       COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS balls,
+                       COUNT(CASE WHEN d.extras_wides = 0 THEN 1 END) AS balls,
                        MAX(CASE WHEN d.is_wicket AND d.player_dismissed = d.batter THEN 1 ELSE 0 END) AS was_out
                 FROM deliveries d
                 JOIN matches m ON d.match_id = m.match_id
@@ -404,9 +404,9 @@ def player_form(
         career = query("""
             SELECT COUNT(DISTINCT match_id) AS matches,
                    SUM(runs_batter) AS runs,
-                   COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
+                   COUNT(CASE WHEN extras_wides = 0 THEN 1 END) AS balls,
                    ROUND(SUM(runs_batter) * 100.0
-                       / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr
+                       / NULLIF(COUNT(CASE WHEN extras_wides = 0 THEN 1 END), 0), 2) AS sr
             FROM deliveries
             WHERE batter = ? AND is_super_over = false
         """, [db_player])

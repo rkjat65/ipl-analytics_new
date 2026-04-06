@@ -280,12 +280,12 @@ def batting_profile(name: str):
                 ELSE 'death'
             END AS phase,
             SUM(runs_batter) AS runs,
-            COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
-            ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS sr,
+            COUNT(CASE WHEN extras_wides = 0 THEN 1 END) AS balls,
+            ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 THEN 1 END), 0), 2) AS sr,
             SUM(CASE WHEN is_wicket AND player_dismissed = batter THEN 1 ELSE 0 END) AS dismissals,
-            SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
-            SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
-            SUM(CASE WHEN (runs_batter = 4 OR runs_batter = 6) AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS boundaries,
+            SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 THEN 1 ELSE 0 END) AS fours,
+            SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 THEN 1 ELSE 0 END) AS sixes,
+            SUM(CASE WHEN (runs_batter = 4 OR runs_batter = 6) AND extras_wides = 0 THEN 1 ELSE 0 END) AS boundaries,
             ROUND(SUM(runs_batter) * 1.0 / NULLIF(SUM(CASE WHEN is_wicket AND player_dismissed = batter THEN 1 ELSE 0 END), 0), 2) AS avg
         FROM deliveries
         WHERE batter = ? AND is_super_over = false

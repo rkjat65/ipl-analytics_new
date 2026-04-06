@@ -111,10 +111,10 @@ def parse_sportmonks_ball(ball: dict, local_id: int | None, local_name: str, vis
     elif nob:
         extra_type = "noball"
         extra_runs = 1
-        # noball_runs holds batter's runs off the no-ball delivery.
-        # If Sportmonks omits it (returns 0) but runs > 1, infer batter
-        # scored runs_total - 1 (the 1 being the no-ball penalty extra).
-        runs_batter = nob_extra if nob_extra else max(0, runs_field - 1)
+        # Sportmonks `noball_runs` = the no-ball PENALTY (always 1), not the
+        # batter's runs. Batter's contribution = total runs - 1 (penalty).
+        # e.g. runs=5, noball_runs=1 → batter scored 4, extras=1.
+        runs_batter = max(0, runs_field - 1)
         runs_extras = 1
         runs_total = runs_field
     elif leg_bye:
@@ -546,9 +546,9 @@ def compute_scorecard_from_balls(match_id: str) -> list[dict]:
             s["runs"] += b.get("runs_batter", 0)
             if b.get("extra_type") != "wide":
                 s["balls"] += 1
-            if b.get("runs_batter") == 4 and not b.get("extra_type"):
+            if b.get("runs_batter") == 4 and b.get("extra_type") != "wide":
                 s["fours"] += 1
-            if b.get("runs_batter") == 6 and not b.get("extra_type"):
+            if b.get("runs_batter") == 6 and b.get("extra_type") != "wide":
                 s["sixes"] += 1
             if b.get("is_wicket"):
                 player_out = b.get("player_out") or batter

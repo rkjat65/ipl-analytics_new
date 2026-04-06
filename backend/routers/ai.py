@@ -90,8 +90,10 @@ IMPORTANT RULES:
 - Economy = (runs * 6.0) / balls
 - Bowling average = runs / wickets
 - Batting average = runs / dismissals
-- For sixes: runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0
-- For fours: runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0
+- For sixes: runs_batter = 6 AND extras_wides = 0  (no-balls count — a six off a no-ball is still a six for the batter)
+- For fours: runs_batter = 4 AND extras_wides = 0  (no-balls count — a four off a no-ball is still a four for the batter)
+- For batting balls faced: COUNT(CASE WHEN extras_wides = 0 THEN 1 END)  (batter faces no-balls; only wides are not faced)
+- For bowling legal balls (overs): COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END)
 - Always exclude super overs: is_super_over = false (add this to WHERE clause)
 - Player names are full names like 'V Kohli', 'MS Dhoni', 'JJ Bumrah'
 - Team names: 'Chennai Super Kings', 'Mumbai Indians', 'Royal Challengers Bangalore', 'Kolkata Knight Riders', 'Delhi Capitals', 'Punjab Kings', 'Rajasthan Royals', 'Sunrisers Hyderabad', 'Gujarat Titans', 'Lucknow Super Giants'

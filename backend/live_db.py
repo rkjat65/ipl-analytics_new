@@ -413,25 +413,36 @@ def set_setting(key: str, value: str):
 # ── ball-by-ball operations ───────────────────────────────────
 
 def upsert_balls(match_id: str, balls: list[dict]) -> int:
-    """Insert or ignore ball rows. Returns number of new rows inserted."""
+    """Insert or update ball rows. Returns number of rows processed.
+
+    Uses INSERT OR REPLACE so that a re-sync always overwrites stale data
+    (e.g. wrong runs_batter from a previously missing noball_runs field).
+
+    Content-based deduplication still skips balls whose position/runs are
+    already covered by a *different* ball_id (provider ID rotation), but
+    when the ball_id matches we always overwrite with fresh parsed values.
+    """
     conn = get_live_db()
     now = _now_iso()
     inserted = 0
     for b in balls:
         try:
-            # Content-based deduplication: skip if ID differs but scoreboard, decimal, and runs match
-            # This handles cases where the provider rotates IDs for the same match events.
-            # We allow multiple entries at the same decimal ONLY if they have different extra_types (e.g. wide vs legal)
+            # Content-based deduplication: if a ball at the same position with
+            # the same extra_type and runs already exists under a DIFFERENT
+            # ball_id, it's likely a provider ID rotation — skip to avoid dupes.
+            # We do NOT skip if ball_id matches, because we want to overwrite.
             existing = conn.execute(
-                "SELECT ball_id FROM live_balls WHERE match_id=? AND scoreboard=? AND ball_decimal=? AND extra_type IS ? AND runs_total=?",
-                (match_id, b["scoreboard"], b["ball_decimal"], b["extra_type"], b.get("runs_total", 0))
+                "SELECT ball_id FROM live_balls "
+                "WHERE match_id=? AND scoreboard=? AND ball_decimal=? "
+                "AND extra_type IS ? AND runs_total=?",
+                (match_id, b["scoreboard"], b["ball_decimal"],
+                 b.get("extra_type"), b.get("runs_total", 0)),
             ).fetchall()
-            if existing:
-                if any(row[0] != b["ball_id"] for row in existing):
-                    continue
+            if existing and any(row[0] != b["ball_id"] for row in existing):
+                continue
 
             conn.execute(
-                """INSERT OR IGNORE INTO live_balls
+                """INSERT OR REPLACE INTO live_balls
                    (match_id, ball_id, innings, scoreboard, over_num, ball_in_over,
                     ball_decimal, batter, bowler, non_striker,
                     runs_batter, runs_extras, runs_total,
@@ -452,7 +463,7 @@ def upsert_balls(match_id: str, balls: list[dict]) -> int:
                     b.get("raw_data"), now,
                 ),
             )
-            inserted += 1 # approximate if it didn't exist
+            inserted += 1
         except Exception:
             pass
     conn.commit()

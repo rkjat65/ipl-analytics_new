@@ -102,10 +102,10 @@ def match_detail(match_id: str):
     batting = query("""
         SELECT innings_number, batter,
                SUM(runs_batter) AS runs,
-               COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
-               SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
-               SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0 THEN 1 ELSE 0 END) AS sixes,
-               ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END), 0), 2) AS strike_rate,
+               COUNT(CASE WHEN extras_wides = 0 THEN 1 END) AS balls,
+               SUM(CASE WHEN runs_batter = 4 AND extras_wides = 0 THEN 1 ELSE 0 END) AS fours,
+               SUM(CASE WHEN runs_batter = 6 AND extras_wides = 0 THEN 1 ELSE 0 END) AS sixes,
+               ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN extras_wides = 0 THEN 1 END), 0), 2) AS strike_rate,
                MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN dismissal_kind END) AS dismissal,
                MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN bowler END) AS dismissed_by,
                MAX(CASE WHEN is_wicket AND player_dismissed = batter THEN fielder1 END) AS fielder
@@ -166,7 +166,7 @@ def match_detail(match_id: str):
         partnership_players AS (
             SELECT innings_number, wicket_num,
                    SUM(runs_total) AS runs,
-                   COUNT(CASE WHEN extras_wides = 0 AND extras_noballs = 0 THEN 1 END) AS balls,
+                   COUNT(CASE WHEN extras_wides = 0 THEN 1 END) AS balls,
                    MIN(batter) AS batter1,
                    MAX(batter) AS batter2_candidate,
                    MIN(non_striker) AS ns1,

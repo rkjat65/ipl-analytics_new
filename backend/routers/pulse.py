@@ -97,7 +97,7 @@ def discover_milestones() -> list[dict]:
                COUNT(*) AS total_sixes,
                COUNT(DISTINCT match_id) AS matches
         FROM deliveries
-        WHERE runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0
+        WHERE runs_batter = 6 AND extras_wides = 0
           AND is_super_over = false
         GROUP BY batter
         HAVING total_sixes >= 80
@@ -363,10 +363,10 @@ def discover_did_you_know() -> list[dict]:
     big_scores = query("""
         SELECT batter AS player,
                SUM(runs_batter) AS score,
-               COUNT(*) AS balls,
-               COUNT(*) FILTER (WHERE runs_batter = 6 AND extras_wides = 0 AND extras_noballs = 0) AS sixes,
-               COUNT(*) FILTER (WHERE runs_batter = 4 AND extras_wides = 0 AND extras_noballs = 0) AS fours,
-               ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(*), 0), 1) AS sr,
+               COUNT(*) FILTER (WHERE extras_wides = 0) AS balls,
+               COUNT(*) FILTER (WHERE runs_batter = 6 AND extras_wides = 0) AS sixes,
+               COUNT(*) FILTER (WHERE runs_batter = 4 AND extras_wides = 0) AS fours,
+               ROUND(SUM(runs_batter) * 100.0 / NULLIF(COUNT(*) FILTER (WHERE extras_wides = 0), 0), 1) AS sr,
                match_id
         FROM deliveries
         WHERE is_super_over = false
