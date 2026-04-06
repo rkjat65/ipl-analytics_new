@@ -2321,10 +2321,10 @@ export default function LiveScores() {
 
   useEffect(() => {
     if (!selectedMatch && matches.length > 0) {
-      const live = liveMatches.find(Boolean)
+      const live = matches.find(m => m.matchStarted && !m.matchEnded)
       setSelectedMatch(live?.id || matches[0]?.id)
     }
-  }, [matches, selectedMatch, liveMatches])
+  }, [matches, selectedMatch])
 
   if (statusLoading) return <Loading />
 
