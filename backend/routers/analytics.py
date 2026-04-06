@@ -268,6 +268,108 @@ def title_winners():
     return rows
 
 
+@router.get("/man-of-the-match")
+def man_of_the_match(season: str | None = None, team: str | None = None, player: str | None = None, role: str | None = None):
+    sf, sp = _season_filter("m", season)
+    filters = ["m.player_of_match IS NOT NULL AND m.player_of_match != ''"]
+    params: list = []
+
+    if team:
+        filters.append("(m.team1 = ? OR m.team2 = ?)")
+        params.extend([team, team])
+    if player:
+        filters.append("m.player_of_match = ?")
+        params.append(player)
+    if role in ("batsman", "bowler", "allrounder"):
+        filters.append("r.motm_role = ?")
+        params.append(role)
+
+    where_clause = "WHERE " + " AND ".join(filters)
+
+    player_counts = query(f"""
+        WITH motm_roles AS (
+            SELECT m.match_id,
+                   CASE
+                     WHEN EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.batter = m.player_of_match)
+                          AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.bowler = m.player_of_match)
+                       THEN 'batsman'
+                     WHEN EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.bowler = m.player_of_match)
+                          AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.batter = m.player_of_match)
+                       THEN 'bowler'
+                     ELSE 'allrounder'
+                   END AS motm_role
+            FROM matches m
+            WHERE m.player_of_match IS NOT NULL AND m.player_of_match != ''
+        )
+        SELECT m.player_of_match AS player,
+               COUNT(*) AS awards
+        FROM matches m
+        JOIN motm_roles r ON r.match_id = m.match_id
+        {where_clause} {sf}
+        GROUP BY m.player_of_match
+        ORDER BY awards DESC, player
+        LIMIT 20
+    """, params + sp)
+
+    season_counts = query(f"""
+        WITH motm_roles AS (
+            SELECT m.match_id,
+                   CASE
+                     WHEN EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.batter = m.player_of_match)
+                          AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.bowler = m.player_of_match)
+                       THEN 'batsman'
+                     WHEN EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.bowler = m.player_of_match)
+                          AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.batter = m.player_of_match)
+                       THEN 'bowler'
+                     ELSE 'allrounder'
+                   END AS motm_role
+            FROM matches m
+            WHERE m.player_of_match IS NOT NULL AND m.player_of_match != ''
+        )
+        SELECT m.season,
+               COUNT(*) AS awards
+        FROM matches m
+        JOIN motm_roles r ON r.match_id = m.match_id
+        {where_clause} {sf}
+        GROUP BY m.season
+        ORDER BY m.season
+    """, params + sp)
+
+    recent_matches = query(f"""
+        WITH motm_roles AS (
+            SELECT m.match_id,
+                   CASE
+                     WHEN EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.batter = m.player_of_match)
+                          AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.bowler = m.player_of_match)
+                       THEN 'batsman'
+                     WHEN EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.bowler = m.player_of_match)
+                          AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.match_id = m.match_id AND d.batter = m.player_of_match)
+                       THEN 'bowler'
+                     ELSE 'allrounder'
+                   END AS motm_role
+            FROM matches m
+            WHERE m.player_of_match IS NOT NULL AND m.player_of_match != ''
+        )
+        SELECT m.match_id,
+               m.date,
+               m.team1,
+               m.team2,
+               m.winner,
+               m.player_of_match
+        FROM matches m
+        JOIN motm_roles r ON r.match_id = m.match_id
+        {where_clause} {sf}
+        ORDER BY m.date DESC
+        LIMIT 30
+    """, params + sp)
+
+    return {
+        "player_counts": player_counts,
+        "season_counts": season_counts,
+        "matches": recent_matches,
+    }
+
+
 # ── Mind-blowing Dashboard Charts ─────────────────────────────────────────────
 
 

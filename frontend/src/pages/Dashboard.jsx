@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import SEO from '../components/SEO'
 import { useFetch } from '../hooks/useFetch'
+import Select from '../components/ui/Select'
 import {
   getKPIs,
   getSeasons,
@@ -13,13 +14,16 @@ import {
   getTopSixes,
   getTopFours,
   getMostWins,
-  getTitleWinners,
+  getTeams,
+  getManOfTheMatch,
+  searchPlayers,
 } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
 import {
   BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  LineChart, Line,
 } from 'recharts'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
@@ -53,6 +57,12 @@ export default function Dashboard() {
   const [showTopWickets, setShowTopWickets] = useState(false)
   const [batSort, setBatSort] = useState('runs')
   const [bowlSort, setBowlSort] = useState('wickets')
+  const [motmChartType, setMotmChartType] = useState('top_players')
+  const [motmTeam, setMotmTeam] = useState('')
+  const [motmPlayer, setMotmPlayer] = useState('')
+  const [motmRole, setMotmRole] = useState('all')
+  const [motmPlayerQuery, setMotmPlayerQuery] = useState('')
+  const [motmPlayerResults, setMotmPlayerResults] = useState([])
 
   const { data: seasons, loading: seasonsLoading } = useFetch(() => getSeasons(), [])
 
@@ -96,12 +106,27 @@ export default function Dashboard() {
     [season]
   )
 
-  const { data: titleWinners, loading: titleWinnersLoading } = useFetch(
-    () => getTitleWinners(),
-    []
+  const { data: allTeams } = useFetch(() => getTeams(), [])
+  const { data: motmData, loading: motmLoading } = useFetch(
+    () => getManOfTheMatch({ season, team: motmTeam, player: motmPlayer, role: motmRole !== 'all' ? motmRole : undefined }),
+    [season, motmTeam, motmPlayer, motmRole]
   )
 
+  useEffect(() => {
+    if (motmPlayerQuery.length < 2) {
+      setMotmPlayerResults([])
+      return
+    }
+    const timer = setTimeout(() => {
+      searchPlayers(motmPlayerQuery)
+        .then(setMotmPlayerResults)
+        .catch(() => {})
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [motmPlayerQuery])
+
   const seasonOptions = (seasons || []).map((s) => ({ value: s, label: s }))
+  const teamOptions = [{ value: '', label: 'All Teams' }, ...(Array.isArray(allTeams) ? allTeams.map((t) => ({ value: t, label: t })) : [])]
 
   // Batting leaderboard columns
   const battingColumns = [
@@ -183,6 +208,18 @@ export default function Dashboard() {
     { key: 'matches', label: 'Matches' },
   ]
 
+  const MOTM_CHART_OPTIONS = [
+    { key: 'top_players', label: 'Top Players' },
+    { key: 'season_trend', label: 'Season Trend' },
+    { key: 'player_timeline', label: 'Player Timeline' },
+  ]
+  const MOTM_ROLE_OPTIONS = [
+    { value: 'all', label: 'All Roles' },
+    { value: 'batsman', label: 'Batsman' },
+    { value: 'bowler', label: 'Bowler' },
+    { value: 'allrounder', label: 'All-Rounder' },
+  ]
+
   const BAT_BAR_COLORS = ['#00E5FF', '#B8FF00', '#FFB800', '#FF2D78', '#8B5CF6', '#22D3EE', '#22C55E', '#FBBF24', '#EF4444', '#A78BFA']
   const BOWL_BAR_COLORS = ['#FF2D78', '#8B5CF6', '#00E5FF', '#FFB800', '#B8FF00', '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399']
 
@@ -206,6 +243,10 @@ export default function Dashboard() {
     economy: b.economy,
   })).sort((a, b) => b.value - a.value)
 
+  const motmPlayerData = useMemo(() => Array.isArray(motmData?.player_counts) ? motmData.player_counts : [], [motmData])
+  const motmSeasonData = useMemo(() => Array.isArray(motmData?.season_counts) ? motmData.season_counts : [], [motmData])
+  const motmMatches = useMemo(() => Array.isArray(motmData?.matches) ? motmData.matches : [], [motmData])
+
   /* ── Most Wins chart data ──────────────────────────────── */
   const winsChartData = useMemo(() => {
     if (!Array.isArray(mostWins) || mostWins.length === 0) return []
@@ -220,23 +261,6 @@ export default function Dashboard() {
         fill: getTeamColor(t.team),
       }))
   }, [mostWins])
-
-  /* ── Title Winners chart data ──────────────────────────── */
-  const titleChartData = useMemo(() => {
-    if (!Array.isArray(titleWinners) || titleWinners.length === 0) return []
-    const counts = {}
-    titleWinners.forEach((t) => {
-      counts[t.winner] = (counts[t.winner] || 0) + 1
-    })
-    return Object.entries(counts)
-      .map(([team, titles]) => ({
-        team: getTeamAbbr(team),
-        fullTeam: team,
-        titles,
-        fill: getTeamColor(team),
-      }))
-      .sort((a, b) => b.titles - a.titles)
-  }, [titleWinners])
 
   /* ── Safe array helpers for expandable cards ───────────── */
   const topTotalsList = Array.isArray(topTotals) ? topTotals : []
@@ -610,74 +634,202 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* IPL Title Winners */}
+        {/* Man of the Match Explorer */}
         <section>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1 h-6 bg-accent-amber rounded-full" />
-            <h2 className="text-xl font-heading font-bold text-text-primary">IPL Title Winners</h2>
+            <h2 className="text-xl font-heading font-bold text-text-primary">Man of the Match Explorer</h2>
           </div>
           <div className="card">
-            {titleWinnersLoading ? (
-              <Loading message="Loading title winners..." />
-            ) : titleChartData.length === 0 ? (
-              <p className="text-text-muted text-sm py-8 text-center">No data available</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(300, titleChartData.length * 44)}>
-                <BarChart
-                  data={titleChartData}
-                  layout="vertical"
-                  margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
-                >
-                  <XAxis
-                    type="number"
-                    tick={{ fill: '#8888A0', fontSize: 11 }}
-                    axisLine={{ stroke: '#2A2A3A' }}
-                    tickLine={false}
-                    allowDecimals={false}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-text-muted mb-2">Chart type</label>
+                  <Select
+                    options={MOTM_CHART_OPTIONS.map((opt) => ({ value: opt.key, label: opt.label }))}
+                    value={motmChartType}
+                    onChange={setMotmChartType}
                   />
-                  <YAxis
-                    type="category"
-                    dataKey="team"
-                    width={60}
-                    tick={{ fill: '#C8C8D8', fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-2">Team</label>
+                  <Select
+                    options={teamOptions}
+                    value={motmTeam}
+                    onChange={setMotmTeam}
                   />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null
-                      const d = payload[0].payload
-                      return (
-                        <div className="rounded-lg px-3 py-2 text-xs shadow-xl border"
-                          style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
-                          <p className="text-text-primary font-semibold mb-0.5">{d.fullTeam}</p>
-                          <p style={{ color: d.fill }}>
-                            Titles: <span className="font-mono font-bold">{d.titles}</span>
-                          </p>
-                        </div>
-                      )
+                </div>
+                <div className="relative">
+                  <label className="block text-xs text-text-muted mb-2">Player</label>
+                  <input
+                    type="text"
+                    value={motmPlayerQuery}
+                    onChange={(e) => {
+                      setMotmPlayerQuery(e.target.value)
+                      setMotmPlayer('')
                     }}
-                    cursor={{ fill: 'rgba(255,184,0,0.05)' }}
+                    placeholder="Search player..."
+                    className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
                   />
-                  <Bar
-                    dataKey="titles"
-                    radius={[0, 4, 4, 0]}
-                    barSize={26}
-                    label={{
-                      position: 'right',
-                      fill: '#E8E8F0',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    {titleChartData.map((entry, idx) => (
-                      <rect key={idx} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+                  {motmPlayerResults.length > 0 && motmPlayerQuery && (
+                    <div className="absolute z-20 top-full mt-1 w-full bg-bg-elevated border border-border-subtle rounded-lg max-h-56 overflow-y-auto shadow-xl">
+                      {motmPlayerResults.slice(0, 8).map((player) => (
+                        <button
+                          key={player}
+                          type="button"
+                          onClick={() => {
+                            setMotmPlayer(player)
+                            setMotmPlayerQuery('')
+                            setMotmPlayerResults([])
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
+                        >
+                          {player}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-2">Role</label>
+                  <Select
+                    options={MOTM_ROLE_OPTIONS}
+                    value={motmRole}
+                    onChange={setMotmRole}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="min-h-[320px]">
+              {motmLoading ? (
+                <Loading message="Loading Man of the Match analytics..." />
+              ) : motmPlayerData.length === 0 && motmSeasonData.length === 0 ? (
+                <p className="text-text-muted text-sm py-8 text-center">No Man of the Match analytics available</p>
+              ) : (
+                <div className="h-full">
+                  {motmChartType === 'top_players' && (
+                    <ResponsiveContainer width="100%" height={340}>
+                      <BarChart
+                        data={motmPlayerData}
+                        layout="vertical"
+                        margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
+                        barCategoryGap="16%"
+                      >
+                        <XAxis
+                          type="number"
+                          tick={{ fill: '#8888A0', fontSize: 11 }}
+                          axisLine={{ stroke: '#2A2A3A' }}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="player"
+                          width={180}
+                          interval={0}
+                          tick={{ fill: '#E8E8F0', fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0].payload
+                          return (
+                            <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
+                              <p className="text-text-primary font-semibold mb-0.5">{d.player}</p>
+                              <p className="text-text-secondary">Awards: <span className="font-mono font-bold">{d.awards}</span></p>
+                            </div>
+                          )
+                        }} />
+                        <Bar dataKey="awards" radius={[0, 6, 6, 0]} barSize={22}>
+                          {motmPlayerData.map((_, idx) => (
+                            <Cell key={idx} fill={['#FFB800', '#00E5FF', '#B8FF00', '#FF2D78', '#8B5CF6'][idx % 5]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {motmChartType === 'season_trend' && (
+                    <ResponsiveContainer width="100%" height={340}>
+                      <LineChart
+                        data={motmSeasonData}
+                        margin={{ top: 15, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <CartesianGrid stroke="#2A2A3A" strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="season"
+                          tick={{ fill: '#C8C8D8', fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fill: '#8888A0', fontSize: 11 }}
+                          axisLine={{ stroke: '#2A2A3A' }}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0].payload
+                            return (
+                              <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
+                                <p className="text-text-primary font-semibold mb-0.5">Season {label}</p>
+                                <p className="text-text-secondary">Awards: <span className="font-mono font-bold">{d.awards}</span></p>
+                              </div>
+                            )
+                          }}
+                        />
+                        <Line type="monotone" dataKey="awards" stroke="#00E5FF" strokeWidth={3} dot={{ r: 4, fill: '#00E5FF' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {motmChartType === 'player_timeline' && (
+                    motmPlayer ? (
+                      <ResponsiveContainer width="100%" height={340}>
+                        <BarChart
+                          data={motmSeasonData}
+                          margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
+                        >
+                          <XAxis
+                            dataKey="season"
+                            tick={{ fill: '#C8C8D8', fontSize: 12 }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            tick={{ fill: '#8888A0', fontSize: 11 }}
+                            axisLine={{ stroke: '#2A2A3A' }}
+                            tickLine={false}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null
+                              const d = payload[0].payload
+                              return (
+                                <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
+                                  <p className="text-text-primary font-semibold mb-0.5">{motmPlayer} in {label}</p>
+                                  <p className="text-text-secondary">Awards: <span className="font-mono font-bold">{d.awards}</span></p>
+                                </div>
+                              )
+                            }}
+                          />
+                          <Bar dataKey="awards" radius={[4, 4, 0, 0]} fill="#B8FF00" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-80 items-center justify-center text-text-muted text-sm">
+                        Search and select a player to view their Man of the Match timeline.
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </div>

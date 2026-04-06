@@ -14,6 +14,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from ..auth_db import get_auth_db
+from ..database import get_db, query
 
 try:
     from dotenv import load_dotenv
@@ -67,6 +68,10 @@ class ChangePasswordRequest(BaseModel):
 class AdminResetPasswordRequest(BaseModel):
     user_id: str
     new_password: str
+
+
+class AdminSqlQueryRequest(BaseModel):
+    sql: str
 
 
 class UserResponse(BaseModel):
@@ -495,6 +500,85 @@ def admin_reset_password(
     )
     db.commit()
     return {"detail": f"Password reset for {user['email']}"}
+
+
+@router.post("/admin/sql")
+def admin_sql_query(
+    body: AdminSqlQueryRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Run a read-only SQL query against the historical database."""
+    current = get_current_user(authorization)
+    if not current:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not _is_admin(current):
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    sql = (body.sql or "").strip()
+    if not sql:
+        raise HTTPException(status_code=400, detail="SQL query is required")
+
+    lowered = sql.lower()
+    if not (
+        lowered.startswith("select")
+        or lowered.startswith("with")
+        or lowered.startswith("pragma")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Only read-only SQL queries are allowed.",
+        )
+
+    conn = get_db()
+    try:
+        result = conn.execute(sql)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"SQL error: {exc}")
+
+    columns = [desc[0] for desc in result.description]
+    rows = [dict(zip(columns, row)) for row in result.fetchall()]
+    return {"columns": columns, "rows": rows, "count": len(rows)}
+
+
+@router.get("/admin/sql-schema")
+def admin_sql_schema(authorization: Optional[str] = Header(None)):
+    """Return the database table and column schema for admin SQL building."""
+    current = get_current_user(authorization)
+    if not current:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not _is_admin(current):
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    try:
+        rows = query(
+            """
+            SELECT table_schema, table_name, column_name, data_type AS column_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'main'
+            ORDER BY table_schema, table_name, ordinal_position
+            """
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Schema query failed: {exc}")
+
+    schema = {}
+    for row in rows:
+        table_name = row["table_name"]
+        if table_name not in schema:
+            schema[table_name] = {
+                "schema": row["table_schema"],
+                "table": table_name,
+                "columns": [],
+            }
+        schema[table_name]["columns"].append(
+            {
+                "name": row["column_name"],
+                "type": row["column_type"],
+                "nullable": row["is_nullable"],
+            }
+        )
+
+    return {"tables": list(schema.values())}
 
 
 # ── Google OAuth ─────────────────────────────────────────────────────

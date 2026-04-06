@@ -153,6 +153,7 @@ export const getTopSixes = (season) => fetchAPI('/analytics/top-sixes', { season
 export const getTopFours = (season) => fetchAPI('/analytics/top-fours', { season })
 export const getMostWins = (season) => fetchAPI('/analytics/most-wins', { season })
 export const getTitleWinners = () => fetchAPI('/analytics/title-winners')
+export const getManOfTheMatch = (params) => fetchAPI('/analytics/man-of-the-match', params)
 export const getCapWinners = () => fetchAPI('/analytics/cap-winners')
 export const getIPLPointsTable = (season = '2026') => fetchAPI('/analytics/points-table', { season })
 
@@ -327,17 +328,39 @@ export const getLiveBalls = (matchId) => fetchAPI(`/live/balls/${encodeURICompon
 export const getAdminUsers = (token) => {
   return fetch(`${window.location.origin}/api/auth/admin/users`, {
     headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
-    return res.json()
-  })
+  }).then(res => parseApiResponse(res, 'Access denied'))
 }
 
 export const getAdminStats = (token) => {
   return fetch(`${window.location.origin}/api/auth/admin/stats`, {
     headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
-    return res.json()
-  })
+  }).then(res => parseApiResponse(res, 'Access denied'))
+}
+
+const parseApiResponse = async (res, fallbackMessage) => {
+  const text = await res.text()
+  if (!res.ok) {
+    try {
+      const json = JSON.parse(text)
+      throw new Error(json.detail || json.error || fallbackMessage)
+    } catch {
+      throw new Error(text || fallbackMessage)
+    }
+  }
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+export const runAdminSqlQuery = (token, sql) => {
+  return fetch(`${window.location.origin}/api/auth/admin/sql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ sql }),
+  }).then(res => parseApiResponse(res, 'SQL query failed'))
 }

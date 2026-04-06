@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getAdminUsers, getAdminStats, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking, deleteBalls, syncBalls } from '../lib/api'
+import { getAdminUsers, getAdminStats, runAdminSqlQuery, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking, deleteBalls, syncBalls } from '../lib/api'
 import SEO from '../components/SEO'
 
 function LiveScorePanel({ token }) {
@@ -420,6 +420,13 @@ export default function Admin() {
   const [resetModal, setResetModal] = useState(null) // { userId, email, name }
   const [resetPassword, setResetPassword] = useState('')
   const [resetMsg, setResetMsg] = useState('')
+  const [sqlText, setSqlText] = useState('SELECT * FROM matches ORDER BY match_id DESC LIMIT 50')
+  const [sqlResult, setSqlResult] = useState([])
+  const [sqlColumns, setSqlColumns] = useState([])
+  const [sqlLoading, setSqlLoading] = useState(false)
+  const [sqlError, setSqlError] = useState(null)
+  const [sqlExecuted, setSqlExecuted] = useState(false)
+  const [sqlCopied, setSqlCopied] = useState(false)
 
   const loadData = () => {
     if (!token) { setError('Not authenticated'); setLoading(false); return }
@@ -430,6 +437,48 @@ export default function Admin() {
   }
 
   useEffect(() => { loadData() }, [token])
+
+  const executeSql = async () => {
+    if (!sqlText || !sqlText.trim()) {
+      setSqlError('Please enter a SQL query.')
+      return
+    }
+    setSqlError(null)
+    setSqlLoading(true)
+    setSqlExecuted(false)
+    setSqlCopied(false)
+
+    try {
+      const res = await runAdminSqlQuery(token, sqlText)
+      setSqlResult(res.rows || [])
+      setSqlColumns(res.columns || [])
+      setSqlExecuted(true)
+    } catch (err) {
+      setSqlError(err.message)
+      setSqlResult([])
+      setSqlColumns([])
+      setSqlExecuted(true)
+    } finally {
+      setSqlLoading(false)
+    }
+  }
+
+  const copySqlResult = async () => {
+    if (!sqlResult.length || !sqlColumns.length) return
+
+    const lines = [sqlColumns.join('\t')]
+    sqlResult.forEach(row => {
+      lines.push(sqlColumns.map(column => String(row[column] ?? '')).join('\t'))
+    })
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setSqlCopied(true)
+      setTimeout(() => setSqlCopied(false), 2000)
+    } catch (err) {
+      setSqlError('Clipboard copy failed. Please try again.')
+    }
+  }
 
   const handleResetPassword = async () => {
     if (!resetPassword || resetPassword.length < 6) {
@@ -519,6 +568,98 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* SQL Query Console */}
+      <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+          <div>
+            <h2 className="font-heading font-bold text-text-primary text-sm">SQL Query Console</h2>
+            <p className="text-[10px] text-text-muted font-mono">
+              Run read-only SQL queries against the historical DuckDB dataset. Results are shown below in table form and can be copied.
+            </p>
+          </div>
+          <span className="text-[10px] font-mono text-text-muted">Admin only</span>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <textarea
+            value={sqlText}
+            onChange={e => setSqlText(e.target.value)}
+            rows={6}
+            spellCheck={false}
+            className="w-full min-h-[170px] rounded-xl bg-[#0A0A0F] border border-[#1E1E2A] px-4 py-3 text-text-primary text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-accent-cyan/40"
+          />
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={executeSql}
+                disabled={sqlLoading}
+                className="px-4 py-2 rounded-lg bg-accent-cyan text-black font-semibold text-xs uppercase tracking-wide hover:bg-accent-cyan/90 disabled:opacity-50"
+              >
+                {sqlLoading ? 'Running…' : 'Run SQL'}
+              </button>
+              <button
+                onClick={copySqlResult}
+                disabled={!sqlResult.length || !sqlColumns.length}
+                className="px-4 py-2 rounded-lg border border-border-subtle text-text-secondary text-xs uppercase tracking-wide hover:bg-surface-hover disabled:opacity-50"
+              >
+                {sqlCopied ? 'Copied!' : 'Copy Result'}
+              </button>
+            </div>
+            <div className="text-[11px] font-mono text-text-muted">
+              {sqlLoading
+                ? 'Executing query...'
+                : sqlExecuted
+                  ? `${sqlResult.length} row${sqlResult.length === 1 ? '' : 's'} returned`
+                  : 'Enter a SELECT or WITH query to preview results.'}
+            </div>
+          </div>
+
+          {sqlError && (
+            <div className="rounded-xl bg-accent-magenta/10 border border-accent-magenta/20 px-4 py-3 text-sm text-accent-magenta font-mono">
+              {sqlError}
+            </div>
+          )}
+
+          {sqlExecuted && !sqlResult.length && !sqlError && (
+            <div className="rounded-xl bg-[#0A0A0F] border border-border-subtle px-4 py-3 text-sm text-text-muted font-mono">
+              Query executed successfully. No rows returned.
+            </div>
+          )}
+
+          {sqlResult.length > 0 && (
+            <div className="overflow-x-auto rounded-xl border border-border-subtle bg-[#09090F]">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-bg-elevated/50">
+                    {sqlColumns.map(column => (
+                      <th key={column} className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-text-muted">
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sqlResult.slice(0, 100).map((row, rowIndex) => (
+                    <tr key={rowIndex} className="border-b border-border-subtle/50 hover:bg-bg-card-hover transition-colors">
+                      {sqlColumns.map(column => (
+                        <td key={column} className="px-3 py-2 text-xs text-text-primary font-mono whitespace-pre-wrap">
+                          {row[column] === null || row[column] === undefined ? 'NULL' : String(row[column])}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {sqlResult.length > 100 && (
+            <div className="text-[10px] font-mono text-text-muted">Showing first 100 rows. Use Copy Result to export the full set.</div>
+          )}
+        </div>
+      </div>
 
       {/* Live Score Poller + Match Selection */}
       <LiveScorePanel token={token} />
