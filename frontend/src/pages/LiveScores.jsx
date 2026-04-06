@@ -40,6 +40,81 @@ function sanitizeResultStatus(text) {
   return t
 }
 
+function isCompletedMatchStatus(status) {
+  if (!status || typeof status !== 'string') return false
+  const text = status.toLowerCase()
+  return (
+    text.includes('completed') ||
+    text.includes('finished') ||
+    text.includes('result') ||
+    text.includes('won by') ||
+    text.includes('abandoned') ||
+    text.includes('abandon') ||
+    text.includes('no result') ||
+    text.includes('cancelled')
+  )
+}
+
+function buildLineupFromScorecard(scorecard) {
+  // Infer lineup from active play. Show partial lineups (4+) rather than nothing
+  // Full lineup will come from API when available
+  
+  const innings = scorecard?.scorecard || []
+  if (innings.length === 0) return []
+  
+  const teams = scorecard?.teams || []
+  if (teams.length < 2) return []
+
+  const teamKeys = teams.map(t => (t || '').toLowerCase().split(' ')[0])
+  const teamPlayers = teams.map(() => new Map())
+
+  for (const inn of innings) {
+    const inningName = (inn?.inning || '').toLowerCase()
+    let battingIdx = teamKeys.findIndex(key => inningName.includes(key))
+    if (battingIdx === -1) battingIdx = 0
+    const bowlingIdx = battingIdx === 0 ? 1 : 0
+
+    for (const batsman of inn.batsmen || inn.batting || []) {
+      const name = (batsman?.name || batsman?.fullName || '').trim()
+      if (!name) continue
+      if (!teamPlayers[battingIdx].has(name)) {
+        teamPlayers[battingIdx].set(name, {
+          name,
+          image: batsman?.image || '',
+          captain: false,
+          wicketkeeper: false,
+        })
+      }
+    }
+
+    for (const bowler of inn.bowlers || inn.bowling || []) {
+      const name = (bowler?.name || bowler?.fullName || '').trim()
+      if (!name) continue
+      if (!teamPlayers[bowlingIdx].has(name)) {
+        teamPlayers[bowlingIdx].set(name, {
+          name,
+          image: bowler?.image || '',
+          captain: false,
+          wicketkeeper: false,
+        })
+      }
+    }
+  }
+
+  // Return inferred lineup if we have at least 4+ players per team (partial lineup from active play)
+  const result = teams.map((team, idx) => {
+    const playerList = Array.from(teamPlayers[idx].values())
+    return {
+      team,
+      teamImg: scorecard.teamInfo?.[idx]?.img || '',
+      players: playerList.slice(0, 11),
+    }
+  })
+  
+  // Return result if both teams have at least 4 players captured
+  return result.every(r => r.players.length >= 4) ? result : []
+}
+
 function collectInningsPlayers(scorecard) {
   const innings = scorecard?.scorecard || []
   const bats = []
@@ -207,12 +282,7 @@ function venueLink(name) {
 function LiveScoreHero({ match, onClick, isSelected }) {
   // More robust live detection: check matchWinner and status as additional indicators
   const hasWinner = !!(match.matchWinner && match.matchWinner.trim())
-  const isCompletedStatus = match.status && (
-    match.status.toLowerCase().includes('completed') ||
-    match.status.toLowerCase().includes('finished') ||
-    match.status.toLowerCase().includes('result') ||
-    match.status.toLowerCase().includes('won by')
-  )
+  const isCompletedStatus = isCompletedMatchStatus(match.status)
   const matchComplete = match.matchEnded || hasWinner || isCompletedStatus
   const isLive = match.matchStarted && !match.matchEnded && !hasWinner && !isCompletedStatus
   const displayStatus = matchComplete && match.matchWinner
@@ -391,12 +461,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
 
   // More robust live detection: check matchWinner and status as additional indicators
   const hasWinner = !!(scorecard?.matchWinner && scorecard.matchWinner.trim())
-  const isCompletedStatus = scorecard?.status && (
-    scorecard.status.toLowerCase().includes('completed') ||
-    scorecard.status.toLowerCase().includes('finished') ||
-    scorecard.status.toLowerCase().includes('result') ||
-    scorecard.status.toLowerCase().includes('won by')
-  )
+  const isCompletedStatus = isCompletedMatchStatus(scorecard?.status)
   const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded && !hasWinner && !isCompletedStatus)
   const matchComplete = !!(scorecard?.matchEnded || hasWinner || isCompletedStatus)
   const { notifications, overBalls, overComp, allOvers, currentInnings, serverSynced } = useBallEvents(scorecard, isLive, matchId)
@@ -410,6 +475,8 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
     const wickets = parseInt(currentInnScore.w || 0, 10)
     return overs >= 20 || wickets >= 10
   }, [scorecard, isLive, currentInnings])
+
+  const inferredLineup = useMemo(() => buildLineupFromScorecard(scorecard), [scorecard])
 
   if (loading) return <Loading />
   if (error) return <div className="text-accent-magenta text-sm p-4 rounded-xl border border-accent-magenta/20 bg-accent-magenta/5">{error}</div>
@@ -430,6 +497,7 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
   const teamInfo = battingIdx > 0
     ? [rawTeamInfo[battingIdx], ...rawTeamInfo.filter((_, i) => i !== battingIdx)]
     : rawTeamInfo
+  const effectiveLineup = scorecard.lineup?.length > 0 ? scorecard.lineup : inferredLineup
 
   return (
     <div className="space-y-5">
@@ -644,119 +712,9 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
           ))
       })()}
 
-      {/* Playing XI — always shown below scorecard */}
-      <PlayingXI lineup={scorecard.lineup} teams={teams} teamInfo={teamInfo} />
-
     </div>
   )
 }
-
-
-/* ── Playing XI — Both teams side-by-side ──────────────────── */
-function PlayingXI({ lineup, teams, teamInfo }) {
-  const [expanded, setExpanded] = useState(true)
-
-  if (!lineup || lineup.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
-        <div className="px-4 py-3 bg-surface-hover border-b border-border-subtle flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent-cyan">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 00-3-3.87" />
-              <path d="M16 3.13a4 4 0 010 7.75" />
-            </svg>
-            <span className="text-sm font-bold text-text-primary tracking-wide">Playing XI</span>
-          </div>
-        </div>
-        <div className="p-5 text-sm text-text-muted text-center">
-          Lineup not available yet.
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full px-4 py-3 bg-surface-hover border-b border-border-subtle flex items-center justify-between cursor-pointer hover:bg-surface-hover/80 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent-cyan">
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
-          </svg>
-          <span className="text-sm font-bold text-text-primary tracking-wide">Playing XI</span>
-        </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-          className={`w-4 h-4 text-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-
-      {expanded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-0">
-          {lineup.map((teamLineup, tIdx) => {
-            const teamName = teamLineup.team || teams[tIdx] || ''
-            const teamImg = teamLineup.teamImg || teamInfo[tIdx]?.img || ''
-            const color = getTeamColor(teamName)
-            const players = teamLineup.players || []
-
-            return (
-              <div key={tIdx} className={`${tIdx === 0 && lineup.length > 1 ? 'sm:border-r border-b sm:border-b-0 border-border-subtle' : ''}`}>
-                {/* Team header */}
-                <div className="px-4 py-3 flex items-center gap-2.5 border-b border-border-subtle/50" style={{ background: `${color}08` }}>
-                  {teamImg ? (
-                    <img src={teamImg} alt={teamName} className="w-7 h-7 rounded-lg object-cover border border-border-subtle" />
-                  ) : (
-                    <TeamLogo team={teamName} size={28} />
-                  )}
-                  <span className="text-sm font-bold text-text-primary">{getTeamAbbr(teamName)}</span>
-                  <span className="text-xs text-text-muted ml-auto">{players.length} players</span>
-                </div>
-
-                {/* Player list */}
-                <div className="divide-y divide-border-subtle/30">
-                  {players.map((p, pIdx) => (
-                    <div key={pIdx} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover/50 transition-colors">
-                      <PlayerAvatar
-                        name={p.name}
-                        imageUrl={p.image || undefined}
-                        teamColor={color}
-                        size={40}
-                        showBorder={false}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-semibold text-text-primary truncate">{p.name || '—'}</span>
-                          {p.captain && (
-                            <span className="flex-shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-amber/15 text-accent-amber border border-accent-amber/25">C</span>
-                          )}
-                          {p.wicketkeeper && (
-                            <span className="flex-shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/25">WK</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs text-text-muted font-mono tabular-nums flex-shrink-0">#{pIdx + 1}</span>
-                    </div>
-                  ))}
-                  {players.length === 0 && (
-                    <div className="px-4 py-6 text-center text-sm text-text-muted italic">
-                      Lineup not yet announced
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 
 /* ── Single Innings Card (Batting + Bowling side-by-side) ───── */
 function InningsCard({ innings, index, isLive, isCurrentInnings, playerLookup = {} }) {
@@ -2298,9 +2256,21 @@ export default function LiveScores() {
 
   const isLiveMatch = useCallback((match) => {
     const hasWinner = !!(match.matchWinner && match.matchWinner.trim())
-    const status = (match.status || '').toLowerCase()
-    const isCompletedStatus = status.includes('completed') || status.includes('finished') || status.includes('result') || status.includes('won by')
-    return !!(match.matchStarted && !match.matchEnded && !hasWinner && !isCompletedStatus)
+    const isCompletedStatus = isCompletedMatchStatus(match.status)
+    
+    if (!match.matchStarted || match.matchEnded || hasWinner || isCompletedStatus) {
+      return false
+    }
+    
+    // Must have started within last 24 hours to be considered "live"
+    const startTime = match.dateTimeGMT || match.date || match.starting_at
+    if (startTime) {
+      const startDate = new Date(startTime)
+      const hoursElapsed = (Date.now() - startDate.getTime()) / (1000 * 60 * 60)
+      if (hoursElapsed > 24) return false
+    }
+    
+    return true
   }, [])
 
   const fetchMatches = useCallback(async () => {
