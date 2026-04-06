@@ -168,10 +168,15 @@ async def _poll_once() -> int:
             except Exception as exc:
                 logger.warning("Ball scorecard compute failed for %s: %s", mid, exc)
 
+            prev = get_scorecard(mid)
             if not sc.get("playerOfMatch"):
-                prev = get_scorecard(mid)
                 if prev and prev.get("playerOfMatch"):
                     sc["playerOfMatch"] = prev["playerOfMatch"]
+            # Preserve previously stored matchWinner if the fresh fetch lost it
+            # (Sportmonks may populate winner_team_id with a delay after match end)
+            if not sc.get("matchWinner"):
+                if prev and prev.get("matchWinner"):
+                    sc["matchWinner"] = prev["matchWinner"]
             upsert_scorecard(mid, sc)
             log_poll("scorecard", "success", match_id=mid, hits=1)
             extra = await try_promote_after_scorecard(mid, sc)

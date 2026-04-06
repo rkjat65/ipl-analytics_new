@@ -308,7 +308,10 @@ class SportmonksProvider(CricketAPIProvider):
         status = (fixture.get("status") or "").lower()
         live = fixture.get("live", False)
 
-        finished_statuses = {"finished", "aban.", "abandoned", "cancelled", "no result"}
+        finished_statuses = {
+            "finished", "aban.", "abandoned", "cancelled", "no result",
+            "result", "complete", "completed", "ft", "end", "ended",
+        }
         in_progress = {
             "1st innings", "2nd innings", "innings break",
             "stumps", "lunch", "tea", "dinner", "drinks",

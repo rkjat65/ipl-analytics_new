@@ -111,7 +111,10 @@ def parse_sportmonks_ball(ball: dict, local_id: int | None, local_name: str, vis
     elif nob:
         extra_type = "noball"
         extra_runs = 1
-        runs_batter = nob_extra
+        # noball_runs holds batter's runs off the no-ball delivery.
+        # If Sportmonks omits it (returns 0) but runs > 1, infer batter
+        # scored runs_total - 1 (the 1 being the no-ball penalty extra).
+        runs_batter = nob_extra if nob_extra else max(0, runs_field - 1)
         runs_extras = 1
         runs_total = runs_field
     elif leg_bye:
