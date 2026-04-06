@@ -264,6 +264,8 @@ def batting_profile(name: str):
                SUM(balls) AS balls,
                SUM(fours) AS fours,
                SUM(sixes) AS sixes,
+               SUM(CASE WHEN runs >= 50 AND runs < 100 THEN 1 ELSE 0 END) AS fifties,
+               SUM(CASE WHEN runs >= 100 THEN 1 ELSE 0 END) AS hundreds,
                SUM(was_out) AS dismissals,
                ROUND(SUM(runs) * 1.0 / NULLIF(SUM(was_out), 0), 2) AS avg,
                ROUND(SUM(runs) * 100.0 / NULLIF(SUM(balls), 0), 2) AS sr

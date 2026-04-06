@@ -15,7 +15,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 const TEMPLATES = [
   { id: 'player', label: 'Player Stats', color: '#00E5FF' },
-  { id: 'filtered_player', label: 'Filtered Player Stats', color: '#00FF88' },
+  { id: 'filtered_player', label: ' Player Stats -Deeper', color: '#00FF88' },
   { id: 'match', label: 'Match Summary', color: '#FF2D78' },
   { id: 'comparison', label: 'Comparison', color: '#B8FF00' },
   { id: 'bat_v_ball', label: 'Bat v Ball', color: '#FFB800' },
