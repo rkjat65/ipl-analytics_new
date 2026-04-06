@@ -9,11 +9,13 @@ import ComparisonCard from '../components/cards/ComparisonCard'
 import RecordCard from '../components/cards/RecordCard'
 import SeasonRecapCard from '../components/cards/SeasonRecapCard'
 import MatchupCard from '../components/cards/MatchupCard'
+import FilteredPlayerStatCard from '../components/cards/FilteredPlayerStatCard'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import { useAuth } from '../contexts/AuthContext'
 
 const TEMPLATES = [
   { id: 'player', label: 'Player Stats', color: '#00E5FF' },
+  { id: 'filtered_player', label: 'Filtered Player Stats', color: '#00FF88' },
   { id: 'match', label: 'Match Summary', color: '#FF2D78' },
   { id: 'comparison', label: 'Comparison', color: '#B8FF00' },
   { id: 'bat_v_ball', label: 'Bat v Ball', color: '#FFB800' },
@@ -86,6 +88,18 @@ export default function ContentStudio() {
   const [playerType, setPlayerType] = useState('batting')
   const [playerStats, setPlayerStats] = useState({})
   const [playerLoading, setPlayerLoading] = useState(false)
+
+  // Filtered player stat card state
+  const [fpPlayerQuery, setFpPlayerQuery] = useState('')
+  const [fpPlayerResults, setFpPlayerResults] = useState([])
+  const [fpPlayerName, setFpPlayerName] = useState('')
+  const [fpType, setFpType] = useState('batting') // batting, bowling, all-rounder
+  const [fpSeasons, setFpSeasons] = useState(['all']) // 'all' or array of seasons
+  const [fpTeams, setFpTeams] = useState(['all']) // 'all' or array of teams
+  const [fpAvailableTeams, setFpAvailableTeams] = useState([]) // teams player played for based on seasons
+  const [fpAvailableSeasons, setFpAvailableSeasons] = useState([]) // seasons player played based on team
+  const [fpStats, setFpStats] = useState({})
+  const [fpLoading, setFpLoading] = useState(false)
 
   // Match summary state
   const [matchId, setMatchId] = useState('')
@@ -164,7 +178,83 @@ export default function ContentStudio() {
     return () => clearTimeout(t)
   }, [playerQuery])
 
-  // Load player stats when selected
+  // Filtered player search
+  useEffect(() => {
+    if (fpPlayerQuery.length < 2) { setFpPlayerResults([]); return }
+    const t = setTimeout(() => {
+      searchPlayers(fpPlayerQuery).then(setFpPlayerResults).catch(() => {})
+    }, 300)
+    return () => clearTimeout(t)
+  }, [fpPlayerQuery])
+
+  // Load player data and compute available teams/seasons
+  useEffect(() => {
+    if (!fpPlayerName) {
+      setFpAvailableTeams([])
+      setFpAvailableSeasons([])
+      return
+    }
+    setFpLoading(true)
+    const promises = []
+    if (fpType === 'batting' || fpType === 'all-rounder') {
+      promises.push(getPlayerBatting(fpPlayerName))
+    }
+    if (fpType === 'bowling' || fpType === 'all-rounder') {
+      promises.push(getPlayerBowling(fpPlayerName))
+    }
+    Promise.all(promises)
+      .then(results => {
+        let battingData = null
+        let bowlingData = null
+        if (fpType === 'batting' || fpType === 'all-rounder') {
+          battingData = results.shift()
+        }
+        if (fpType === 'bowling' || fpType === 'all-rounder') {
+          bowlingData = results.shift()
+        }
+
+        // Get all seasons the player played
+        const allSeasons = new Set()
+        if (battingData?.seasons) {
+          battingData.seasons.forEach(s => allSeasons.add(s.season))
+        }
+        if (bowlingData?.seasons) {
+          bowlingData.seasons.forEach(s => allSeasons.add(s.season))
+        }
+        const availableSeasons = Array.from(allSeasons).sort()
+
+        // Get teams based on current season selection
+        const selectedSeasons = fpSeasons.includes('all') ? availableSeasons : fpSeasons
+        const teamsForSeasons = new Set()
+        if (battingData?.seasons) {
+          battingData.seasons
+            .filter(s => selectedSeasons.includes(s.season))
+            .forEach(s => {
+              // For now, we don't have team info per season, so we'll use all teams
+              // This needs backend enhancement
+            })
+        }
+        // For now, use all teams as available teams
+        setFpAvailableSeasons(availableSeasons)
+        setFpAvailableTeams(teams) // from global teams state
+
+        // Now filter seasons based on team selection
+        let filteredSeasons = availableSeasons
+        if (!fpTeams.includes('all')) {
+          // If specific teams selected, filter seasons where player played for those teams
+          // This requires team info per season, which we don't have yet
+          // For now, keep all seasons
+        }
+        setFpAvailableSeasons(filteredSeasons)
+      })
+      .catch(() => {
+        setFpAvailableTeams([])
+        setFpAvailableSeasons([])
+      })
+      .finally(() => setFpLoading(false))
+  }, [fpPlayerName, fpType, fpSeasons, fpTeams])
+
+  // Load filtered player stats when selected
   useEffect(() => {
     if (!playerName) return
     setPlayerLoading(true)
@@ -202,6 +292,108 @@ export default function ContentStudio() {
       .catch(() => setPlayerStats({}))
       .finally(() => setPlayerLoading(false))
   }, [playerName, playerType])
+
+  // Load filtered player stats when selected
+  useEffect(() => {
+    if (!fpPlayerName) return
+    setFpLoading(true)
+    const promises = []
+    if (fpType === 'batting' || fpType === 'all-rounder') {
+      promises.push(getPlayerBatting(fpPlayerName))
+    }
+    if (fpType === 'bowling' || fpType === 'all-rounder') {
+      promises.push(getPlayerBowling(fpPlayerName))
+    }
+    Promise.all(promises)
+      .then(results => {
+        let battingData = null
+        let bowlingData = null
+        if (fpType === 'batting' || fpType === 'all-rounder') {
+          battingData = results.shift()
+        }
+        if (fpType === 'bowling' || fpType === 'all-rounder') {
+          bowlingData = results.shift()
+        }
+
+        // Filter data based on seasons and teams
+        const filteredStats = {}
+
+        if (battingData) {
+          let seasonStats = battingData.seasons || []
+          
+          // Filter by seasons
+          if (!fpSeasons.includes('all')) {
+            seasonStats = seasonStats.filter(s => fpSeasons.includes(s.season))
+          }
+          
+          // Filter by teams
+          if (!fpTeams.includes('all')) {
+            seasonStats = seasonStats.filter(s => fpTeams.includes(s.team))
+          }
+          const agg = seasonStats.reduce((acc, s) => ({
+            matches: acc.matches + (s.innings || 0),
+            runs: acc.runs + (s.runs || 0),
+            balls: acc.balls + (s.balls || 0),
+            fours: acc.fours + (s.fours || 0),
+            sixes: acc.sixes + (s.sixes || 0),
+            dismissals: acc.dismissals + (s.dismissals || 0),
+            fifties: acc.fifties + (s.fifties || 0),
+            hundreds: acc.hundreds + (s.hundreds || 0),
+            highest: Math.max(acc.highest, s.highest || 0)
+          }), { matches: 0, runs: 0, balls: 0, fours: 0, sixes: 0, dismissals: 0, fifties: 0, hundreds: 0, highest: 0 })
+
+          filteredStats.batting = {
+            runs: agg.runs,
+            matches: agg.matches,
+            innings: agg.matches, // approximation
+            highest: agg.highest,
+            avg: agg.dismissals > 0 ? Math.round((agg.runs / agg.dismissals) * 100) / 100 : 0,
+            sr: agg.balls > 0 ? Math.round((agg.runs / agg.balls) * 100 * 100) / 100 : 0,
+            fifties: agg.fifties,
+            hundreds: agg.hundreds,
+            sixes: agg.sixes,
+            fours: agg.fours,
+          }
+        }
+
+        if (bowlingData) {
+          let seasonStats = bowlingData.seasons || []
+          
+          // Filter by seasons
+          if (!fpSeasons.includes('all')) {
+            seasonStats = seasonStats.filter(s => fpSeasons.includes(s.season))
+          }
+          
+          // Filter by teams
+          if (!fpTeams.includes('all')) {
+            seasonStats = seasonStats.filter(s => fpTeams.includes(s.team))
+          }
+          const agg = seasonStats.reduce((acc, s) => ({
+            matches: acc.matches + (s.innings || 0),
+            wickets: acc.wickets + (s.wickets || 0),
+            runs_conceded: acc.runs_conceded + (s.runs_conceded || 0),
+            total_balls: acc.total_balls + (s.total_balls || 0)
+          }), { matches: 0, wickets: 0, runs_conceded: 0, total_balls: 0 })
+
+          const career = bowlingData.career || {}
+          filteredStats.bowling = {
+            wickets: agg.wickets,
+            matches: agg.matches,
+            innings: agg.matches,
+            avg: agg.wickets > 0 ? Math.round((agg.runs_conceded / agg.wickets) * 100) / 100 : 0,
+            economy: agg.total_balls > 0 ? Math.round((agg.runs_conceded / agg.total_balls) * 6 * 100) / 100 : 0,
+            sr: agg.wickets > 0 ? Math.round((agg.total_balls / agg.wickets) * 100) / 100 : 0,
+            best_figures: career.best_figures || '-',
+            four_wickets: career.four_w || 0,
+            five_wickets: career.five_w || 0,
+          }
+        }
+
+        setFpStats(filteredStats)
+      })
+      .catch(() => setFpStats({}))
+      .finally(() => setFpLoading(false))
+  }, [fpPlayerName, fpType, fpSeasons, fpTeams])
 
   // Load match data
   useEffect(() => {
@@ -386,6 +578,13 @@ export default function ContentStudio() {
           stats = { player: playerName, type: playerType, ...playerStats }
           context = `${playerName} IPL ${playerType} career stats`
           break
+        case 'filtered_player':
+          stats = { player: fpPlayerName, type: fpType, seasons: fpSeasons, teams: fpTeams, ...fpStats }
+          const filters = []
+          if (fpSeasons.length > 0) filters.push(`seasons ${fpSeasons.join(', ')}`)
+          if (fpTeams.length > 0) filters.push(`teams ${fpTeams.join(', ')}`)
+          context = `${fpPlayerName} IPL ${fpType} stats${filters.length > 0 ? ` (${filters.join(', ')})` : ''}`
+          break
         case 'match':
           stats = matchData
           context = `Match summary: ${matchData.team1 || ''} vs ${matchData.team2 || ''}`
@@ -424,7 +623,7 @@ export default function ContentStudio() {
     } finally {
       setAiCaptionLoading(false)
     }
-  }, [template, playerName, playerType, playerStats, matchData, p1Name, p1Type, p1Stats, p2Name, p2Type, p2Stats, recordTitle, recordValue, recordDesc, seasonData, selectedSeason, bvbPlayerName, bvbOpponent, bvbStats, blvbPlayerName, blvbOpponent, blvbStats])
+  }, [template, playerName, playerType, playerStats, fpPlayerName, fpType, fpStats, fpSeasons, fpTeams, matchData, p1Name, p1Type, p1Stats, p2Name, p2Type, p2Stats, recordTitle, recordValue, recordDesc, seasonData, selectedSeason, bvbPlayerName, bvbOpponent, bvbStats, blvbPlayerName, blvbOpponent, blvbStats])
 
   function renderDataInputs() {
     switch (template) {
@@ -450,6 +649,63 @@ export default function ContentStudio() {
               </div>
             </div>
             {playerLoading && <p className="text-xs text-text-muted font-mono">Loading stats...</p>}
+          </div>
+        )
+
+      case 'filtered_player':
+        return (
+          <div className="space-y-4">
+            <PlayerSearchInput
+              query={fpPlayerQuery} setQuery={setFpPlayerQuery}
+              results={fpPlayerResults} setResults={setFpPlayerResults}
+              onSelect={setFpPlayerName} selectedName={fpPlayerName}
+              label="Player Name"
+            />
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Stat Type</label>
+              <div className="flex gap-2">
+                {['batting', 'bowling', 'all-rounder'].map(t => (
+                  <button key={t} onClick={() => setFpType(t)}
+                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${fpType === t ? 'bg-accent-cyan/20 border-accent-cyan/40 text-accent-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Seasons</label>
+              <select
+                value={fpSeasons.includes('all') ? 'all' : fpSeasons[0] || 'all'}
+                onChange={e => {
+                  const value = e.target.value
+                  setFpSeasons(value === 'all' ? ['all'] : [value])
+                }}
+                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
+              >
+                <option value="all">All Seasons</option>
+                {fpAvailableSeasons.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-text-muted mb-1">Teams</label>
+              <select
+                value={fpTeams.includes('all') ? 'all' : fpTeams[0] || 'all'}
+                onChange={e => {
+                  const value = e.target.value
+                  setFpTeams(value === 'all' ? ['all'] : [value])
+                }}
+                className="w-full bg-bg-card border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan/50"
+              >
+                <option value="all">All Teams</option>
+                {fpAvailableTeams.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            {fpLoading && <p className="text-xs text-text-muted font-mono">Loading filtered stats...</p>}
           </div>
         )
 
@@ -692,6 +948,8 @@ export default function ContentStudio() {
     switch (template) {
       case 'player':
         return <PlayerStatCard playerName={playerName || 'Select a Player'} stats={playerStats} type={playerType} dimensions={currentDims} />
+      case 'filtered_player':
+        return <FilteredPlayerStatCard playerName={fpPlayerName || 'Select a Player'} stats={fpStats} type={fpType} seasons={fpSeasons} teams={fpTeams} availableTeams={fpAvailableTeams} dimensions={currentDims} />
       case 'match':
         return (
           <MatchSummaryCard

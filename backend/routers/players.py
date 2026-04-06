@@ -245,7 +245,7 @@ def batting_profile(name: str):
     # Season-wise
     season_stats = query("""
         WITH batting AS (
-            SELECT m.season, d.match_id,
+            SELECT m.season, i.batting_team AS team, d.match_id,
                    SUM(d.runs_batter) AS runs,
                    COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS balls,
                    SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours,
@@ -253,10 +253,11 @@ def batting_profile(name: str):
                    MAX(CASE WHEN d.is_wicket AND d.player_dismissed = d.batter THEN 1 ELSE 0 END) AS was_out
             FROM deliveries d
             JOIN matches m ON d.match_id = m.match_id
+            JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
             WHERE d.batter = ? AND d.is_super_over = false
-            GROUP BY m.season, d.match_id
+            GROUP BY m.season, i.batting_team, d.match_id
         )
-        SELECT season,
+        SELECT season, team,
                COUNT(*) AS innings,
                SUM(runs) AS runs,
                MAX(runs) AS highest,
@@ -267,8 +268,8 @@ def batting_profile(name: str):
                ROUND(SUM(runs) * 1.0 / NULLIF(SUM(was_out), 0), 2) AS avg,
                ROUND(SUM(runs) * 100.0 / NULLIF(SUM(balls), 0), 2) AS sr
         FROM batting
-        GROUP BY season
-        ORDER BY season
+        GROUP BY season, team
+        ORDER BY season, team
     """, [name])
 
     # Phase-wise (0-indexed: PP=0-5, middle=6-14, death=15-19)
@@ -416,16 +417,17 @@ def bowling_profile(name: str):
     # Season-wise
     season_stats = query("""
         WITH bowling AS (
-            SELECT m.season, d.match_id, d.innings_number,
+            SELECT m.season, i.bowling_team AS team, d.match_id, d.innings_number,
                    SUM(d.runs_batter + d.extras_wides + d.extras_noballs) AS runs_conceded,
                    SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out','retired hurt','retired out','obstructing the field') THEN 1 ELSE 0 END) AS wickets,
                    COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END) AS legal_balls
             FROM deliveries d
             JOIN matches m ON d.match_id = m.match_id
+            JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
             WHERE d.bowler = ? AND d.is_super_over = false
-            GROUP BY m.season, d.match_id, d.innings_number
+            GROUP BY m.season, i.bowling_team, d.match_id, d.innings_number
         )
-        SELECT season,
+        SELECT season, team,
                COUNT(*) AS innings,
                SUM(legal_balls) AS total_balls,
                CONCAT(CAST(SUM(legal_balls) AS INTEGER) // 6, '.', CAST(SUM(legal_balls) AS INTEGER) % 6) AS overs,
@@ -435,8 +437,8 @@ def bowling_profile(name: str):
                ROUND(SUM(runs_conceded) * 6.0 / NULLIF(SUM(legal_balls), 0), 2) AS economy,
                ROUND(SUM(legal_balls) * 1.0 / NULLIF(SUM(wickets), 0), 2) AS sr
         FROM bowling
-        GROUP BY season
-        ORDER BY season
+        GROUP BY season, team
+        ORDER BY season, team
     """, [name])
 
     # Phase-wise

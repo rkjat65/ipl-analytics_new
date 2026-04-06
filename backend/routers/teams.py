@@ -1,7 +1,12 @@
 """Team endpoints: stats, seasons, head-to-head, comparison."""
 
-from fastapi import APIRouter, Query
+import os
+from pathlib import Path
+from fastapi import APIRouter, Query, HTTPException
+from fastapi.responses import FileResponse
 from ..database import query, normalize_team, team_variants, SUPER_OVER_WINNER_CTE
+
+TEAM_IMAGES_DIR = Path(__file__).parent.parent / "team_images"
 
 router = APIRouter(prefix="/api/teams", tags=["teams"])
 
@@ -363,3 +368,15 @@ def head_to_head(name: str):
         else:
             merged[opp] = {**row, "opponent": opp}
     return sorted(merged.values(), key=lambda x: x["played"], reverse=True)
+
+
+@router.get("/{team_name}/image")
+def team_image(team_name: str):
+    """Serve team logo image if available, else 404."""
+    decoded = team_name.strip()
+    for ext in (".png", ".jpg", ".jpeg", ".webp"):
+        path = TEAM_IMAGES_DIR / f"{decoded}{ext}"
+        if path.is_file():
+            media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+            return FileResponse(path, media_type=media.get(ext.lstrip("."), "image/png"))
+    raise HTTPException(status_code=404, detail="No image available")
