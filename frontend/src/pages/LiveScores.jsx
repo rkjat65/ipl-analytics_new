@@ -205,7 +205,15 @@ function venueLink(name) {
    Shows: team logos, score, overs, wickets, current batsmen/bowler
 */
 function LiveScoreHero({ match, onClick, isSelected }) {
-  const isLive = match.matchStarted && !match.matchEnded
+  // More robust live detection: check matchWinner and status as additional indicators
+  const hasWinner = !!(match.matchWinner && match.matchWinner.trim())
+  const isCompletedStatus = match.status && (
+    match.status.toLowerCase().includes('completed') ||
+    match.status.toLowerCase().includes('finished') ||
+    match.status.toLowerCase().includes('result') ||
+    match.status.toLowerCase().includes('won by')
+  )
+  const isLive = match.matchStarted && !match.matchEnded && !hasWinner && !isCompletedStatus
   const teams = match.teams || []
   const scores = match.score || []
   const teamInfo = match.teamInfo || []
@@ -377,8 +385,16 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
     return () => clearInterval(intervalRef.current)
   }, [fetchData])
 
-  const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded)
-  const matchComplete = !!(scorecard?.matchEnded)
+  // More robust live detection: check matchWinner and status as additional indicators
+  const hasWinner = !!(scorecard?.matchWinner && scorecard.matchWinner.trim())
+  const isCompletedStatus = scorecard?.status && (
+    scorecard.status.toLowerCase().includes('completed') ||
+    scorecard.status.toLowerCase().includes('finished') ||
+    scorecard.status.toLowerCase().includes('result') ||
+    scorecard.status.toLowerCase().includes('won by')
+  )
+  const isLive = !!(scorecard?.matchStarted && !scorecard?.matchEnded && !hasWinner && !isCompletedStatus)
+  const matchComplete = !!(scorecard?.matchEnded || hasWinner || isCompletedStatus)
   const { notifications, overBalls, overComp, allOvers, currentInnings, serverSynced } = useBallEvents(scorecard, isLive, matchId)
 
   const inningsComplete = useMemo(() => {
@@ -624,10 +640,8 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
           ))
       })()}
 
-      {/* Playing XI — shown when lineup data is available */}
-      {scorecard.lineup && scorecard.lineup.length > 0 && (
-        <PlayingXI lineup={scorecard.lineup} teams={teams} teamInfo={teamInfo} />
-      )}
+      {/* Playing XI — always shown below scorecard */}
+      <PlayingXI lineup={scorecard.lineup} teams={teams} teamInfo={teamInfo} />
 
     </div>
   )
@@ -638,7 +652,26 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
 function PlayingXI({ lineup, teams, teamInfo }) {
   const [expanded, setExpanded] = useState(true)
 
-  if (!lineup || lineup.length === 0) return null
+  if (!lineup || lineup.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
+        <div className="px-4 py-3 bg-surface-hover border-b border-border-subtle flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent-cyan">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87" />
+              <path d="M16 3.13a4 4 0 010 7.75" />
+            </svg>
+            <span className="text-sm font-bold text-text-primary tracking-wide">Playing XI</span>
+          </div>
+        </div>
+        <div className="p-5 text-sm text-text-muted text-center">
+          Lineup not available yet.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
@@ -2259,6 +2292,13 @@ export default function LiveScores() {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const intervalRef = useRef(null)
 
+  const isLiveMatch = useCallback((match) => {
+    const hasWinner = !!(match.matchWinner && match.matchWinner.trim())
+    const status = (match.status || '').toLowerCase()
+    const isCompletedStatus = status.includes('completed') || status.includes('finished') || status.includes('result') || status.includes('won by')
+    return !!(match.matchStarted && !match.matchEnded && !hasWinner && !isCompletedStatus)
+  }, [])
+
   const fetchMatches = useCallback(async () => {
     try {
       const data = await getLiveMatches()
@@ -2281,28 +2321,28 @@ export default function LiveScores() {
 
   useEffect(() => {
     if (!selectedMatch && matches.length > 0) {
-      const live = matches.find(m => m.matchStarted && !m.matchEnded)
+      const live = liveMatches.find(Boolean)
       setSelectedMatch(live?.id || matches[0]?.id)
     }
-  }, [matches, selectedMatch])
+  }, [matches, selectedMatch, liveMatches])
 
   if (statusLoading) return <Loading />
 
   const apiAvailable = status?.available
-  const liveCount = matches.filter(m => m.matchStarted && !m.matchEnded).length
-
   const sortedMatches = [...matches].sort((a, b) => {
-    const aLive = a.matchStarted && !a.matchEnded ? 0 : 1
-    const bLive = b.matchStarted && !b.matchEnded ? 0 : 1
+    const aLive = isLiveMatch(a) ? 0 : 1
+    const bLive = isLiveMatch(b) ? 0 : 1
     if (aLive !== bLive) return aLive - bLive
     const aUp = !a.matchStarted ? 0 : 1
     const bUp = !b.matchStarted ? 0 : 1
     return aUp - bUp
   })
 
-  const liveMatchNames = sortedMatches
-    .filter(m => m.matchStarted && !m.matchEnded)
-    .map(m => (m.teams || []).join(' vs '))
+  const liveMatches = sortedMatches.filter(isLiveMatch)
+  const displayedMatchTabs = liveMatches.length > 0 ? liveMatches : sortedMatches
+  const liveCount = liveMatches.length
+
+  const liveMatchNames = liveMatches.map(m => (m.teams || []).join(' vs '))
 
   const seoDescription = liveCount > 0
     ? `Watch ${liveCount} live IPL 2026 match${liveCount > 1 ? 'es' : ''}: ${liveMatchNames.join(', ')}. Ball-by-ball scores, batting & bowling scorecards, and real-time updates on Crickrida.`
@@ -2394,8 +2434,8 @@ export default function LiveScores() {
             <>
               <div className="mb-5">
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-                  {sortedMatches.map(m => {
-                    const mLive = m.matchStarted && !m.matchEnded
+                  {displayedMatchTabs.map(m => {
+                    const mLive = isLiveMatch(m)
                     const sel = selectedMatch === m.id
                     return (
                       <button
