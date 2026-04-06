@@ -112,6 +112,15 @@ PLAYER_ALIASES: dict[str, str] = {
     "rashid": "Rashid Khan",
     "rashid khan": "Rashid Khan",
 
+    # ── Sarfaraz Khan vs Shahrukh Khan disambiguation ─────────────────
+    # Both appear as "SN Khan" in some Sportmonks exports.
+    # Sarfaraz Khan (CSK/DC) → canonical "SN Khan" (Cricsheet historical)
+    # Shahrukh Khan (GT/PBKS) → canonical "M Shahrukh Khan" (Cricsheet historical)
+    "sarfaraz khan": "SN Khan",
+    "sarfaraz nawaz khan": "SN Khan",
+    "shahrukh khan": "M Shahrukh Khan",
+    "m shahrukh khan": "M Shahrukh Khan",
+
     # ── B Kumar ──────────────────────────────────────────────────────
     "bhuvneshwar": "B Kumar",
     "bhuvneshwar kumar": "B Kumar",
