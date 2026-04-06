@@ -1,0 +1,329 @@
+{
+  "meta": {
+    "data_version": "1.0.0",
+    "created": "2026-04-06",
+    "revision": 1
+  },
+  "info": {
+    "balls_per_over": 6,
+    "city": "Kolkata",
+    "dates": [
+      "2026-04-06"
+    ],
+    "event": {
+      "name": "Indian Premier League",
+      "match_number": 12
+    },
+    "gender": "male",
+    "match_type": "T20",
+    "officials": {
+      "umpires": []
+    },
+    "outcome": {
+      "result": "no result"
+    },
+    "players": {
+      "Kolkata Knight Riders": [
+        "AM Rahane",
+        "FA Allen",
+        "C Green",
+        "A Raghuvanshi"
+      ],
+      "Punjab Kings": [
+        "Arshdeep Singh",
+        "XC Bartlett"
+      ]
+    },
+    "registry": {
+      "people": {
+        "Arshdeep Singh": "sm_4880",
+        "AM Rahane": "sm_51",
+        "FA Allen": "sm_10623",
+        "XC Bartlett": "sm_947",
+        "P Simran Singh": "sm_6496",
+        "C Green": "sm_630",
+        "A Raghuvanshi": "sm_35066"
+      }
+    },
+    "season": 2026,
+    "team_type": "club",
+    "teams": [
+      "Kolkata Knight Riders",
+      "Punjab Kings"
+    ],
+    "toss": {
+      "decision": "bat",
+      "winner": "Kolkata Knight Riders"
+    },
+    "venue": "Eden Gardens"
+  },
+  "innings": [
+    {
+      "team": "Kolkata Knight Riders",
+      "overs": [
+        {
+          "over": 0,
+          "deliveries": [
+            {
+              "batter": "AM Rahane",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "FA Allen",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            },
+            {
+              "batter": "FA Allen",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            },
+            {
+              "batter": "AM Rahane",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "FA Allen",
+              "runs": {
+                "batter": 4,
+                "extras": 0,
+                "total": 4
+              }
+            },
+            {
+              "batter": "AM Rahane",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "FA Allen",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            },
+            {
+              "batter": "FA Allen",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 4,
+                "extras": 0,
+                "total": 4
+              }
+            },
+            {
+              "batter": "FA Allen",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            }
+          ]
+        },
+        {
+          "over": 1,
+          "deliveries": [
+            {
+              "batter": "FA Allen",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "FA Allen",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "FA Allen",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "FA Allen",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              },
+              "wickets": [
+                {
+                  "player_out": "FA Allen",
+                  "kind": "caught",
+                  "fielders": [
+                    {
+                      "name": "P Simran Singh"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "batter": "C Green",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 4,
+                "extras": 0,
+                "total": 4
+              }
+            },
+            {
+              "batter": "C Green",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              },
+              "wickets": [
+                {
+                  "player_out": "C Green",
+                  "kind": "caught",
+                  "fielders": [
+                    {
+                      "name": "P Simran Singh"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "over": 2,
+          "deliveries": [
+            {
+              "batter": "AM Rahane",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "A Raghuvanshi",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            },
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            },
+            {
+              "batter": "AM Rahane",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "A Raghuvanshi",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            },
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "Arshdeep Singh",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 1,
+                "extras": 0,
+                "total": 1
+              }
+            }
+          ]
+        },
+        {
+          "over": 3,
+          "deliveries": [
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            },
+            {
+              "batter": "A Raghuvanshi",
+              "bowler": "XC Bartlett",
+              "non_striker": "AM Rahane",
+              "runs": {
+                "batter": 5,
+                "extras": 0,
+                "total": 5
+              }
+            },
+            {
+              "batter": "AM Rahane",
+              "bowler": "XC Bartlett",
+              "non_striker": "A Raghuvanshi",
+              "runs": {
+                "batter": 0,
+                "extras": 0,
+                "total": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

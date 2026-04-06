@@ -44,3 +44,6 @@ frontend/.claude/
 
 # Logs
 *.log
+
+# Local AI prompt template
+ai-sql-prompts.md
