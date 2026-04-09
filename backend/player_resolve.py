@@ -6,6 +6,32 @@ from .database import query
 from .player_aliases import PLAYER_ALIASES
 
 
+def _compact_token(value: str) -> str:
+    return "".join(ch for ch in (value or "").lower() if ch.isalpha())
+
+
+def _token_matches_first_name(target_first: str, candidate_first: str) -> bool:
+    """Return True when a DB first token plausibly matches the full first name.
+
+    Handles exact/prefix matches plus abbreviated DB forms like "RK" for
+    "Rinku" so ambiguous surname matches don't resolve to the wrong player.
+    """
+    target = _compact_token(target_first)
+    candidate = _compact_token(candidate_first)
+    if not target or not candidate:
+        return False
+    if target == candidate or target.startswith(candidate) or candidate.startswith(target):
+        return True
+    if len(candidate) <= 3:
+        pos = 0
+        for ch in target:
+            if pos < len(candidate) and ch == candidate[pos]:
+                pos += 1
+        if pos == len(candidate):
+            return True
+    return False
+
+
 @functools.lru_cache(maxsize=512)
 def resolve_player_name(name: str, role: str = "bat") -> str:
     """Map a full player name (e.g. from Sportmonks) to the historical DB name."""
@@ -69,14 +95,16 @@ def resolve_player_name(name: str, role: str = "bat") -> str:
         if len(initial_hits) == 1:
             return initial_hits[0]
         if len(initial_hits) > 1:
-            target_first = parts[0].lower()
-            for val in initial_hits:
-                fw = val.split()[0].lower() if val.split() else ""
-                if fw.startswith(target_first[: min(4, len(target_first))]) or target_first.startswith(
-                    fw[: min(4, len(fw))] if fw else ""
-                ):
-                    return val
-            return initial_hits[0]
+            target_first = parts[0]
+            narrowed_hits = [
+                val for val in initial_hits
+                if _token_matches_first_name(target_first, val.split()[0] if val.split() else "")
+            ]
+            if len(narrowed_hits) == 1:
+                return narrowed_hits[0]
+            if len(narrowed_hits) > 1:
+                narrowed_hits.sort(key=lambda val: (len(val.split()[0]), len(val)))
+                return narrowed_hits[0]
 
     return name
 

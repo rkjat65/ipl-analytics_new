@@ -479,8 +479,9 @@ PLAYER_ALIASES: dict[str, str] = {
     "rahul chahar": "RD Chahar",
 
     # Rinku Singh
-    "rinku": "Rinku Singh",
-    "rinku singh": "Rinku Singh",
+    "rinku": "RK Singh",
+    "rinku singh": "RK Singh",
+    "rk singh": "RK Singh",
 
     # Tilak Varma
     "tilak": "Tilak Varma",
