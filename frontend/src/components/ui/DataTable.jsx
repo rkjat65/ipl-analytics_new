@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 function SkeletonRows({ columns, rows = 5 }) {
   return Array.from({ length: rows }).map((_, i) => (
@@ -13,8 +13,8 @@ function SkeletonRows({ columns, rows = 5 }) {
 }
 
 export default function DataTable({
-  columns,
-  data,
+  columns = [],
+  data = [],
   onSort,
   sortKey,
   sortDir,
@@ -23,21 +23,59 @@ export default function DataTable({
   pageSize = 50,
 }) {
   const [currentPage, setCurrentPage] = useState(1)
+  const [internalSort, setInternalSort] = useState({ key: '', dir: 'asc' })
 
-  // Reset to page 1 when data changes
+  // Reset to page 1 when data or sort changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [data])
+  }, [data, sortKey, sortDir, internalSort.key, internalSort.dir])
 
-  const totalPages = Math.max(1, Math.ceil(data.length / pageSize))
+  const activeSortKey = sortKey ?? internalSort.key
+  const activeSortDir = sortDir ?? internalSort.dir
+
+  const parseSortableValue = (value) => {
+    if (value === null || value === undefined || value === '') return null
+    if (typeof value === 'number') return value
+    if (typeof value === 'boolean') return value ? 1 : 0
+    const text = String(value).trim()
+    const numeric = Number(text.replace(/,/g, ''))
+    if (!Number.isNaN(numeric) && text !== '') return numeric
+    const dateValue = Date.parse(text)
+    if (!Number.isNaN(dateValue) && /\d{4}|\d{1,2}[/-]\d{1,2}/.test(text)) return dateValue
+    return text.toLowerCase()
+  }
+
+  const sortedData = useMemo(() => {
+    if (!activeSortKey) return data
+    const sorted = [...data].sort((a, b) => {
+      const av = parseSortableValue(a?.[activeSortKey])
+      const bv = parseSortableValue(b?.[activeSortKey])
+      if (av === bv) return 0
+      if (av === null) return 1
+      if (bv === null) return -1
+      if (av > bv) return activeSortDir === 'asc' ? 1 : -1
+      if (av < bv) return activeSortDir === 'asc' ? -1 : 1
+      return 0
+    })
+    return sorted
+  }, [data, activeSortDir, activeSortKey])
+
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize))
   const startIdx = (currentPage - 1) * pageSize
   const endIdx = startIdx + pageSize
-  const pageData = data.slice(startIdx, endIdx)
-  const showPagination = data.length > pageSize
+  const pageData = sortedData.slice(startIdx, endIdx)
+  const showPagination = sortedData.length > pageSize
 
   const handleSort = (col) => {
-    if (!col.sortable || !onSort) return
-    onSort(col.key)
+    if (col.sortable === false) return
+    if (onSort) {
+      onSort(col.key)
+      return
+    }
+    setInternalSort((prev) => ({
+      key: col.key,
+      dir: prev.key === col.key && prev.dir === 'asc' ? 'desc' : 'asc',
+    }))
   }
 
   return (
@@ -46,30 +84,34 @@ export default function DataTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-bg-elevated border-b border-border-subtle sticky top-0 z-10">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider whitespace-nowrap ${
-                    col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                  } ${col.sortable ? 'cursor-pointer select-none hover:text-text-primary transition-colors' : ''}`}
-                  onClick={() => handleSort(col)}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {col.label}
-                    {col.sortable && sortKey === col.key && (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className={`w-3 h-3 transition-transform ${sortDir === 'desc' ? 'rotate-180' : ''}`}
-                      >
-                        <polyline points="18 15 12 9 6 15" />
-                      </svg>
-                    )}
-                  </span>
-                </th>
-              ))}
+              {columns.map((col) => {
+                const isSortable = col.sortable !== false
+                const isActive = activeSortKey === col.key
+                return (
+                  <th
+                    key={col.key}
+                    className={`px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider whitespace-nowrap ${
+                      col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                    } ${isSortable ? 'cursor-pointer select-none hover:text-text-primary transition-colors' : ''}`}
+                    onClick={() => handleSort(col)}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {isSortable && (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className={`w-3 h-3 transition-transform ${isActive && activeSortDir === 'desc' ? 'rotate-180' : ''} ${isActive ? 'opacity-100' : 'opacity-35'}`}
+                        >
+                          <polyline points="18 15 12 9 6 15" />
+                        </svg>
+                      )}
+                    </span>
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
@@ -117,7 +159,7 @@ export default function DataTable({
       {showPagination && (
         <div className="flex items-center justify-between mt-3 px-1">
           <span className="text-xs text-text-muted">
-            Showing {startIdx + 1}–{Math.min(endIdx, data.length)} of {data.length} records
+            Showing {startIdx + 1}–{Math.min(endIdx, sortedData.length)} of {sortedData.length} records
           </span>
 
           <div className="flex items-center gap-2">

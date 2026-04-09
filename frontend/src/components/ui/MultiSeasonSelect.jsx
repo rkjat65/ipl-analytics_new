@@ -32,39 +32,63 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Position dropdown within the viewport
+  // Position dropdown within the viewport using fixed coordinates so it never gets clipped by parent cards
   const positionDropdown = useCallback(() => {
     if (!ref.current || !dropdownRef.current) return
     const trigger = ref.current.getBoundingClientRect()
     const dd = dropdownRef.current
-    const style = {}
     const viewportW = window.innerWidth
     const viewportH = window.innerHeight
     const margin = 8
+    const isMobile = viewportW < 640
 
-    // Reset so we can measure natural size
     dd.style.maxHeight = 'none'
     dd.style.left = ''
     dd.style.right = ''
+    dd.style.top = ''
+    dd.style.bottom = ''
+    dd.style.width = isMobile ? 'auto' : '18rem'
+
     const ddRect = dd.getBoundingClientRect()
-    const ddW = ddRect.width
-    const ddNaturalH = ddRect.height
+    const ddW = ddRect.width || 288
+    const ddNaturalH = ddRect.height || 320
 
-    // Horizontal: prefer right-aligned with trigger, but shift left if it overflows
-    let left = trigger.right - ddW // right-align with trigger
-    if (left < margin) left = margin
-    if (left + ddW > viewportW - margin) left = viewportW - margin - ddW
+    if (isMobile) {
+      setDropdownStyle({
+        left: margin,
+        right: margin,
+        bottom: margin,
+        top: 'auto',
+        width: 'auto',
+        maxHeight: Math.min(Math.floor(viewportH * 0.6), ddNaturalH),
+      })
+      return
+    }
 
-    // Convert to position relative to the trigger parent
-    style.left = left - trigger.left
-    style.right = 'auto'
+    const preferredWidth = Math.max(trigger.width, 288)
+    let left = Math.min(trigger.left, viewportW - preferredWidth - margin)
+    left = Math.max(margin, left)
 
-    // Vertical: cap max-height so dropdown stays within viewport
-    const spaceBelow = viewportH - trigger.bottom - margin - 4 // 4px for mt-1
-    const maxH = Math.max(200, Math.min(spaceBelow, ddNaturalH))
-    style.maxHeight = maxH
+    const topBelow = trigger.bottom + 6
+    const availableBelow = viewportH - topBelow - margin
+    const availableAbove = trigger.top - margin
 
-    setDropdownStyle(style)
+    let top = topBelow
+    let maxHeight = Math.max(220, Math.min(ddNaturalH, availableBelow))
+
+    if (availableBelow < 220 && availableAbove > availableBelow) {
+      maxHeight = Math.max(220, Math.min(ddNaturalH, availableAbove))
+      top = Math.max(margin, trigger.top - maxHeight - 6)
+    }
+
+    setDropdownStyle({
+      left,
+      top,
+      right: 'auto',
+      bottom: 'auto',
+      width: preferredWidth,
+      maxHeight,
+    })
   }, [])
 
   useEffect(() => {
@@ -153,17 +177,14 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
       {open && (
         <div
           ref={dropdownRef}
-          className="fixed sm:absolute z-50 sm:top-full sm:mt-1 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-y-auto"
+          className="fixed z-50 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-y-auto"
           style={{
-            /* Mobile: fixed centered; Desktop: absolute positioned */
-            ...(window.innerWidth < 640
-              ? { left: 8, right: 8, bottom: 8, maxHeight: '60vh', width: 'auto' }
-              : {
-                  left: dropdownStyle.left != null ? dropdownStyle.left : undefined,
-                  right: dropdownStyle.right != null ? dropdownStyle.right : 0,
-                  maxHeight: dropdownStyle.maxHeight != null ? dropdownStyle.maxHeight : '70vh',
-                  width: '18rem',
-                }),
+            left: dropdownStyle.left != null ? dropdownStyle.left : 8,
+            right: dropdownStyle.right != null ? dropdownStyle.right : 'auto',
+            top: dropdownStyle.top != null ? dropdownStyle.top : 'auto',
+            bottom: dropdownStyle.bottom != null ? dropdownStyle.bottom : 'auto',
+            maxHeight: dropdownStyle.maxHeight != null ? dropdownStyle.maxHeight : '70vh',
+            width: dropdownStyle.width != null ? dropdownStyle.width : '18rem',
           }}
         >
           {/* Quick actions row */}

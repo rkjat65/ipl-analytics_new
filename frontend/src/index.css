@@ -39,10 +39,16 @@
   }
 
   .card {
-    @apply bg-bg-card border border-border-subtle rounded-lg p-4 transition-colors duration-150;
+    @apply relative overflow-hidden bg-bg-card border border-border-subtle rounded-2xl p-4 transition-all duration-200;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    background-image:
+      radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 38%),
+      linear-gradient(135deg, rgba(17, 20, 31, 0.98), rgba(10, 12, 18, 0.96));
   }
   .card:hover {
     @apply bg-bg-card-hover border-border-active;
+    transform: translateY(-2px);
+    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.24);
   }
 
   /* Animate-in: fade + slide up for cards, sections, rows */

@@ -213,16 +213,53 @@ export default function HeadToHead() {
         title="Head to Head Comparison"
         description="Compare IPL teams head to head. Win records, venue stats, recent form, and historical matchup data between any two IPL franchises."
       />
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Head to Head</h1>
-        <p className="text-text-secondary text-sm mt-1">Deep-dive comparison between two IPL teams</p>
-      </div>
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(0,229,255,0.16),transparent_0%,transparent_36%),radial-gradient(circle_at_bottom_right,rgba(255,45,120,0.12),transparent_0%,transparent_34%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] animate-in">
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/25 bg-accent-cyan/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-accent-cyan">
+              <span className="h-2 w-2 rounded-full bg-accent-cyan animate-pulse" />
+              Rivalry lab
+            </span>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">Head to Head</h1>
+              <p className="mt-2 text-sm text-text-secondary max-w-2xl leading-relaxed">
+                Compare two franchises with a richer rivalry view: lead margin, trend lines, toss impact, and team-vs-team pulse.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
+              {bothSelected ? (
+                <>
+                  <span className="rounded-full border px-3 py-1" style={{ borderColor: `${color1}33`, color: color1, backgroundColor: `${color1}12` }}>{abbr1}</span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-text-secondary">vs</span>
+                  <span className="rounded-full border px-3 py-1" style={{ borderColor: `${color2}33`, color: color2, backgroundColor: `${color2}12` }}>{abbr2}</span>
+                </>
+              ) : (
+                <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-accent-cyan">Select two teams to start</span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Rivalry matches</p>
+              <p className="mt-1 text-lg font-heading font-bold text-accent-cyan stat-glow-cyan">{bothSelected ? (h2h?.played ?? totalH2H) : '—'}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Lead margin</p>
+              <p className="mt-1 text-lg font-heading font-bold text-accent-lime stat-glow-lime">{bothSelected ? Math.abs(t1Wins - t2Wins) : '—'}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Edge</p>
+              <p className="mt-1 text-lg font-heading font-bold text-accent-amber stat-glow-amber">{bothSelected ? (t1Wins === t2Wins ? 'Level' : t1Wins > t2Wins ? abbr1 : abbr2) : '—'}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ═══════════════════════════════════════════════════════
           TEAM SELECTORS
           ═══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
+      <div className="card grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
         <div>
           <label className="text-text-secondary text-sm font-body block mb-2">Team 1</label>
           <div className="relative">
@@ -301,7 +338,7 @@ export default function HeadToHead() {
 
       {/* Empty state */}
       {!bothSelected && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <div className="card flex flex-col items-center justify-center py-16 gap-3">
           <div className="w-16 h-16 rounded-full bg-[#111118] border border-[#1E1E2A] flex items-center justify-center mb-2">
             <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />

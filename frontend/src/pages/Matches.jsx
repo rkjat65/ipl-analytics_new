@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import SEO from '../components/SEO'
 import { useFetch } from '../hooks/useFetch'
@@ -10,6 +10,22 @@ import { formatDate, getMatchResult } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 
 const PAGE_SIZE = 20
+
+function HeroStat({ label, value, accent = 'cyan' }) {
+  const accentClass = {
+    cyan: 'text-accent-cyan stat-glow-cyan',
+    lime: 'text-accent-lime stat-glow-lime',
+    amber: 'text-accent-amber stat-glow-amber',
+    magenta: 'text-accent-magenta stat-glow-magenta',
+  }[accent] || 'text-accent-cyan stat-glow-cyan'
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">{label}</p>
+      <p className={`mt-1 text-lg font-heading font-bold ${accentClass}`}>{value}</p>
+    </div>
+  )
+}
 
 export default function Matches() {
   const navigate = useNavigate()
@@ -30,6 +46,33 @@ export default function Matches() {
   const matches = matchesData?.matches || []
   const total = matchesData?.total || 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
+  const [sortKey, setSortKey] = useState('date')
+  const [sortDir, setSortDir] = useState('desc')
+
+  const sortedMatches = useMemo(() => {
+    const getValue = (match, key) => {
+      switch (key) {
+        case 'teams':
+          return `${match.team1 || ''} ${match.team2 || ''}`.toLowerCase()
+        case 'venue':
+          return `${match.venue || ''} ${match.city || ''}`.toLowerCase()
+        case 'result':
+          return (getMatchResult(match) || '').toLowerCase()
+        case 'player_of_match':
+          return (match.player_of_match || '').toLowerCase()
+        case 'date':
+        default:
+          return Date.parse(match.date || '') || 0
+      }
+    }
+
+    return [...matches].sort((a, b) => {
+      const av = getValue(a, sortKey)
+      const bv = getValue(b, sortKey)
+      if (av === bv) return 0
+      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
+    })
+  }, [matches, sortDir, sortKey])
 
   function updateParam(key, value) {
     const params = new URLSearchParams(searchParams)
@@ -47,6 +90,19 @@ export default function Matches() {
 
   const seasonOptions = (seasons || []).map((s) => ({ value: s, label: s }))
   const teamOptions = (teams || []).map((t) => ({ value: t, label: t }))
+  const activeSeasonCount = season ? season.split(',').map((s) => s.trim()).filter(Boolean).length : (seasons || []).length
+  const latestMatch = sortedMatches[0]
+
+  function toggleSort(key) {
+    setSortKey((prevKey) => {
+      if (prevKey === key) {
+        setSortDir((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'))
+        return prevKey
+      }
+      setSortDir(key === 'date' ? 'desc' : 'asc')
+      return key
+    })
+  }
 
   if (error) {
     return (
@@ -63,18 +119,35 @@ export default function Matches() {
         title="IPL Matches"
         description="Browse all IPL matches with detailed scorecards, results, and match summaries. Filter by season and team."
       />
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">Matches</h1>
-          <p className="text-text-secondary text-sm mt-1">
-            {loading ? 'Loading...' : `${total.toLocaleString()} matches found`}
-          </p>
-        </div>
-      </div>
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(0,229,255,0.16),transparent_0%,transparent_36%),radial-gradient(circle_at_bottom_right,rgba(184,255,0,0.12),transparent_0%,transparent_36%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] animate-in">
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/25 bg-accent-cyan/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-accent-cyan">
+              <span className="h-2 w-2 rounded-full bg-accent-cyan animate-pulse" />
+              Match archive
+            </span>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">Matches</h1>
+              <p className="mt-2 text-sm text-text-secondary max-w-2xl leading-relaxed">
+                Browse every result with a cleaner premium layout, fast filters, and clearer rivalry context at a glance.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
+              <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-accent-cyan">{loading ? 'Loading…' : `${total.toLocaleString()} matches tracked`}</span>
+              <span className="rounded-full border border-accent-lime/20 bg-accent-lime/10 px-3 py-1 text-accent-lime">{activeSeasonCount} season lens</span>
+              {team && <span className="rounded-full border border-accent-amber/20 bg-accent-amber/10 px-3 py-1 text-accent-amber">Team: {getTeamAbbr(team)}</span>}
+            </div>
+          </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+            <HeroStat label="On this page" value={loading ? '—' : sortedMatches.length} accent="cyan" />
+            <HeroStat label="Page" value={`${page}/${Math.max(totalPages, 1)}`} accent="lime" />
+            <HeroStat label="Latest result" value={latestMatch?.winner ? getTeamAbbr(latestMatch.winner) : '—'} accent="amber" />
+          </div>
+        </div>
+      </section>
+
+      <div className="card flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-text-secondary text-sm font-body">Season</label>
           <MultiSeasonSelect
@@ -111,19 +184,40 @@ export default function Matches() {
         <p className="text-text-muted text-sm py-12 text-center">No matches found for the selected filters.</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border-subtle">
+          <div className="card overflow-x-auto rounded-2xl border border-border-subtle">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-bg-elevated border-b border-border-subtle">
-                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap">Date</th>
-                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap">Teams</th>
-                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap hidden md:table-cell">Venue</th>
-                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap">Result</th>
-                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap hidden sm:table-cell">Player of Match</th>
+                  {[
+                    ['date', 'Date', ''],
+                    ['teams', 'Teams', ''],
+                    ['venue', 'Venue', 'hidden md:table-cell'],
+                    ['result', 'Result', ''],
+                    ['player_of_match', 'Player of Match', 'hidden sm:table-cell'],
+                  ].map(([key, label, extraClass]) => (
+                    <th
+                      key={key}
+                      onClick={() => toggleSort(key)}
+                      className={`px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap cursor-pointer select-none hover:text-text-primary transition-colors ${extraClass}`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {label}
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className={`w-3 h-3 transition-transform ${sortKey === key && sortDir === 'desc' ? 'rotate-180 opacity-100' : sortKey === key ? 'opacity-100' : 'opacity-35'}`}
+                        >
+                          <polyline points="18 15 12 9 6 15" />
+                        </svg>
+                      </span>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {matches.map((match, i) => (
+                {sortedMatches.map((match, i) => (
                   <tr
                     key={match.match_id}
                     onClick={() => navigate(`/matches/${match.match_id}`)}

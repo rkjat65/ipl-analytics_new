@@ -1,12 +1,11 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { getBattingLeaderboard, getSeasons, getTeams } from '../lib/api'
+import { getBattingLeaderboard, getBattingMatrix, getSeasons, getTeams } from '../lib/api'
 import SEO from '../components/SEO'
 import DataTable from '../components/ui/DataTable'
 import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
-import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
 import { formatNumber, formatDecimal } from '../utils/format'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import { exportAsImage, downloadImage } from '../utils/exportCard'
@@ -19,6 +18,13 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  ReferenceLine,
+  ComposedChart,
+  Line,
+  Legend,
 } from 'recharts'
 
 function ChartTooltip({ active, payload, label }) {
@@ -31,6 +37,23 @@ function ChartTooltip({ active, payload, label }) {
           {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
+    </div>
+  )
+}
+
+function MatrixTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const player = payload[0]?.payload
+  return (
+    <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg max-w-[240px]">
+      <div className="flex items-center gap-2 mb-1">
+        <PlayerAvatar name={player?.player} size={26} showBorder={false} />
+        <p className="text-text-primary text-xs font-semibold">{player?.player}</p>
+      </div>
+      <p className="text-xs text-accent-lime">Runs: <span className="font-mono font-semibold">{formatNumber(player?.runs)}</span></p>
+      <p className="text-xs text-accent-cyan">Average: <span className="font-mono font-semibold">{formatDecimal(player?.avg)}</span></p>
+      <p className="text-xs text-accent-amber">Strike rate: <span className="font-mono font-semibold">{formatDecimal(player?.sr)}</span></p>
+      <p className="text-[11px] text-text-muted mt-1">{player?.innings} innings • {player?.sixes} sixes • {player?.fours} fours</p>
     </div>
   )
 }
@@ -59,6 +82,23 @@ const rankAccent = (rank) => {
   return ''
 }
 
+function HeroStat({ label, value, accent = 'cyan', meta = '' }) {
+  const accentClass = {
+    cyan: 'text-accent-cyan stat-glow-cyan',
+    lime: 'text-accent-lime stat-glow-lime',
+    amber: 'text-accent-amber stat-glow-amber',
+    magenta: 'text-accent-magenta stat-glow-magenta',
+  }[accent] || 'text-accent-cyan stat-glow-cyan'
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">{label}</p>
+      <p className={`mt-1 text-lg font-heading font-bold ${accentClass}`}>{value}</p>
+      {meta ? <p className="mt-1 text-[11px] text-text-muted">{meta}</p> : null}
+    </div>
+  )
+}
+
 export default function BattingRecords() {
   const chartRef = useRef(null)
   const [season, setSeason] = useState('')
@@ -83,6 +123,11 @@ export default function BattingRecords() {
   const { data: batters, loading, error } = useFetch(
     () => getBattingLeaderboard({ season, team, sort_by: sortBy, limit: 500, min_balls: minBalls || undefined }),
     [season, team, sortBy, minBalls]
+  )
+
+  const { data: battingMatrix, loading: matrixLoading } = useFetch(
+    () => getBattingMatrix(season, season ? 8 : 16, team),
+    [season, team]
   )
 
   const seasonOptions = [{ value: '', label: 'All Seasons' }, ...(seasons || []).map((s) => ({ value: s, label: s }))]
@@ -130,6 +175,27 @@ export default function BattingRecords() {
     rank: i + 1,
     _rowClass: rankAccent(i + 1),
   }))
+  const leader = dataWithRank[0] || null
+  const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy
+  const matrixPoints = useMemo(() => (Array.isArray(battingMatrix) ? battingMatrix : [])
+    .filter((entry) => Number(entry?.avg) > 0 && Number(entry?.sr) > 0 && Number(entry?.runs) > 0)
+    .sort((a, b) => b.runs - a.runs)
+    .slice(0, 24)
+    .map((entry) => ({
+      ...entry,
+      shortName: entry.player?.length > 12 ? `${entry.player.slice(0, 11)}…` : entry.player,
+    })), [battingMatrix])
+  const eliteBatters = matrixPoints.filter((entry) => entry.avg >= 30 && entry.sr >= 135).length
+  const powerBatters = matrixPoints.filter((entry) => entry.sr >= 145).length
+  const anchorBatters = matrixPoints.filter((entry) => entry.avg >= 35).length
+  const battingStyleData = dataWithRank.slice(0, 8).map((entry) => ({
+    name: entry.player?.length > 12 ? `${entry.player.slice(0, 11)}…` : entry.player,
+    fullName: entry.player,
+    fours: entry.fours,
+    sixes: entry.sixes,
+    sr: entry.sr,
+    avg: entry.avg,
+  }))
 
   if (error) {
     return (
@@ -146,17 +212,38 @@ export default function BattingRecords() {
         title="Batting Records & Leaderboard"
         description="IPL batting records and leaderboard. Top run scorers, highest strike rates, centuries, and batting averages across all IPL seasons."
       />
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Batting Records</h1>
-        <p className="text-text-secondary text-sm mt-1">Top run scorers across IPL seasons</p>
-      </div>
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(184,255,0,0.16),transparent_0%,transparent_36%),radial-gradient(circle_at_bottom_right,rgba(0,229,255,0.12),transparent_0%,transparent_34%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] animate-in">
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-lime/25 bg-accent-lime/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-accent-lime">
+              <span className="h-2 w-2 rounded-full bg-accent-lime animate-pulse" />
+              Batting command centre
+            </span>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">Batting Records</h1>
+              <p className="mt-2 text-sm text-text-secondary max-w-2xl leading-relaxed">
+                Premium batting filters, stronger highlights, and leaderboard context for run volume, tempo, and consistency.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
+              <span className="rounded-full border border-accent-lime/20 bg-accent-lime/10 px-3 py-1 text-accent-lime">Sorted by {sortLabel}</span>
+              {team && <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-accent-cyan">Team: {team}</span>}
+              {season && <span className="rounded-full border border-accent-amber/20 bg-accent-amber/10 px-3 py-1 text-accent-amber">Season filter active</span>}
+            </div>
+          </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+            <HeroStat label="Leader" value={leader ? formatNumber(leader.runs) : '—'} accent="lime" meta={leader ? leader.player : 'Runs leader'} />
+            <HeroStat label="Strike rate" value={leader ? formatDecimal(leader.sr) : '—'} accent="amber" meta={leader ? `${leader.sixes} sixes` : 'Top tempo'} />
+            <HeroStat label="Average" value={leader ? formatDecimal(leader.avg) : '—'} accent="cyan" meta={leader ? `${leader.matches} matches` : 'Current sample'} />
+          </div>
+        </div>
+      </section>
+
+      <div className="card overflow-visible flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-text-secondary text-sm">Season</label>
-          <MultiSeasonSelect seasons={seasons || []} value={season} onChange={setSeason} />
+          <Select options={seasonOptions} value={season} onChange={setSeason} placeholder="" />
         </div>
         <div className="flex items-center gap-2">
           <label className="text-text-secondary text-sm">Team</label>
@@ -238,7 +325,7 @@ export default function BattingRecords() {
                   fontSize: 11,
                   fontWeight: 700,
                   fontFamily: 'monospace',
-                  formatter: (v) => typeof v === 'number' ? v.toLocaleString('en-IN') : v,
+                  formatter: (v) => ['avg', 'sr'].includes(sortBy) ? formatDecimal(v) : formatNumber(v),
                 }}
               >
                 {dataWithRank.slice(0, 15).map((_, idx) => (
@@ -251,11 +338,133 @@ export default function BattingRecords() {
         </div>
       )}
 
+      {!loading && battingStyleData.length > 0 && (
+        <div className="card animate-in">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-heading font-bold text-text-primary">Boundary Profile & Tempo</h3>
+              <p className="text-xs text-text-secondary">A meaningful batting-style view: how top batters mix fours, sixes, and strike rate.</p>
+            </div>
+            <span className="rounded-full border border-accent-amber/20 bg-accent-amber/10 px-3 py-1 text-[10px] font-semibold text-accent-amber">
+              Top 8 style lens
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={340}>
+            <ComposedChart data={battingStyleData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+              <XAxis dataKey="name" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
+              <YAxis yAxisId="left" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null
+                const d = payload[0]?.payload
+                return (
+                  <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
+                    <p className="text-text-primary text-xs font-semibold mb-1">{d?.fullName || label}</p>
+                    <p className="text-xs text-accent-cyan">Fours: <span className="font-mono font-semibold">{d?.fours}</span></p>
+                    <p className="text-xs text-accent-amber">Sixes: <span className="font-mono font-semibold">{d?.sixes}</span></p>
+                    <p className="text-xs text-accent-lime">SR: <span className="font-mono font-semibold">{formatDecimal(d?.sr)}</span></p>
+                    <p className="text-xs text-text-muted">Avg: <span className="font-mono">{formatDecimal(d?.avg)}</span></p>
+                  </div>
+                )
+              }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: '#8888A0' }} />
+              <Bar yAxisId="left" dataKey="fours" stackId="boundaries" name="Fours" fill="#00E5FF" radius={[0, 0, 4, 4]} />
+              <Bar yAxisId="left" dataKey="sixes" stackId="boundaries" name="Sixes" fill="#FFB800" radius={[4, 4, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="sr" name="Strike Rate" stroke="#B8FF00" strokeWidth={2.5} dot={{ r: 3, fill: '#B8FF00' }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="card animate-in">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-heading font-bold text-text-primary">Batting Impact Matrix</h3>
+              <p className="text-xs text-text-secondary">Average vs strike rate • bubble size = total runs • top-right is the premium zone.</p>
+            </div>
+            <span className="rounded-full border border-accent-lime/20 bg-accent-lime/10 px-3 py-1 text-[10px] font-semibold text-accent-lime">
+              {season ? 'Season scoped matrix' : 'All-time matrix'}
+            </span>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3 mb-4">
+            <HeroStat label="Elite profiles" value={eliteBatters} accent="lime" meta="Avg 30+ and SR 135+" />
+            <HeroStat label="Power hitters" value={powerBatters} accent="amber" meta="SR 145+" />
+            <HeroStat label="Anchors" value={anchorBatters} accent="cyan" meta="Avg 35+" />
+          </div>
+
+          {matrixLoading ? (
+            <Loading message="Building batting matrix..." />
+          ) : !matrixPoints.length ? (
+            <p className="text-text-muted text-sm py-8 text-center">No batting matrix data available</p>
+          ) : (() => {
+            const maxRuns = Math.max(...matrixPoints.map((entry) => entry.runs))
+            const labelThreshold = [...matrixPoints].sort((a, b) => b.runs - a.runs)[Math.min(5, matrixPoints.length - 1)]?.runs || 0
+            const avgAvg = matrixPoints.reduce((sum, entry) => sum + entry.avg, 0) / matrixPoints.length
+            const avgSR = matrixPoints.reduce((sum, entry) => sum + entry.sr, 0) / matrixPoints.length
+            return (
+              <>
+                <ResponsiveContainer width="100%" height={380}>
+                  <ScatterChart margin={{ top: 15, right: 24, left: 8, bottom: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+                    <XAxis dataKey="avg" type="number" name="Average" domain={[20, 'auto']} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
+                    <YAxis dataKey="sr" type="number" name="Strike Rate" domain={[100, 'auto']} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <ZAxis dataKey="runs" range={[60, 340]} name="Runs" />
+                    <ReferenceLine x={avgAvg} stroke="#2A2A3A" strokeDasharray="4 4" />
+                    <ReferenceLine y={avgSR} stroke="#2A2A3A" strokeDasharray="4 4" />
+                    <Tooltip content={<MatrixTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#8888A0' }} />
+                    <Scatter
+                      data={matrixPoints}
+                      shape={(props) => {
+                        const { cx, cy, payload } = props
+                        const radius = 5 + (payload.runs / maxRuns) * 12
+                        const stroke = payload.avg >= 30 && payload.sr >= 135
+                          ? '#B8FF00'
+                          : payload.sr >= 145
+                            ? '#FFB800'
+                            : payload.avg >= 35
+                              ? '#00E5FF'
+                              : '#8B5CF6'
+                        return (
+                          <g>
+                            <circle cx={cx} cy={cy} r={radius} fill="rgba(11,14,22,0.88)" stroke={stroke} strokeWidth={2} />
+                            <circle cx={cx} cy={cy} r={Math.max(2, radius * 0.35)} fill={stroke} fillOpacity={0.9} />
+                            {payload.runs >= labelThreshold && (
+                              <text x={cx} y={cy - radius - 6} textAnchor="middle" fill="#E8E8F0" fontSize={10} fontWeight={600} fontFamily="monospace">
+                                {payload.shortName}
+                              </text>
+                            )}
+                          </g>
+                        )
+                      }}
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+                <div className="mt-3 flex flex-wrap gap-4 text-[10px] text-text-muted">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#B8FF00' }} /> Elite</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#FFB800' }} /> Power hitter</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#00E5FF' }} /> Anchor</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#8B5CF6' }} /> Others</span>
+                </div>
+              </>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Table */}
       {loading ? (
         <Loading message="Loading batting leaderboard..." />
       ) : (
-        <DataTable columns={columns} data={dataWithRank} />
+        <div className="card">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-accent-lime/20 bg-accent-lime/10 px-3 py-1 text-[10px] font-semibold text-accent-lime">{dataWithRank.length} batters</span>
+            <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-[10px] font-semibold text-accent-cyan">Sorted by {sortLabel}</span>
+          </div>
+          <DataTable columns={columns} data={dataWithRank} />
+        </div>
       )}
     </div>
   )

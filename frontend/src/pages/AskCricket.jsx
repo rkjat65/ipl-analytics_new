@@ -118,20 +118,62 @@ function StatCard({ data }) {
 }
 
 function DataTable({ data }) {
+  const [sortKey, setSortKey] = useState('')
+  const [sortDir, setSortDir] = useState('asc')
+
   if (!data || data.length === 0) return <p className="text-text-muted text-sm">No results</p>
   const cols = Object.keys(data[0])
+
+  const sortedData = [...data].sort((a, b) => {
+    if (!sortKey) return 0
+    const av = a?.[sortKey]
+    const bv = b?.[sortKey]
+    if (av === bv) return 0
+    if (av === null || av === undefined) return 1
+    if (bv === null || bv === undefined) return -1
+    const left = typeof av === 'number' ? av : String(av).toLowerCase()
+    const right = typeof bv === 'number' ? bv : String(bv).toLowerCase()
+    return sortDir === 'asc' ? (left > right ? 1 : -1) : (left < right ? 1 : -1)
+  })
+
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortKey(key)
+    setSortDir('asc')
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm font-mono">
         <thead>
           <tr className="border-b border-border-subtle">
             {cols.map(c => (
-              <th key={c} className="text-left py-2 px-3 text-text-muted text-xs uppercase tracking-wider">{c}</th>
+              <th
+                key={c}
+                onClick={() => toggleSort(c)}
+                className="text-left py-2 px-3 text-text-muted text-xs uppercase tracking-wider cursor-pointer select-none hover:text-text-primary"
+              >
+                <span className="inline-flex items-center gap-1">
+                  {c}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={`w-3 h-3 transition-transform ${sortKey === c && sortDir === 'desc' ? 'rotate-180 opacity-100' : sortKey === c ? 'opacity-100' : 'opacity-35'}`}
+                  >
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </span>
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {data.map((row, i) => (
+          {sortedData.map((row, i) => (
             <tr key={i} className="border-b border-border-subtle/50 hover:bg-bg-card-hover transition-colors">
               {cols.map(c => (
                 <td key={c} className="py-2 px-3 text-text-primary">

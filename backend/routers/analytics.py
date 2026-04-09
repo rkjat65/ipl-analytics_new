@@ -1,7 +1,7 @@
 """Analytics endpoints: KPIs, phase stats, venues, toss impact."""
 
 from fastapi import APIRouter, Query
-from ..database import query, normalize_team, VENUE_NORM_SQL
+from ..database import query, normalize_team, team_variants, VENUE_NORM_SQL
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -433,9 +433,17 @@ def six_evolution():
 
 
 @router.get("/batting-matrix")
-def batting_impact_matrix(season: str | None = None, min_innings: int = 20):
+def batting_impact_matrix(season: str | None = None, team: str | None = None, min_innings: int = 20):
     """SR vs Average scatter — bubble size = runs. The ultimate batter comparison."""
     sf, sp = _season_filter("m", season)
+    team_filter = ""
+    params = sp[:]
+    if team:
+        variants = team_variants(team)
+        ph = ", ".join(["?"] * len(variants))
+        team_filter = f" AND i.batting_team IN ({ph})"
+        params.extend(variants)
+
     rows = query(f"""
         SELECT d.batter AS player,
                SUM(d.runs_batter) AS runs,
@@ -451,18 +459,27 @@ def batting_impact_matrix(season: str | None = None, min_innings: int = 20):
                SUM(CASE WHEN d.runs_batter = 4 AND d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 ELSE 0 END) AS fours
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
-        WHERE d.is_super_over = false {sf}
+        JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
+        WHERE d.is_super_over = false {sf}{team_filter}
         GROUP BY d.batter
         HAVING COUNT(DISTINCT d.match_id || '-' || d.innings_number) >= ?
         ORDER BY runs DESC
-    """, sp + [min_innings])
+    """, params + [min_innings])
     return rows
 
 
 @router.get("/bowling-matrix")
-def bowling_impact_matrix(season: str | None = None, min_innings: int = 20):
+def bowling_impact_matrix(season: str | None = None, team: str | None = None, min_innings: int = 20):
     """Economy vs Average scatter — bubble size = wickets. The ultimate bowler comparison."""
     sf, sp = _season_filter("m", season)
+    team_filter = ""
+    params = sp[:]
+    if team:
+        variants = team_variants(team)
+        ph = ", ".join(["?"] * len(variants))
+        team_filter = f" AND i.bowling_team IN ({ph})"
+        params.extend(variants)
+
     rows = query(f"""
         SELECT d.bowler AS player,
                SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out', 'retired hurt', 'retired out', 'obstructing the field') THEN 1 ELSE 0 END) AS wickets,
@@ -478,12 +495,13 @@ def bowling_impact_matrix(season: str | None = None, min_innings: int = 20):
                    / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 1) AS dot_pct
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
-        WHERE d.is_super_over = false {sf}
+        JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
+        WHERE d.is_super_over = false {sf}{team_filter}
         GROUP BY d.bowler
         HAVING COUNT(DISTINCT d.match_id || '-' || d.innings_number) >= ?
            AND SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out', 'retired hurt', 'retired out', 'obstructing the field') THEN 1 ELSE 0 END) > 0
         ORDER BY wickets DESC
-    """, sp + [min_innings])
+    """, params + [min_innings])
     return rows
 
 

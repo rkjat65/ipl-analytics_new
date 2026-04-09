@@ -1,13 +1,12 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { getBowlingLeaderboard, getSeasons, getTeams } from '../lib/api'
+import { getBowlingLeaderboard, getBowlingMatrix, getSeasons, getTeams } from '../lib/api'
 import SEO from '../components/SEO'
 import DataTable from '../components/ui/DataTable'
 import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
-import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
-import { formatDecimal } from '../utils/format'
+import { formatNumber, formatDecimal } from '../utils/format'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import { exportAsImage, downloadImage } from '../utils/exportCard'
 import {
@@ -19,6 +18,13 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  ReferenceLine,
+  ComposedChart,
+  Line,
+  Legend,
 } from 'recharts'
 
 function ChartTooltip({ active, payload, label }) {
@@ -31,6 +37,23 @@ function ChartTooltip({ active, payload, label }) {
           {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
+    </div>
+  )
+}
+
+function MatrixTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const player = payload[0]?.payload
+  return (
+    <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg max-w-[240px]">
+      <div className="flex items-center gap-2 mb-1">
+        <PlayerAvatar name={player?.player} size={26} showBorder={false} />
+        <p className="text-text-primary text-xs font-semibold">{player?.player}</p>
+      </div>
+      <p className="text-xs text-accent-magenta">Wickets: <span className="font-mono font-semibold">{formatNumber(player?.wickets)}</span></p>
+      <p className="text-xs text-accent-cyan">Average: <span className="font-mono font-semibold">{formatDecimal(player?.avg)}</span></p>
+      <p className="text-xs text-accent-amber">Economy: <span className="font-mono font-semibold">{formatDecimal(player?.economy)}</span></p>
+      <p className="text-[11px] text-text-muted mt-1">{player?.innings} innings • Dot% {player?.dot_pct ?? '-'} </p>
     </div>
   )
 }
@@ -58,6 +81,23 @@ const rankAccent = (rank) => {
   return ''
 }
 
+function HeroStat({ label, value, accent = 'cyan', meta = '' }) {
+  const accentClass = {
+    cyan: 'text-accent-cyan stat-glow-cyan',
+    lime: 'text-accent-lime stat-glow-lime',
+    amber: 'text-accent-amber stat-glow-amber',
+    magenta: 'text-accent-magenta stat-glow-magenta',
+  }[accent] || 'text-accent-cyan stat-glow-cyan'
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">{label}</p>
+      <p className={`mt-1 text-lg font-heading font-bold ${accentClass}`}>{value}</p>
+      {meta ? <p className="mt-1 text-[11px] text-text-muted">{meta}</p> : null}
+    </div>
+  )
+}
+
 export default function BowlingRecords() {
   const chartRef = useRef(null)
   const [season, setSeason] = useState('')
@@ -82,6 +122,11 @@ export default function BowlingRecords() {
   const { data: bowlers, loading, error } = useFetch(
     () => getBowlingLeaderboard({ season, team, sort_by: sortBy, limit: 500, min_balls: minBalls || undefined }),
     [season, team, sortBy, minBalls]
+  )
+
+  const { data: bowlingMatrix, loading: matrixLoading } = useFetch(
+    () => getBowlingMatrix(season, season ? 8 : 16, team),
+    [season, team]
   )
 
   const seasonOptions = [{ value: '', label: 'All Seasons' }, ...(seasons || []).map((s) => ({ value: s, label: s }))]
@@ -129,6 +174,26 @@ export default function BowlingRecords() {
     rank: i + 1,
     _rowClass: rankAccent(i + 1),
   }))
+  const leader = dataWithRank[0] || null
+  const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy
+  const matrixPoints = useMemo(() => (Array.isArray(bowlingMatrix) ? bowlingMatrix : [])
+    .filter((entry) => Number(entry?.avg) > 0 && Number(entry?.economy) > 0 && Number(entry?.wickets) > 0)
+    .sort((a, b) => b.wickets - a.wickets)
+    .slice(0, 24)
+    .map((entry) => ({
+      ...entry,
+      shortName: entry.player?.length > 12 ? `${entry.player.slice(0, 11)}…` : entry.player,
+    })), [bowlingMatrix])
+  const eliteBowlers = matrixPoints.filter((entry) => entry.avg <= 22 && entry.economy <= 7.5).length
+  const economyBosses = matrixPoints.filter((entry) => entry.economy <= 7).length
+  const strikeThreats = matrixPoints.filter((entry) => entry.avg <= 20).length
+  const bowlingStyleData = dataWithRank.slice(0, 8).map((entry) => ({
+    name: entry.player?.length > 12 ? `${entry.player.slice(0, 11)}…` : entry.player,
+    fullName: entry.player,
+    wickets: entry.wickets,
+    economy: entry.economy,
+    avg: entry.avg,
+  }))
 
   if (error) {
     return (
@@ -145,17 +210,38 @@ export default function BowlingRecords() {
         title="Bowling Records & Leaderboard"
         description="IPL bowling records and leaderboard. Top wicket-takers, best economy rates, bowling averages, and bowling figures across all IPL seasons."
       />
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Bowling Records</h1>
-        <p className="text-text-secondary text-sm mt-1">Top wicket takers across IPL seasons</p>
-      </div>
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,45,120,0.16),transparent_0%,transparent_36%),radial-gradient(circle_at_bottom_right,rgba(0,229,255,0.12),transparent_0%,transparent_34%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] animate-in">
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-magenta/25 bg-accent-magenta/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-accent-magenta">
+              <span className="h-2 w-2 rounded-full bg-accent-magenta animate-pulse" />
+              Bowling command centre
+            </span>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">Bowling Records</h1>
+              <p className="mt-2 text-sm text-text-secondary max-w-2xl leading-relaxed">
+                A stronger premium look for wicket leaders, control metrics, and bowling impact across seasons.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
+              <span className="rounded-full border border-accent-magenta/20 bg-accent-magenta/10 px-3 py-1 text-accent-magenta">Sorted by {sortLabel}</span>
+              {team && <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-accent-cyan">Team: {team}</span>}
+              {season && <span className="rounded-full border border-accent-amber/20 bg-accent-amber/10 px-3 py-1 text-accent-amber">Season filter active</span>}
+            </div>
+          </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+            <HeroStat label="Leader" value={leader ? leader.wickets : '—'} accent="magenta" meta={leader ? leader.player : 'Wickets leader'} />
+            <HeroStat label="Economy" value={leader ? formatDecimal(leader.economy) : '—'} accent="amber" meta={leader ? `Avg ${formatDecimal(leader.avg)}` : 'Control lens'} />
+            <HeroStat label="Strike rate" value={leader ? formatDecimal(leader.sr) : '—'} accent="cyan" meta={leader ? `${leader.matches} matches` : 'Current sample'} />
+          </div>
+        </div>
+      </section>
+
+      <div className="card overflow-visible flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-text-secondary text-sm">Season</label>
-          <MultiSeasonSelect seasons={seasons || []} value={season} onChange={setSeason} />
+          <Select options={seasonOptions} value={season} onChange={setSeason} placeholder="" />
         </div>
         <div className="flex items-center gap-2">
           <label className="text-text-secondary text-sm">Team</label>
@@ -237,7 +323,7 @@ export default function BowlingRecords() {
                   fontSize: 11,
                   fontWeight: 700,
                   fontFamily: 'monospace',
-                  formatter: (v) => typeof v === 'number' ? v.toLocaleString('en-IN') : v,
+                  formatter: (v) => ['avg', 'economy', 'sr'].includes(sortBy) ? formatDecimal(v) : formatNumber(v),
                 }}
               >
                 {dataWithRank.slice(0, 15).map((_, idx) => (
@@ -250,11 +336,132 @@ export default function BowlingRecords() {
         </div>
       )}
 
+      {!loading && bowlingStyleData.length > 0 && (
+        <div className="card animate-in">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-heading font-bold text-text-primary">Control vs Strike Value</h3>
+              <p className="text-xs text-text-secondary">A more meaningful bowling lens: wickets captured against economy discipline.</p>
+            </div>
+            <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-[10px] font-semibold text-accent-cyan">
+              Top 8 control chart
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={340}>
+            <ComposedChart data={bowlingStyleData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+              <XAxis dataKey="name" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
+              <YAxis yAxisId="left" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null
+                const d = payload[0]?.payload
+                return (
+                  <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
+                    <p className="text-text-primary text-xs font-semibold mb-1">{d?.fullName || label}</p>
+                    <p className="text-xs text-accent-magenta">Wickets: <span className="font-mono font-semibold">{d?.wickets}</span></p>
+                    <p className="text-xs text-accent-amber">Economy: <span className="font-mono font-semibold">{formatDecimal(d?.economy)}</span></p>
+                    <p className="text-xs text-accent-cyan">Average: <span className="font-mono font-semibold">{formatDecimal(d?.avg)}</span></p>
+                  </div>
+                )
+              }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: '#8888A0' }} />
+              <Bar yAxisId="left" dataKey="wickets" name="Wickets" fill="#FF2D78" radius={[4, 4, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="economy" name="Economy" stroke="#FFB800" strokeWidth={2.5} dot={{ r: 3, fill: '#FFB800' }} />
+              <Line yAxisId="right" type="monotone" dataKey="avg" name="Average" stroke="#00E5FF" strokeWidth={2} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="card animate-in">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-heading font-bold text-text-primary">Bowling Impact Matrix</h3>
+              <p className="text-xs text-text-secondary">Bowling average vs economy • bubble size = wickets • bottom-left is the premium zone.</p>
+            </div>
+            <span className="rounded-full border border-accent-magenta/20 bg-accent-magenta/10 px-3 py-1 text-[10px] font-semibold text-accent-magenta">
+              {season ? 'Season scoped matrix' : 'All-time matrix'}
+            </span>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3 mb-4">
+            <HeroStat label="Elite profiles" value={eliteBowlers} accent="magenta" meta="Avg ≤ 22 and Econ ≤ 7.5" />
+            <HeroStat label="Economy bosses" value={economyBosses} accent="amber" meta="Economy ≤ 7" />
+            <HeroStat label="Strike threats" value={strikeThreats} accent="cyan" meta="Avg ≤ 20" />
+          </div>
+
+          {matrixLoading ? (
+            <Loading message="Building bowling matrix..." />
+          ) : !matrixPoints.length ? (
+            <p className="text-text-muted text-sm py-8 text-center">No bowling matrix data available</p>
+          ) : (() => {
+            const maxWickets = Math.max(...matrixPoints.map((entry) => entry.wickets))
+            const labelThreshold = [...matrixPoints].sort((a, b) => b.wickets - a.wickets)[Math.min(5, matrixPoints.length - 1)]?.wickets || 0
+            const avgAvg = matrixPoints.reduce((sum, entry) => sum + entry.avg, 0) / matrixPoints.length
+            const avgEcon = matrixPoints.reduce((sum, entry) => sum + entry.economy, 0) / matrixPoints.length
+            return (
+              <>
+                <ResponsiveContainer width="100%" height={380}>
+                  <ScatterChart margin={{ top: 15, right: 24, left: 8, bottom: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+                    <XAxis dataKey="avg" type="number" name="Average" domain={[10, 'auto']} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
+                    <YAxis dataKey="economy" type="number" name="Economy" domain={[5, 'auto']} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <ZAxis dataKey="wickets" range={[60, 340]} name="Wickets" />
+                    <ReferenceLine x={avgAvg} stroke="#2A2A3A" strokeDasharray="4 4" />
+                    <ReferenceLine y={avgEcon} stroke="#2A2A3A" strokeDasharray="4 4" />
+                    <Tooltip content={<MatrixTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#8888A0' }} />
+                    <Scatter
+                      data={matrixPoints}
+                      shape={(props) => {
+                        const { cx, cy, payload } = props
+                        const radius = 5 + (payload.wickets / maxWickets) * 12
+                        const stroke = payload.avg <= 22 && payload.economy <= 7.5
+                          ? '#FF2D78'
+                          : payload.economy <= 7
+                            ? '#B8FF00'
+                            : payload.avg <= 20
+                              ? '#00E5FF'
+                              : '#8B5CF6'
+                        return (
+                          <g>
+                            <circle cx={cx} cy={cy} r={radius} fill="rgba(11,14,22,0.88)" stroke={stroke} strokeWidth={2} />
+                            <circle cx={cx} cy={cy} r={Math.max(2, radius * 0.35)} fill={stroke} fillOpacity={0.9} />
+                            {payload.wickets >= labelThreshold && (
+                              <text x={cx} y={cy - radius - 6} textAnchor="middle" fill="#E8E8F0" fontSize={10} fontWeight={600} fontFamily="monospace">
+                                {payload.shortName}
+                              </text>
+                            )}
+                          </g>
+                        )
+                      }}
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+                <div className="mt-3 flex flex-wrap gap-4 text-[10px] text-text-muted">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#FF2D78' }} /> Elite</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#B8FF00' }} /> Economy boss</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#00E5FF' }} /> Strike threat</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#8B5CF6' }} /> Others</span>
+                </div>
+              </>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Table */}
       {loading ? (
         <Loading message="Loading bowling leaderboard..." />
       ) : (
-        <DataTable columns={columns} data={dataWithRank} />
+        <div className="card">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-accent-magenta/20 bg-accent-magenta/10 px-3 py-1 text-[10px] font-semibold text-accent-magenta">{dataWithRank.length} bowlers</span>
+            <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-[10px] font-semibold text-accent-cyan">Sorted by {sortLabel}</span>
+          </div>
+          <DataTable columns={columns} data={dataWithRank} />
+        </div>
       )}
     </div>
   )
