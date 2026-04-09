@@ -174,6 +174,13 @@ def upsert_matches(matches: list[dict]):
         if not mid:
             continue
         seen_ids.add(str(mid))
+        raw_status = _match_status_label(m)
+        merged = _merge_match_data(str(mid), m, match_status=raw_status)
+        status_label = raw_status
+        if merged.get("matchEnded"):
+            status_label = "completed"
+        elif merged.get("matchStarted"):
+            status_label = "live"
         conn.execute(
             """INSERT INTO live_matches (match_id, data, is_ipl, match_status, updated_at)
                VALUES (?, ?, ?, ?, ?)
@@ -182,7 +189,7 @@ def upsert_matches(matches: list[dict]):
                  is_ipl       = excluded.is_ipl,
                  match_status = excluded.match_status,
                  updated_at   = excluded.updated_at""",
-            (str(mid), json.dumps(m), int(_detect_ipl(m)), _match_status_label(m), now),
+            (str(mid), json.dumps(merged), int(_detect_ipl(m)), status_label, now),
         )
 
     if seen_ids:
@@ -191,9 +198,11 @@ def upsert_matches(matches: list[dict]):
         ).fetchall()
         for row in stale:
             if row["match_id"] not in seen_ids:
+                existing = get_match(row["match_id"]) or {"id": row["match_id"]}
+                merged = _merge_match_data(row["match_id"], existing, match_status="completed")
                 conn.execute(
-                    "UPDATE live_matches SET match_status = 'completed' WHERE match_id = ?",
-                    (row["match_id"],),
+                    "UPDATE live_matches SET match_status = 'completed', data = ?, updated_at = ? WHERE match_id = ?",
+                    (json.dumps(merged), now, row["match_id"]),
                 )
 
     conn.commit()
@@ -236,7 +245,7 @@ def get_all_matches() -> list[dict]:
     """Return all cached matches sorted: IPL first → live → upcoming → completed."""
     conn = get_live_db()
     rows = conn.execute(
-        """SELECT data FROM live_matches
+        """SELECT match_id, data, match_status FROM live_matches
            ORDER BY is_ipl DESC,
                     CASE match_status
                       WHEN 'live'      THEN 0
@@ -245,7 +254,10 @@ def get_all_matches() -> list[dict]:
                     END,
                     updated_at DESC"""
     ).fetchall()
-    return [json.loads(r["data"]) for r in rows]
+    return [
+        _merge_match_data(r["match_id"], json.loads(r["data"]), match_status=r["match_status"])
+        for r in rows
+    ]
 
 
 def get_live_ipl_match_ids() -> list[str]:
@@ -263,6 +275,77 @@ def get_scorecard(match_id: str) -> dict | None:
         "SELECT data FROM live_scorecards WHERE match_id = ?", (match_id,)
     ).fetchone()
     return json.loads(row["data"]) if row else None
+
+
+def _looks_completed_match_status(text: str | None) -> bool:
+    status = (text or "").strip().lower()
+    if not status:
+        return False
+    return any(
+        token in status
+        for token in (
+            "completed",
+            "finished",
+            "result",
+            "won by",
+            "abandoned",
+            "no result",
+            "cancelled",
+        )
+    )
+
+
+def _merge_match_data(match_id: str, data: dict, *, match_status: str | None = None) -> dict:
+    """Merge a cached livescores row with the richer/final scorecard cache if present."""
+    merged = dict(data or {})
+    merged["id"] = str(merged.get("id") or match_id)
+
+    if match_status == "live":
+        merged["matchStarted"] = True
+    elif match_status == "completed":
+        merged["matchStarted"] = True
+        merged["matchEnded"] = True
+
+    scorecard = get_scorecard(match_id)
+    if isinstance(scorecard, dict):
+        for key in (
+            "teams",
+            "teamInfo",
+            "score",
+            "venue",
+            "date",
+            "dateTimeGMT",
+            "tossWinner",
+            "tossChoice",
+            "playerOfMatch",
+        ):
+            if not merged.get(key) and scorecard.get(key):
+                merged[key] = scorecard[key]
+
+        if scorecard.get("matchStarted"):
+            merged["matchStarted"] = True
+        if scorecard.get("matchEnded"):
+            merged["matchEnded"] = True
+        if scorecard.get("matchWinner"):
+            merged["matchWinner"] = scorecard["matchWinner"]
+
+        current_status = (merged.get("status") or "").strip()
+        scorecard_status = (scorecard.get("status") or "").strip()
+        if scorecard_status and (
+            not current_status
+            or (match_status == "completed" and not _looks_completed_match_status(current_status))
+            or (scorecard.get("matchEnded") and not _looks_completed_match_status(current_status))
+        ):
+            merged["status"] = scorecard_status
+
+    current_status = (merged.get("status") or "").strip()
+    if match_status == "completed" and current_status.lower().startswith("target"):
+        if merged.get("matchWinner"):
+            merged["status"] = f"{merged['matchWinner']} won"
+        else:
+            merged["status"] = "Completed"
+
+    return merged
 
 
 def _schedule_dates_close(schedule_date: str, api_date_prefix: str) -> bool:
@@ -290,7 +373,7 @@ def find_scorecard_for_schedule_fixture(
 
     want = {normalize_team(home), normalize_team(away)}
     conn = get_live_db()
-    rows = conn.execute("SELECT match_id, data FROM live_scorecards").fetchall()
+    rows = conn.execute("SELECT match_id, data, updated_at FROM live_scorecards").fetchall()
     for r in rows:
         sc = json.loads(r["data"])
         teams = sc.get("teams") or []
@@ -299,7 +382,7 @@ def find_scorecard_for_schedule_fixture(
         got = {normalize_team(teams[0]), normalize_team(teams[1])}
         if got != want:
             continue
-        api_date = (sc.get("dateTimeGMT") or sc.get("date") or "")[:10]
+        api_date = (sc.get("dateTimeGMT") or sc.get("date") or r["updated_at"] or "")[:10]
         if _schedule_dates_close(date_str, api_date):
             return (r["match_id"], sc)
     return (None, None)
@@ -308,9 +391,11 @@ def find_scorecard_for_schedule_fixture(
 def get_match(match_id: str) -> dict | None:
     conn = get_live_db()
     row = conn.execute(
-        "SELECT data FROM live_matches WHERE match_id = ?", (match_id,)
+        "SELECT data, match_status FROM live_matches WHERE match_id = ?", (match_id,)
     ).fetchone()
-    return json.loads(row["data"]) if row else None
+    if not row:
+        return None
+    return _merge_match_data(match_id, json.loads(row["data"]), match_status=row["match_status"])
 
 
 def get_today_api_hits() -> int:
@@ -365,6 +450,9 @@ def get_tracked_match_ids() -> list[str]:
         if not r["is_ipl"]:
             continue
         st = r["match_status"]
+        sc = get_scorecard(mid)
+        if isinstance(sc, dict) and sc.get("matchEnded"):
+            st = "completed"
         if st == "live":
             if mid not in seen:
                 seen.add(mid)
@@ -568,9 +656,9 @@ def get_matches_for_admin() -> list[dict]:
     ).fetchall()
     result = []
     for r in rows:
-        match_data = json.loads(r["data"])
+        match_data = _merge_match_data(r["match_id"], json.loads(r["data"]), match_status=r["match_status"])
         is_ipl = bool(r["is_ipl"])
-        status = r["match_status"]
+        status = "completed" if match_data.get("matchEnded") else r["match_status"]
         raw_tracked = r["is_tracked"]
 
         if raw_tracked == 1:

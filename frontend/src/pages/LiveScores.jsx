@@ -55,6 +55,32 @@ function isCompletedMatchStatus(status) {
   )
 }
 
+function oversToBalls(value) {
+  const oversFloat = parseFloat(value || 0)
+  if (!Number.isFinite(oversFloat) || oversFloat <= 0) return 0
+  const completedOvers = Math.floor(oversFloat)
+  const ballsInOver = Math.round((oversFloat - completedOvers) * 10)
+  return completedOvers * 6 + ballsInOver
+}
+
+function inferChaseBallBudget(scores = [], status = '') {
+  const firstInnings = scores.find(s => (s.inningNumber || 1) === 1) || scores[0]
+  const statusText = typeof status === 'string' ? status : ''
+  const revisedOvers = statusText.match(/(?:from|in)\s+(\d{1,2})\s*overs?/i) || statusText.match(/\b(\d{1,2})\s*overs?\b/i)
+  if (revisedOvers) {
+    const revised = Number(revisedOvers[1])
+    if (Number.isFinite(revised) && revised > 0 && revised < 20) return revised * 6
+  }
+
+  const firstBalls = oversToBalls(firstInnings?.o)
+  const firstWickets = Number(firstInnings?.w ?? 0)
+  if (firstBalls > 0 && firstBalls < 120 && firstWickets < 10) {
+    return firstBalls
+  }
+
+  return 120
+}
+
 function buildLineupFromScorecard(scorecard) {
   // Infer lineup from active play. Show partial lineups (4+) rather than nothing
   // Full lineup will come from API when available
@@ -596,11 +622,8 @@ function DetailedScorecard({ matchId, onScorecardUpdate }) {
             const currentRuns = secondInnings.r ?? 0
             const runsNeeded = targetRuns - currentRuns
             if (runsNeeded <= 0) return null
-            const oversFloat = parseFloat(secondInnings.o || 0)
-            const completedOvers = Math.floor(oversFloat)
-            const ballsInOver = Math.round((oversFloat - completedOvers) * 10)
-            const totalBallsBowled = completedOvers * 6 + ballsInOver
-            const ballsRemaining = 120 - totalBallsBowled
+            const totalBallsBowled = oversToBalls(secondInnings.o)
+            const ballsRemaining = inferChaseBallBudget(scores, scorecard.status) - totalBallsBowled
             if (ballsRemaining <= 0) return null
             const rrr = (runsNeeded / (ballsRemaining / 6)).toFixed(2)
             return (

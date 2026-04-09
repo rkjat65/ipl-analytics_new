@@ -11,7 +11,7 @@ import orjson
 
 from .cricket_api import SportmonksProvider, get_cricket_api
 from .database import refresh_db
-from .live_db import get_match, upsert_scorecard
+from .live_db import get_match, get_scorecard, upsert_scorecard
 from .sportmonks_cricsheet_export import fixture_to_cricsheet, normalize_cricsheet_names_to_duckdb
 
 log = logging.getLogger(__name__)
@@ -19,6 +19,80 @@ log = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _IPL_JSON = REPO_ROOT / "ipl_json"
 _DUCKDB = REPO_ROOT / "ipl.duckdb"
+
+
+def _completed_match_status_from_doc(doc: dict) -> str:
+    info = doc.get("info", {}) or {}
+    outcome = info.get("outcome", {}) or {}
+    winner = outcome.get("winner")
+    by = outcome.get("by") or {}
+    if winner and isinstance(by, dict):
+        if by.get("runs"):
+            return f"{winner} won by {by['runs']} runs"
+        if by.get("wickets"):
+            return f"{winner} won by {by['wickets']} wickets"
+    result = (outcome.get("result") or "").strip()
+    if result:
+        return result[:1].upper() + result[1:]
+    return "Completed"
+
+
+def _score_summary_from_doc(doc: dict) -> list[dict]:
+    scores: list[dict] = []
+    for idx, inn in enumerate(doc.get("innings", []) or [], start=1):
+        team = (inn.get("team") or "").strip()
+        runs = 0
+        wickets = 0
+        legal_balls = 0
+        for over in inn.get("overs", []) or []:
+            for delivery in over.get("deliveries", []) or []:
+                runs_info = delivery.get("runs") or {}
+                runs += int(runs_info.get("total", 0) or 0)
+                wickets += len(delivery.get("wickets", []) or [])
+                extras = delivery.get("extras") or {}
+                if not any(k in extras for k in ("wides", "noballs")):
+                    legal_balls += 1
+        overs = legal_balls // 6 + (legal_balls % 6) / 10
+        inning_label = f"{team} (2nd)" if idx > 1 else team
+        scores.append({
+            "inning": inning_label,
+            "team": team,
+            "inningNumber": idx,
+            "r": runs,
+            "w": wickets,
+            "o": overs,
+            "score": f"{runs}/{wickets} ({overs})",
+        })
+    return scores
+
+
+def _completed_scorecard_cache(doc: dict, match_id: str, previous: dict | None = None) -> dict:
+    info = doc.get("info", {}) or {}
+    teams = info.get("teams", []) or (previous.get("teams") if previous else []) or []
+    toss = info.get("toss", {}) or {}
+    pom_list = info.get("player_of_match") or []
+    player_of_match = (
+        {"name": pom_list[0]} if pom_list else (previous.get("playerOfMatch") if previous else None)
+    )
+    name = f"{teams[0]} vs {teams[1]}" if len(teams) >= 2 else (previous.get("name") if previous else match_id)
+    return {
+        "id": match_id,
+        "name": name,
+        "status": _completed_match_status_from_doc(doc),
+        "venue": info.get("venue", "") or (previous.get("venue") if previous else ""),
+        "date": (info.get("dates") or [""])[0] or (previous.get("date") if previous else ""),
+        "dateTimeGMT": (previous.get("dateTimeGMT") if previous else "") or "",
+        "teams": teams,
+        "teamInfo": (previous.get("teamInfo") if previous else []) or [],
+        "score": (previous.get("score") if previous and previous.get("score") else _score_summary_from_doc(doc)),
+        "tossWinner": toss.get("winner", "") or (previous.get("tossWinner") if previous else ""),
+        "tossChoice": toss.get("decision", "") or (previous.get("tossChoice") if previous else ""),
+        "matchWinner": (info.get("outcome", {}) or {}).get("winner") or (previous.get("matchWinner") if previous else ""),
+        "playerOfMatch": player_of_match,
+        "scorecard": (previous.get("scorecard") if previous else []) or [],
+        "matchStarted": True,
+        "matchEnded": True,
+    }
 
 
 def _ingest_json_paths():
@@ -128,18 +202,14 @@ async def promote_sportmonks_fixture(
     
     # Cache in live_scores.db for dashboard visibility
     try:
-        scorecard_cache = {
-            "id": match_id,
-            "matchEnded": True,
-            "matchStarted": True,
-            "status": "completed",
-            "teams": doc.get("info", {}).get("teams", []),
-            "matchWinner": doc.get("info", {}).get("outcome", {}).get("winner"),
-            "playerOfMatch": {
-                "name": (doc.get("info", {}).get("player_of_match") or [""])[0]
-            } if doc.get("info", {}).get("player_of_match") else None,
-        }
+        scorecard_cache = _completed_scorecard_cache(doc, match_id, get_scorecard(match_id) or {})
         upsert_scorecard(match_id, scorecard_cache)
+
+        plain_fixture_id = str(fixture_id)
+        if plain_fixture_id != match_id:
+            plain_cache = _completed_scorecard_cache(doc, plain_fixture_id, get_scorecard(plain_fixture_id) or {})
+            upsert_scorecard(plain_fixture_id, plain_cache)
+
         log.info("Cached %s in live_scores.db for dashboard", match_id)
     except Exception as e:
         log.warning("Failed to cache %s in live_scores.db: %s", match_id, e)

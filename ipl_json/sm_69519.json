@@ -50,7 +50,7 @@
         "SP Narine",
         "A Raghuvanshi",
         "AS Roy",
-        "RP Singh",
+        "RK Singh",
         "Ramandeep Singh"
       ]
     },
@@ -73,7 +73,7 @@
         "M Markande": "sm_3347",
         "SE Rutherford": "sm_128",
         "A Raghuvanshi": "sm_35066",
-        "RP Singh": "sm_3215",
+        "RK Singh": "sm_3215",
         "RD Rickelton": "sm_662",
         "RG Sharma": "sm_278",
         "VG Arora": "sm_24882",
@@ -1072,7 +1072,7 @@
               ]
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "SN Thakur",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1084,7 +1084,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "SN Thakur",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1094,7 +1094,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "SN Thakur",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1107,7 +1107,7 @@
           "over": 14,
           "deliveries": [
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "AM Ghazanfar",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1117,7 +1117,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "AM Ghazanfar",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1127,7 +1127,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "AM Ghazanfar",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1139,7 +1139,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "AM Ghazanfar",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1149,7 +1149,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "AM Ghazanfar",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1159,7 +1159,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "AM Ghazanfar",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1172,7 +1172,7 @@
           "over": 15,
           "deliveries": [
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "TA Boult",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1182,7 +1182,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "TA Boult",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1192,7 +1192,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "TA Boult",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1204,7 +1204,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "TA Boult",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1212,7 +1212,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "TA Boult",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1225,7 +1225,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "TA Boult",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1235,7 +1235,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "TA Boult",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1250,7 +1250,7 @@
           "over": 16,
           "deliveries": [
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "SN Thakur",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1262,7 +1262,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "SN Thakur",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1272,7 +1272,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "SN Thakur",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1282,7 +1282,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "SN Thakur",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1290,7 +1290,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "SN Thakur",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1300,7 +1300,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "SN Thakur",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1317,7 +1317,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "JJ Bumrah",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1327,7 +1327,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "JJ Bumrah",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1337,7 +1337,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "JJ Bumrah",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1345,7 +1345,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1357,7 +1357,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "JJ Bumrah",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1365,7 +1365,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1380,7 +1380,7 @@
           "over": 18,
           "deliveries": [
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "HH Pandya",
               "non_striker": "A Raghuvanshi",
               "runs": {
@@ -1392,7 +1392,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "HH Pandya",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -1405,7 +1405,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "HH Pandya",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1415,7 +1415,7 @@
             {
               "batter": "A Raghuvanshi",
               "bowler": "HH Pandya",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1436,7 +1436,7 @@
             {
               "batter": "Ramandeep Singh",
               "bowler": "HH Pandya",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1444,7 +1444,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "HH Pandya",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1456,7 +1456,7 @@
             {
               "batter": "Ramandeep Singh",
               "bowler": "HH Pandya",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1469,7 +1469,7 @@
           "over": 19,
           "deliveries": [
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1482,7 +1482,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1495,7 +1495,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1507,7 +1507,7 @@
             {
               "batter": "Ramandeep Singh",
               "bowler": "JJ Bumrah",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1515,7 +1515,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1525,7 +1525,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1535,7 +1535,7 @@
               }
             },
             {
-              "batter": "RP Singh",
+              "batter": "RK Singh",
               "bowler": "JJ Bumrah",
               "non_striker": "Ramandeep Singh",
               "runs": {
@@ -1547,7 +1547,7 @@
             {
               "batter": "Ramandeep Singh",
               "bowler": "JJ Bumrah",
-              "non_striker": "RP Singh",
+              "non_striker": "RK Singh",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -2565,7 +2565,7 @@
                   "kind": "caught",
                   "fielders": [
                     {
-                      "name": "RP Singh"
+                      "name": "RK Singh"
                     }
                   ]
                 }
