@@ -27,6 +27,12 @@ class TestRinkuResolution(unittest.TestCase):
         self.assertEqual(payload["career_matches"], totals["matches"])
         self.assertGreater(payload["career_runs"], 1000)
 
+    def test_rajat_batting_resolves_to_rm_patidar(self):
+        self.assertEqual(resolve_player_name("Rajat Patidar", "bat"), "RM Patidar")
+
+    def test_rajat_slug_uses_rm_patidar(self):
+        self.assertEqual(canonical_player_slug("Rajat Patidar"), "RM Patidar")
+
 
 if __name__ == "__main__":
     unittest.main()

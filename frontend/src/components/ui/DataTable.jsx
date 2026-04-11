@@ -133,7 +133,7 @@ export default function DataTable({
                   onClick={() => onRowClick?.(row)}
                   className={`border-b border-border-subtle transition-colors ${
                     i % 2 === 1 ? 'bg-bg-card/50' : ''
-                  } ${onRowClick ? 'cursor-pointer' : ''} hover:bg-bg-card-hover`}
+                  } ${row._rowClass || ''} ${onRowClick ? 'cursor-pointer' : ''} hover:bg-bg-card-hover`}
                 >
                   {columns.map((col) => (
                     <td

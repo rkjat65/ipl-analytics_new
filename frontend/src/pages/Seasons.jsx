@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import SEO from '../components/SEO'
@@ -10,6 +11,7 @@ import {
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
+import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
 import { formatNumber, formatDecimal } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import {
@@ -54,6 +56,7 @@ function CustomTooltip({ active, payload, label, unit = '' }) {
 export default function Seasons() {
   const { year } = useParams()
   const navigate = useNavigate()
+  const [showcaseConfig, setShowcaseConfig] = useState(null)
 
   const { data: seasons, loading: seasonsLoading } = useFetch(() => getSeasons(), [])
 
@@ -196,6 +199,35 @@ export default function Seasons() {
   const orangeCapData = buildCapChartData(capRace?.orange_cap_race, 'cumulative_runs')
   const purpleCapData = buildCapChartData(capRace?.purple_cap_race, 'cumulative_wickets')
 
+  const buildCapShowcaseItems = (capData) => {
+    if (!capData?.players?.length || !capData?.chartData?.length) return []
+    return capData.players
+      .map((player) => {
+        const lastRow = [...capData.chartData].reverse().find((row) => row[player] !== undefined)
+        return {
+          player,
+          value: lastRow?.[player] ?? 0,
+          latestMatch: lastRow?.match_number ?? capData.chartData.length,
+        }
+      })
+      .sort((a, b) => b.value - a.value)
+      .map((entry, index) => ({ ...entry, rank: index + 1 }))
+  }
+
+  const pointsShowcaseData = ptData
+    .map((row) => ({
+      rank: row.pos,
+      player: row.team,
+      value: row.points,
+      played: row.played,
+      nrr: row.nrr,
+      wins: row.won,
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  const orangeCapShowcaseData = buildCapShowcaseItems(orangeCapData)
+  const purpleCapShowcaseData = buildCapShowcaseItems(purpleCapData)
+
   if (summaryError) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -301,7 +333,27 @@ export default function Seasons() {
         {/* Points Bar Chart */}
         {!ptLoading && ptData.length > 0 && (
           <div className="card mb-6">
-            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">Standings by Points</h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-heading font-semibold text-text-secondary">Standings by Points</h3>
+              <button
+                type="button"
+                onClick={() => setShowcaseConfig({
+                  title: `IPL ${selectedYear} points table`,
+                  subtitle: 'Fullscreen presentation mode for the season standings with reverse playback and a full team summary at the end.',
+                  items: pointsShowcaseData,
+                  metricLabel: 'Points',
+                  accent: '#00E5FF',
+                  detailFields: [
+                    { key: 'wins', label: 'Wins', formatter: (value) => formatNumber(value) },
+                    { key: 'played', label: 'Played', formatter: (value) => formatNumber(value) },
+                    { key: 'nrr', label: 'NRR', formatter: (value) => formatDecimal(value, 3) },
+                  ],
+                })}
+                className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
+              >
+                Enter animation mode
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={Math.max(250, ptData.length * 36)}>
               <BarChart
                 data={ptData.map((row) => ({
@@ -332,7 +384,13 @@ export default function Seasons() {
                   content={<CustomTooltip />}
                   cursor={{ fill: '#1E1E2A' }}
                 />
-                <Bar dataKey="points" name="Points" radius={[0, 4, 4, 0]} barSize={20}>
+                <Bar
+                  dataKey="points"
+                  name="Points"
+                  radius={[0, 4, 4, 0]}
+                  barSize={20}
+                  label={{ position: 'right', fill: '#E8E8F0', fontSize: 11, fontWeight: 700, fontFamily: 'monospace' }}
+                >
                   {ptData.map((row) => (
                     <Cell key={row.team} fill={getTeamColor(row.team)} />
                   ))}
@@ -359,6 +417,25 @@ export default function Seasons() {
             <h2 className="text-xl font-heading font-bold text-text-primary">Orange Cap Race</h2>
           </div>
           <div className="bg-bg-card border border-border-subtle rounded-lg p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-text-secondary">Track the final leaders, then switch to animation mode for the cinematic reveal.</p>
+              <button
+                type="button"
+                onClick={() => setShowcaseConfig({
+                  title: `IPL ${selectedYear} Orange Cap race`,
+                  subtitle: 'A fullscreen final-standings reveal for the orange-cap leaderboard.',
+                  items: orangeCapShowcaseData,
+                  metricLabel: 'Runs',
+                  accent: '#FFB800',
+                  detailFields: [
+                    { key: 'latestMatch', label: 'Latest match', formatter: (value) => formatNumber(value) },
+                  ],
+                })}
+                className="rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-3 py-1.5 text-xs font-semibold text-accent-amber hover:bg-accent-amber/20"
+              >
+                Enter animation mode
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={orangeCapData.chartData}>
                 <CartesianGrid stroke="#1E1E2A" strokeDasharray="3 3" />
@@ -405,6 +482,25 @@ export default function Seasons() {
             <h2 className="text-xl font-heading font-bold text-text-primary">Purple Cap Race</h2>
           </div>
           <div className="bg-bg-card border border-border-subtle rounded-lg p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-text-secondary">Purple-cap finishers can also be replayed in the same fullscreen reveal mode.</p>
+              <button
+                type="button"
+                onClick={() => setShowcaseConfig({
+                  title: `IPL ${selectedYear} Purple Cap race`,
+                  subtitle: 'A fullscreen final-standings reveal for the purple-cap leaderboard.',
+                  items: purpleCapShowcaseData,
+                  metricLabel: 'Wickets',
+                  accent: '#FF2D78',
+                  detailFields: [
+                    { key: 'latestMatch', label: 'Latest match', formatter: (value) => formatNumber(value) },
+                  ],
+                })}
+                className="rounded-lg border border-accent-magenta/30 bg-accent-magenta/10 px-3 py-1.5 text-xs font-semibold text-accent-magenta hover:bg-accent-magenta/20"
+              >
+                Enter animation mode
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={purpleCapData.chartData}>
                 <CartesianGrid stroke="#1E1E2A" strokeDasharray="3 3" />
@@ -444,6 +540,19 @@ export default function Seasons() {
       )}
 
       {capLoading && <Loading message="Loading cap race data..." />}
+
+      <LeaderboardShowcaseModal
+        open={Boolean(showcaseConfig)}
+        onClose={() => setShowcaseConfig(null)}
+        title={showcaseConfig?.title || 'Animation mode'}
+        subtitle={showcaseConfig?.subtitle || 'Fullscreen presentation mode'}
+        items={showcaseConfig?.items || []}
+        metricLabel={showcaseConfig?.metricLabel || 'Value'}
+        accent={showcaseConfig?.accent || '#00E5FF'}
+        valueFormatter={showcaseConfig?.valueFormatter}
+        detailFields={showcaseConfig?.detailFields || []}
+        defaultOrder={showcaseConfig?.defaultOrder || 'desc'}
+      />
     </div>
   )
 }

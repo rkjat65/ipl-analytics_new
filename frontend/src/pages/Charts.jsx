@@ -24,6 +24,12 @@ import {
 } from 'recharts'
 import Loading from '../components/ui/Loading'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
+import {
+  AnimatedPresentationSection,
+  PresentationControls,
+  usePresentationDeck,
+} from '../components/ui/ChartPresentation'
 import { formatNumber, formatDecimal } from '../utils/format'
 
 /* ── Player Avatar Helpers ─────────────────────────────── */
@@ -51,7 +57,7 @@ function useDrawAnimation(defaultDuration = 3000) {
 }
 
 /* ── Player Reveal Animation Hook (one-by-one for matrix) ── */
-function usePlayerReveal(totalPlayers) {
+function usePlayerReveal(totalPlayers, speed = 1) {
   const [revealCount, setRevealCount] = useState(totalPlayers)
   const [revealing, setRevealing] = useState(false)
   const timerRef = useRef(null)
@@ -69,9 +75,9 @@ function usePlayerReveal(totalPlayers) {
     }
     timerRef.current = setTimeout(() => {
       setRevealCount(c => c + 1)
-    }, 400) // 400ms per player
+    }, Math.max(140, Math.round(400 / speed)))
     return () => clearTimeout(timerRef.current)
-  }, [revealing, revealCount, totalPlayers])
+  }, [revealing, revealCount, totalPlayers, speed])
 
   const reset = useCallback(() => {
     setRevealing(false)
@@ -171,12 +177,13 @@ const DISMISS_COLORS = ['#FF2D78', '#00E5FF', '#B8FF00', '#FFB800', '#8B5CF6', '
 
 export default function Charts() {
   const [season, setSeason] = useState('')
+  const deck = usePresentationDeck(6, { autoStart: true, baseDelay: 1050 })
 
   const { data: seasons } = useFetch(() => getSeasons(), [])
 
   // Draw animation hooks
-  const dnaDrawer = useDrawAnimation(3000)
-  const sixDrawer = useDrawAnimation(3000)
+  const dnaDrawer = useDrawAnimation(deck.chartDuration)
+  const sixDrawer = useDrawAnimation(deck.chartDuration)
 
   // Zoom state for charts
   const [dnaZoom, setDnaZoom] = useState(1)
@@ -207,8 +214,15 @@ export default function Charts() {
     .map(b => ({ ...b, name: b.player, shortName: b.player?.length > 12 ? b.player.slice(0, 11) + '\u2026' : b.player }))
 
   // Player reveal hooks
-  const batRevealer = usePlayerReveal(Math.min(10, batMatrixData.length))
-  const bowlRevealer = usePlayerReveal(Math.min(10, bowlMatrixData.length))
+  const batRevealer = usePlayerReveal(Math.min(10, batMatrixData.length), deck.speed)
+  const bowlRevealer = usePlayerReveal(Math.min(10, bowlMatrixData.length), deck.speed)
+
+  useEffect(() => {
+    if (deck.visibleCount === 1) dnaDrawer.triggerDraw()
+    if (deck.visibleCount === 2) sixDrawer.triggerDraw()
+    if (deck.visibleCount === 3) batRevealer.startReveal()
+    if (deck.visibleCount === 4) bowlRevealer.startReveal()
+  }, [deck.visibleCount])
 
   return (
     <div className="space-y-8">
@@ -230,9 +244,12 @@ export default function Charts() {
         </div>
       </div>
 
+      <PresentationControls deck={deck} title="Social replay deck" />
+
       {/* ═══════════════════════════════════════════════════
           1. INNINGS DNA — The Shape of a T20 Innings
           ═══════════════════════════════════════════════════ */}
+      <AnimatedPresentationSection deck={deck} index={0}>
       <section>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-1 h-6 rounded-full" style={{ background: 'linear-gradient(to bottom, #00E5FF, #FF2D78)' }} />
@@ -294,10 +311,12 @@ export default function Charts() {
           )}
         </div>
       </section>
+      </AnimatedPresentationSection>
 
       {/* ═══════════════════════════════════════════════════
           2. SIX EVOLUTION + CHASE ANALYSIS
           ═══════════════════════════════════════════════════ */}
+      <AnimatedPresentationSection deck={deck} index={1}>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Six Evolution */}
         <section>
@@ -398,10 +417,12 @@ export default function Charts() {
           </div>
         </section>
       </div>
+      </AnimatedPresentationSection>
 
       {/* ═══════════════════════════════════════════════════
           3. BATTING IMPACT MATRIX (Scatter) + DISMISSAL PIE
           ═══════════════════════════════════════════════════ */}
+      <AnimatedPresentationSection deck={deck} index={2}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Batting Impact Matrix — takes 2 cols */}
         <section className="lg:col-span-2">
@@ -443,14 +464,12 @@ export default function Charts() {
                       const d = payload[0]?.payload
                       return (
                         <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <img
-                              src={realPlayerImageUrl(d?.player)}
-                              alt={d?.player ? `${d.player} — player photo` : 'Player photo'}
-                              className="w-6 h-6 rounded-full border border-border-subtle object-cover"
-                              onError={(e) => { e.target.src = playerAvatarUrl(d?.player, 24) }}
+                          <div className="mb-1">
+                            <PlayerNameCell
+                              name={d?.player}
+                              to={d?.player ? `/batting/${encodeURIComponent(d.player)}` : undefined}
+                              size={24}
                             />
-                            <p className="text-text-primary font-semibold">{d?.player}</p>
                           </div>
                           <p style={{ color: '#B8FF00' }}>Runs: <span className="font-mono font-bold">{formatNumber(d?.runs)}</span></p>
                           <p style={{ color: '#00E5FF' }}>Average: <span className="font-mono font-bold">{formatDecimal(d?.avg)}</span></p>
@@ -595,10 +614,12 @@ export default function Charts() {
           </div>
         </section>
       </div>
+      </AnimatedPresentationSection>
 
       {/* ═══════════════════════════════════════════════════
           3b. BOWLING IMPACT MATRIX (Scatter)
           ═══════════════════════════════════════════════════ */}
+      <AnimatedPresentationSection deck={deck} index={3}>
       <section>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-1 h-6 rounded-full" style={{ background: 'linear-gradient(to bottom, #FF2D78, #8B5CF6)' }} />
@@ -638,14 +659,12 @@ export default function Charts() {
                     const d = payload[0]?.payload
                     return (
                       <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <img
-                            src={realPlayerImageUrl(d?.player)}
-                            alt={d?.player ? `${d.player} — player photo` : 'Player photo'}
-                            className="w-6 h-6 rounded-full border border-border-subtle object-cover"
-                            onError={(e) => { e.target.src = playerAvatarUrl(d?.player, 24) }}
+                        <div className="mb-1">
+                          <PlayerNameCell
+                            name={d?.player}
+                            to={d?.player ? `/bowling/${encodeURIComponent(d.player)}` : undefined}
+                            size={24}
                           />
-                          <p className="text-text-primary font-semibold">{d?.player}</p>
                         </div>
                         <p style={{ color: '#FF2D78' }}>Wickets: <span className="font-mono font-bold">{formatNumber(d?.wickets)}</span></p>
                         <p style={{ color: '#00E5FF' }}>Average: <span className="font-mono font-bold">{formatDecimal(d?.avg)}</span></p>
@@ -727,10 +746,12 @@ export default function Charts() {
           </span>
         </div>
       </section>
+      </AnimatedPresentationSection>
 
       {/* ═══════════════════════════════════════════════════
           4. PHASE DOMINANCE — Team Run Rates by Phase
           ═══════════════════════════════════════════════════ */}
+      <AnimatedPresentationSection deck={deck} index={4}>
       <section>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-1 h-6 rounded-full" style={{ background: 'linear-gradient(to bottom, #B8FF00, #FFB800, #FF2D78)' }} />
@@ -772,10 +793,12 @@ export default function Charts() {
           })()}
         </div>
       </section>
+      </AnimatedPresentationSection>
 
       {/* ═══════════════════════════════════════════════════
           5. ORANGE CAP & PURPLE CAP WINNERS
           ═══════════════════════════════════════════════════ */}
+      <AnimatedPresentationSection deck={deck} index={5}>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Orange Cap */}
         <section>
@@ -791,10 +814,7 @@ export default function Charts() {
                   <div key={c.season} className="flex items-center justify-between py-2.5 px-1 hover:bg-bg-card/50 transition-colors rounded">
                     <div className="flex items-center gap-3">
                       <span className="text-text-muted text-xs font-mono w-14">{c.season}</span>
-                      <Link to={`/batting/${encodeURIComponent(c.player)}`}
-                        className="text-sm font-medium text-accent-cyan hover:text-white hover:underline transition-colors">
-                        {c.player}
-                      </Link>
+                      <PlayerNameCell name={c.player} to={`/batting/${encodeURIComponent(c.player)}`} size={24} className="text-sm" />
                     </div>
                     <span className="font-mono font-bold text-sm" style={{ color: '#FF8C00' }}>
                       {c.value.toLocaleString()} runs
@@ -820,10 +840,7 @@ export default function Charts() {
                   <div key={c.season} className="flex items-center justify-between py-2.5 px-1 hover:bg-bg-card/50 transition-colors rounded">
                     <div className="flex items-center gap-3">
                       <span className="text-text-muted text-xs font-mono w-14">{c.season}</span>
-                      <Link to={`/bowling/${encodeURIComponent(c.player)}`}
-                        className="text-sm font-medium text-accent-cyan hover:text-white hover:underline transition-colors">
-                        {c.player}
-                      </Link>
+                      <PlayerNameCell name={c.player} to={`/bowling/${encodeURIComponent(c.player)}`} size={24} className="text-sm" />
                     </div>
                     <span className="font-mono font-bold text-sm" style={{ color: '#8B5CF6' }}>
                       {c.value} wkts
@@ -835,6 +852,7 @@ export default function Charts() {
           </div>
         </section>
       </div>
+      </AnimatedPresentationSection>
     </div>
   )
 }

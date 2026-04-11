@@ -9,6 +9,7 @@ import {
 } from '../lib/api'
 import StatCard from '../components/ui/StatCard'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal, formatDate } from '../utils/format'
@@ -182,7 +183,7 @@ function BattingTab({ batting, matchups, matchupsLoading }) {
   ]
 
   const matchupCols = [
-    { key: 'bowler', label: 'Bowler', render: (v) => <Link to={`/bowling/${encodeURIComponent(v)}`} className="text-accent-cyan hover:underline">{v}</Link> },
+    { key: 'bowler', label: 'Bowler', render: (v) => <PlayerNameCell name={v} to={`/bowling/${encodeURIComponent(v)}`} size={24} /> },
     { key: 'balls', label: 'Balls', align: 'right', render: (v) => <span className="font-mono">{v}</span> },
     { key: 'runs', label: 'Runs', align: 'right', render: (v) => <span className="font-mono">{v}</span> },
     { key: 'dots', label: 'Dots', align: 'right', render: (v) => <span className="font-mono">{v}</span> },
@@ -317,7 +318,7 @@ function BowlingTab({ bowling, matchups, matchupsLoading }) {
   ]
 
   const matchupCols = [
-    { key: 'batter', label: 'Batter', render: (v) => <Link to={`/batting/${encodeURIComponent(v)}`} className="text-accent-cyan hover:underline">{v}</Link> },
+    { key: 'batter', label: 'Batter', render: (v) => <PlayerNameCell name={v} to={`/batting/${encodeURIComponent(v)}`} size={24} /> },
     { key: 'balls', label: 'Balls', align: 'right', render: (v) => <span className="font-mono">{v}</span> },
     { key: 'runs', label: 'Runs', align: 'right', render: (v) => <span className="font-mono">{v}</span> },
     { key: 'dots', label: 'Dots', align: 'right', render: (v) => <span className="font-mono">{v}</span> },

@@ -34,8 +34,8 @@
         "V Kohli",
         "A Singh",
         "R Shepherd",
-        "Rajat Patidar",
-        "Sandeep Sharma",
+        "RM Patidar",
+        "Suyash Sharma",
         "KH Pandya",
         "Jitesh Sharma",
         "Tim David"
@@ -67,7 +67,6 @@
         "Harsh Dubey": "sm_34358",
         "Eshan Malinga": "sm_48866",
         "Romario Shepherd": "sm_5222",
-        "Rajat Patidar": "sm_26027",
         "Suyash Sharma": "sm_44513",
         "Tim David": "sm_617",
         "Salil Arora": "sm_8406",
@@ -80,7 +79,8 @@
         "D Padikkal": "sm_4931",
         "HV Patel": "sm_2744",
         "V Kohli": "sm_46",
-        "JD Unadkat": "sm_2795"
+        "JD Unadkat": "sm_2795",
+        "RM Patidar": "sm_26027"
       }
     },
     "season": 2026,
@@ -2165,7 +2165,7 @@
               ]
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Harsh Dubey",
               "non_striker": "V Kohli",
               "runs": {
@@ -2177,7 +2177,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Harsh Dubey",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -2190,7 +2190,7 @@
           "over": 9,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "HV Patel",
               "non_striker": "V Kohli",
               "runs": {
@@ -2202,7 +2202,7 @@
             {
               "batter": "V Kohli",
               "bowler": "HV Patel",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -2212,7 +2212,7 @@
             {
               "batter": "V Kohli",
               "bowler": "HV Patel",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -2220,7 +2220,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "HV Patel",
               "non_striker": "V Kohli",
               "runs": {
@@ -2230,7 +2230,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "HV Patel",
               "non_striker": "V Kohli",
               "runs": {
@@ -2242,7 +2242,7 @@
             {
               "batter": "V Kohli",
               "bowler": "HV Patel",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -2255,7 +2255,7 @@
             {
               "batter": "V Kohli",
               "bowler": "HV Patel",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -2270,7 +2270,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Harsh Dubey",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -2278,7 +2278,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Harsh Dubey",
               "non_striker": "V Kohli",
               "runs": {
@@ -2288,7 +2288,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Harsh Dubey",
               "non_striker": "V Kohli",
               "runs": {
@@ -2300,7 +2300,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Harsh Dubey",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -2310,7 +2310,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Harsh Dubey",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -2320,7 +2320,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Harsh Dubey",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -2333,7 +2333,7 @@
           "over": 11,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2343,7 +2343,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2356,7 +2356,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2366,7 +2366,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2379,7 +2379,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2389,7 +2389,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2402,7 +2402,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2412,7 +2412,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Eshan Malinga",
               "non_striker": "V Kohli",
               "runs": {
@@ -2424,7 +2424,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Eshan Malinga",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -2437,7 +2437,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Eshan Malinga",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -2452,7 +2452,7 @@
             {
               "batter": "V Kohli",
               "bowler": "David Payne",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -2460,7 +2460,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "David Payne",
               "non_striker": "V Kohli",
               "runs": {
@@ -2470,7 +2470,7 @@
               },
               "wickets": [
                 {
-                  "player_out": "Rajat Patidar",
+                  "player_out": "RM Patidar",
                   "kind": "caught",
                   "fielders": [
                     {

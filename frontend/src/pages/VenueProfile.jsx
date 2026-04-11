@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getVenueStats, getVenueTopPerformers } from '../lib/api'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
+import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
 import { formatDecimal } from '../utils/format'
 import {
   BarChart,
@@ -17,9 +20,12 @@ import {
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
+  const isBowler = payload?.[0]?.dataKey === 'wickets'
   return (
     <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-[#8888A0] text-xs mb-1 font-mono">{label}</p>
+      <div className="mb-1">
+        <PlayerNameCell name={label} to={`/${isBowler ? 'bowling' : 'batting'}/${encodeURIComponent(label)}`} size={24} />
+      </div>
       {payload.map((entry, i) => (
         <p key={i} className="text-xs" style={{ color: entry.color || '#E8E8ED' }}>
           {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
@@ -32,6 +38,7 @@ function ChartTooltip({ active, payload, label }) {
 export default function VenueProfile() {
   const { venueName } = useParams()
   const decoded = decodeURIComponent(venueName)
+  const [showcaseConfig, setShowcaseConfig] = useState(null)
 
   const { data: stats, loading: statsLoading, error: statsError } = useFetch(
     () => getVenueStats(decoded),
@@ -57,14 +64,7 @@ export default function VenueProfile() {
     {
       key: 'player',
       label: 'Player',
-      render: (val) => (
-        <Link
-          to={`/batting/${encodeURIComponent(val)}`}
-          className="text-accent-cyan hover:underline"
-        >
-          {val}
-        </Link>
-      ),
+      render: (val) => <PlayerNameCell name={val} to={`/batting/${encodeURIComponent(val)}`} size={26} />,
     },
     { key: 'runs', label: 'Runs', align: 'right', render: (val) => <span className="font-mono font-semibold text-accent-lime">{val}</span> },
     { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
@@ -76,14 +76,7 @@ export default function VenueProfile() {
     {
       key: 'player',
       label: 'Player',
-      render: (val) => (
-        <Link
-          to={`/bowling/${encodeURIComponent(val)}`}
-          className="text-accent-cyan hover:underline"
-        >
-          {val}
-        </Link>
-      ),
+      render: (val) => <PlayerNameCell name={val} to={`/bowling/${encodeURIComponent(val)}`} size={26} />,
     },
     { key: 'wickets', label: 'Wkts', align: 'right', render: (val) => <span className="font-mono font-semibold text-accent-magenta">{val}</span> },
     { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
@@ -166,6 +159,26 @@ export default function VenueProfile() {
           </div>
           {!perfLoading && topBatters.length > 0 && (
             <div className="card mb-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-text-secondary">Top run scorers at this venue, ready for a fullscreen one-by-one replay.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowcaseConfig({
+                    title: `${decoded} top batters`,
+                    subtitle: 'A venue-level batting reveal with persistent labels and the full avatar summary at the end.',
+                    items: topBatters.map((b) => ({ rank: b.rank, player: b.player, value: b.runs, matches: b.matches, sr: b.sr })).sort((a, b) => b.value - a.value),
+                    metricLabel: 'Runs',
+                    accent: '#B8FF00',
+                    detailFields: [
+                      { key: 'matches', label: 'Matches', formatter: (value) => value },
+                      { key: 'sr', label: 'Strike rate', formatter: (value) => formatDecimal(value, 1) },
+                    ],
+                  })}
+                  className="rounded-lg border border-accent-lime/30 bg-accent-lime/10 px-3 py-1.5 text-xs font-semibold text-accent-lime hover:bg-accent-lime/20"
+                >
+                  Enter animation mode
+                </button>
+              </div>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart
                   data={topBatters.map((b) => ({ name: b.player, runs: b.runs }))}
@@ -177,7 +190,14 @@ export default function VenueProfile() {
                   <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#8888A0', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
-                  <Bar dataKey="runs" fill="#B8FF00" name="Runs" radius={[0, 4, 4, 0]} barSize={16} />
+                  <Bar
+                    dataKey="runs"
+                    fill="#B8FF00"
+                    name="Runs"
+                    radius={[0, 4, 4, 0]}
+                    barSize={16}
+                    label={{ position: 'right', fill: '#E8E8F0', fontSize: 10, fontWeight: 700, fontFamily: 'monospace' }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -197,6 +217,26 @@ export default function VenueProfile() {
           </div>
           {!perfLoading && topBowlers.length > 0 && (
             <div className="card mb-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-text-secondary">Top wicket-takers here can now be replayed in the same fullscreen showcase mode.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowcaseConfig({
+                    title: `${decoded} top bowlers`,
+                    subtitle: 'A venue-level bowling reveal with persistent labels and the full avatar summary at the end.',
+                    items: topBowlers.map((b) => ({ rank: b.rank, player: b.player, value: b.wickets, matches: b.matches, economy: b.economy })).sort((a, b) => b.value - a.value),
+                    metricLabel: 'Wickets',
+                    accent: '#FF2D78',
+                    detailFields: [
+                      { key: 'matches', label: 'Matches', formatter: (value) => value },
+                      { key: 'economy', label: 'Economy', formatter: (value) => formatDecimal(value, 1) },
+                    ],
+                  })}
+                  className="rounded-lg border border-accent-magenta/30 bg-accent-magenta/10 px-3 py-1.5 text-xs font-semibold text-accent-magenta hover:bg-accent-magenta/20"
+                >
+                  Enter animation mode
+                </button>
+              </div>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart
                   data={topBowlers.map((b) => ({ name: b.player, wickets: b.wickets }))}
@@ -208,7 +248,14 @@ export default function VenueProfile() {
                   <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#8888A0', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
-                  <Bar dataKey="wickets" fill="#FF2D78" name="Wickets" radius={[0, 4, 4, 0]} barSize={16} />
+                  <Bar
+                    dataKey="wickets"
+                    fill="#FF2D78"
+                    name="Wickets"
+                    radius={[0, 4, 4, 0]}
+                    barSize={16}
+                    label={{ position: 'right', fill: '#E8E8F0', fontSize: 10, fontWeight: 700, fontFamily: 'monospace' }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -220,6 +267,17 @@ export default function VenueProfile() {
           )}
         </section>
       </div>
+
+      <LeaderboardShowcaseModal
+        open={Boolean(showcaseConfig)}
+        onClose={() => setShowcaseConfig(null)}
+        title={showcaseConfig?.title || 'Animation mode'}
+        subtitle={showcaseConfig?.subtitle || 'Fullscreen presentation mode'}
+        items={showcaseConfig?.items || []}
+        metricLabel={showcaseConfig?.metricLabel || 'Value'}
+        accent={showcaseConfig?.accent || '#00E5FF'}
+        detailFields={showcaseConfig?.detailFields || []}
+      />
     </div>
   )
 }

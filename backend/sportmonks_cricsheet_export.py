@@ -250,41 +250,43 @@ def normalize_cricsheet_names_to_duckdb(doc: dict[str, Any]) -> None:
             for d in ob.get("deliveries", []):
                 b = d.get("batter")
                 if b:
-                    nb = resolve_player_name(b, "bat")
+                    nb = resolve_player_name(b, "bat", allow_aliases=True)
                     move_reg(b, nb)
                     d["batter"] = nb
                 n = d.get("non_striker")
                 if n:
-                    nn = resolve_player_name(n, "bat")
+                    nn = resolve_player_name(n, "bat", allow_aliases=True)
                     move_reg(n, nn)
                     d["non_striker"] = nn
                 bw = d.get("bowler")
                 if bw:
-                    nbw = resolve_player_name(bw, "bowl")
+                    nbw = resolve_player_name(bw, "bowl", allow_aliases=True)
                     move_reg(bw, nbw)
                     d["bowler"] = nbw
                 for w in d.get("wickets", []) or []:
                     po = w.get("player_out")
                     if po:
-                        npo = resolve_player_name(po, "bat")
+                        npo = resolve_player_name(po, "bat", allow_aliases=True)
                         move_reg(po, npo)
                         w["player_out"] = npo
                     for f in w.get("fielders", []) or []:
                         if isinstance(f, dict) and f.get("name"):
                             nm = f["name"]
-                            nnm = resolve_player_name(nm, "bat")
+                            nnm = resolve_player_name(nm, "bat", allow_aliases=True)
                             move_reg(nm, nnm)
                             f["name"] = nnm
 
     pl = doc.get("info", {}).get("players", {})
     for team in list(pl.keys()):
         pl[team] = _dedupe(
-            [resolve_player_name(x, "bat") for x in pl[team] if x]
+            [resolve_player_name(x, "bat", allow_aliases=True) for x in pl[team] if x]
         )
 
     pom = doc.get("info", {}).get("player_of_match")
     if isinstance(pom, list):
-        doc["info"]["player_of_match"] = [resolve_player_name(p, "bat") for p in pom if p]
+        doc["info"]["player_of_match"] = [
+            resolve_player_name(p, "bat", allow_aliases=True) for p in pom if p
+        ]
 
 
 def fixture_to_cricsheet(

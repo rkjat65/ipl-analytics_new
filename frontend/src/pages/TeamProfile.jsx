@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getTeamStats, getTeamSeasons, getTeamH2H, getTeams } from '../lib/api'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
+import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
 import { formatNumber, formatDecimal } from '../utils/format'
 import { getTeamColor, getTeamAbbr, getTeamLogo } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
@@ -40,6 +42,7 @@ export default function TeamProfile() {
   const { teamName } = useParams()
   const decoded = decodeURIComponent(teamName)
   const color = getTeamColor(decoded)
+  const [showcaseConfig, setShowcaseConfig] = useState(null)
 
   const { data: stats, loading: statsLoading, error: statsError } = useFetch(
     () => getTeamStats(decoded),
@@ -83,6 +86,25 @@ export default function TeamProfile() {
   ]
 
   const h2hData = (h2h || []).slice().sort((a, b) => b.played - a.played)
+  const seasonShowcaseData = (seasons || [])
+    .map((row) => ({
+      player: String(row.season),
+      value: row.wins,
+      losses: row.losses,
+      win_pct: row.win_pct,
+      matches: row.matches,
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  const h2hShowcaseData = h2hData
+    .map((row) => ({
+      player: row.opponent,
+      value: row.won,
+      lost: row.lost,
+      played: row.played,
+      win_pct: row.win_pct,
+    }))
+    .sort((a, b) => b.value - a.value)
   const h2hColumns = [
     {
       key: 'opponent',
@@ -154,7 +176,27 @@ export default function TeamProfile() {
         {/* Season Win/Loss Chart */}
         {!seasonsLoading && (seasons || []).length > 0 && (
           <div className="card mb-6">
-            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">Wins &amp; Losses by Season</h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-heading font-semibold text-text-secondary">Wins &amp; Losses by Season</h3>
+              <button
+                type="button"
+                onClick={() => setShowcaseConfig({
+                  title: `${decoded} seasonal wins`,
+                  subtitle: 'Fullscreen replay of the best winning seasons, with reverse order and the full summary board at the end.',
+                  items: seasonShowcaseData,
+                  metricLabel: 'Wins',
+                  accent: color,
+                  detailFields: [
+                    { key: 'losses', label: 'Losses', formatter: (value) => formatNumber(value) },
+                    { key: 'matches', label: 'Matches', formatter: (value) => formatNumber(value) },
+                    { key: 'win_pct', label: 'Win %', formatter: (value) => `${formatDecimal(value, 1)}%` },
+                  ],
+                })}
+                className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
+              >
+                Enter animation mode
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={seasons} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
@@ -220,7 +262,27 @@ export default function TeamProfile() {
         {/* H2H Horizontal Bar Chart */}
         {!h2hLoading && h2hData.length > 0 && (
           <div className="card mb-6">
-            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">Wins vs Each Opponent</h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-heading font-semibold text-text-secondary">Wins vs Each Opponent</h3>
+              <button
+                type="button"
+                onClick={() => setShowcaseConfig({
+                  title: `${decoded} head-to-head wins`,
+                  subtitle: 'Fullscreen replay of the strongest matchups, with reverse order and the complete opponent board at the finish.',
+                  items: h2hShowcaseData,
+                  metricLabel: 'Wins',
+                  accent: color,
+                  detailFields: [
+                    { key: 'played', label: 'Played', formatter: (value) => formatNumber(value) },
+                    { key: 'lost', label: 'Lost', formatter: (value) => formatNumber(value) },
+                    { key: 'win_pct', label: 'Win %', formatter: (value) => `${formatDecimal(value, 1)}%` },
+                  ],
+                })}
+                className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
+              >
+                Enter animation mode
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={Math.max(250, h2hData.length * 32)}>
               <BarChart
                 data={h2hData.map((h) => ({ name: getTeamAbbr(h.opponent), won: h.won, lost: h.lost, opponent: h.opponent })).reverse()}
@@ -260,6 +322,17 @@ export default function TeamProfile() {
       </section>
 
       {/* Compare CTA */}
+      <LeaderboardShowcaseModal
+        open={Boolean(showcaseConfig)}
+        onClose={() => setShowcaseConfig(null)}
+        title={showcaseConfig?.title || 'Animation mode'}
+        subtitle={showcaseConfig?.subtitle || 'Fullscreen presentation mode'}
+        items={showcaseConfig?.items || []}
+        metricLabel={showcaseConfig?.metricLabel || 'Value'}
+        accent={showcaseConfig?.accent || color}
+        detailFields={showcaseConfig?.detailFields || []}
+      />
+
       {otherTeams.length > 0 && (
         <div className="card border-accent-cyan/20">
           <p className="text-text-secondary text-sm mb-3">

@@ -46,7 +46,7 @@
         "V Kohli",
         "JR Hazlewood",
         "A Singh",
-        "Rajat Patidar",
+        "RM Patidar",
         "KH Pandya",
         "Jitesh Sharma",
         "Tim David",
@@ -61,13 +61,13 @@
         "Jitesh Sharma": "sm_3092",
         "Abhinandan Singh": "sm_57679",
         "Sandeep Sharma": "sm_2966",
-        "Rajat Patidar": "sm_26027",
         "Ravi Bishnoi": "sm_9459",
         "V Kohli": "sm_46",
         "JC Archer": "sm_424",
         "D Padikkal": "sm_4931",
         "N Burger": "sm_4346",
         "SO Hetmyer": "sm_108",
+        "RM Patidar": "sm_26027",
         "KH Pandya": "sm_2687",
         "RA Jadeja": "sm_55",
         "Bipul Sharma": "sm_60729",
@@ -348,7 +348,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "V Kohli",
               "runs": {
@@ -358,7 +358,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "V Kohli",
               "runs": {
@@ -368,7 +368,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "V Kohli",
               "runs": {
@@ -380,7 +380,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Sandeep Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -390,7 +390,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Sandeep Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -403,7 +403,7 @@
           "over": 4,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "V Kohli",
               "runs": {
@@ -418,7 +418,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -428,7 +428,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -436,7 +436,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "V Kohli",
               "runs": {
@@ -448,7 +448,7 @@
             {
               "batter": "V Kohli",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -464,7 +464,7 @@
             {
               "batter": "KH Pandya",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -477,7 +477,7 @@
           "over": 5,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "KH Pandya",
               "runs": {
@@ -489,7 +489,7 @@
             {
               "batter": "KH Pandya",
               "bowler": "N Burger",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -499,7 +499,7 @@
             {
               "batter": "KH Pandya",
               "bowler": "N Burger",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -509,7 +509,7 @@
             {
               "batter": "KH Pandya",
               "bowler": "N Burger",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -519,7 +519,7 @@
             {
               "batter": "KH Pandya",
               "bowler": "N Burger",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -527,7 +527,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "KH Pandya",
               "runs": {
@@ -542,7 +542,7 @@
           "over": 6,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "KH Pandya",
               "runs": {
@@ -554,7 +554,7 @@
             {
               "batter": "KH Pandya",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -575,7 +575,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -585,7 +585,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -593,7 +593,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "Jitesh Sharma",
               "runs": {
@@ -605,7 +605,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -620,7 +620,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -628,7 +628,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "RA Jadeja",
               "non_striker": "Jitesh Sharma",
               "runs": {
@@ -638,7 +638,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "RA Jadeja",
               "non_striker": "Jitesh Sharma",
               "runs": {
@@ -650,7 +650,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -660,7 +660,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -668,7 +668,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "RA Jadeja",
               "non_striker": "Jitesh Sharma",
               "runs": {
@@ -683,7 +683,7 @@
           "over": 8,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "Jitesh Sharma",
               "runs": {
@@ -695,7 +695,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -703,7 +703,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "Jitesh Sharma",
               "runs": {
@@ -715,7 +715,7 @@
             {
               "batter": "Jitesh Sharma",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -731,7 +731,7 @@
             {
               "batter": "Tim David",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -741,7 +741,7 @@
             {
               "batter": "Tim David",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -754,7 +754,7 @@
           "over": 9,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "JC Archer",
               "non_striker": "Tim David",
               "runs": {
@@ -766,7 +766,7 @@
             {
               "batter": "Tim David",
               "bowler": "JC Archer",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -774,7 +774,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "JC Archer",
               "non_striker": "Tim David",
               "runs": {
@@ -786,7 +786,7 @@
             {
               "batter": "Tim David",
               "bowler": "JC Archer",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -796,7 +796,7 @@
             {
               "batter": "Tim David",
               "bowler": "JC Archer",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -806,7 +806,7 @@
             {
               "batter": "Tim David",
               "bowler": "JC Archer",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -819,7 +819,7 @@
           "over": 10,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "Tim David",
               "runs": {
@@ -831,7 +831,7 @@
             {
               "batter": "Tim David",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -839,7 +839,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "Tim David",
               "runs": {
@@ -851,7 +851,7 @@
             {
               "batter": "Tim David",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -859,7 +859,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "Tim David",
               "runs": {
@@ -874,7 +874,7 @@
             {
               "batter": "Tim David",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -898,7 +898,7 @@
           "over": 11,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "Tim David",
               "runs": {
@@ -908,7 +908,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "R Shepherd",
               "runs": {
@@ -920,7 +920,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -930,7 +930,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -938,7 +938,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "R Shepherd",
               "runs": {
@@ -950,7 +950,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -965,7 +965,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -973,7 +973,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "R Shepherd",
               "runs": {
@@ -983,7 +983,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Bipul Sharma",
               "non_striker": "R Shepherd",
               "runs": {
@@ -995,7 +995,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1005,7 +1005,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1015,7 +1015,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "Bipul Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1030,7 +1030,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1040,7 +1040,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1048,7 +1048,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "RA Jadeja",
               "non_striker": "R Shepherd",
               "runs": {
@@ -1060,7 +1060,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1068,7 +1068,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "RA Jadeja",
               "non_striker": "R Shepherd",
               "runs": {
@@ -1080,7 +1080,7 @@
             {
               "batter": "R Shepherd",
               "bowler": "RA Jadeja",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1104,7 +1104,7 @@
           "over": 14,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1116,7 +1116,7 @@
             {
               "batter": "VR Iyer",
               "bowler": "N Burger",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1124,7 +1124,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1134,7 +1134,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1144,7 +1144,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1154,7 +1154,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "N Burger",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1171,7 +1171,7 @@
             {
               "batter": "VR Iyer",
               "bowler": "Sandeep Sharma",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1179,7 +1179,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1189,7 +1189,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1199,7 +1199,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1209,7 +1209,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1219,7 +1219,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1236,7 +1236,7 @@
             {
               "batter": "VR Iyer",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1244,7 +1244,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1254,7 +1254,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1264,7 +1264,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Ravi Bishnoi",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1276,7 +1276,7 @@
             {
               "batter": "VR Iyer",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1286,7 +1286,7 @@
             {
               "batter": "VR Iyer",
               "bowler": "Ravi Bishnoi",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1299,7 +1299,7 @@
           "over": 17,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Sandeep Sharma",
               "non_striker": "VR Iyer",
               "runs": {
@@ -1309,7 +1309,7 @@
               },
               "wickets": [
                 {
-                  "player_out": "Rajat Patidar",
+                  "player_out": "RM Patidar",
                   "kind": "caught",
                   "fielders": [
                     {

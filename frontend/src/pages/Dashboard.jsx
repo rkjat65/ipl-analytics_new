@@ -34,6 +34,7 @@ import {
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
 import { formatNumber, formatDecimal, formatDate, getMatchResult } from '../utils/format'
 
@@ -393,14 +394,7 @@ export default function Dashboard() {
     {
       key: 'player',
       label: 'Player',
-      render: (val) => (
-        <Link
-          to={`/batting/${encodeURIComponent(val)}`}
-          className="text-accent-cyan hover:underline"
-        >
-          {val}
-        </Link>
-      ),
+      render: (val) => <PlayerNameCell name={val} to={`/batting/${encodeURIComponent(val)}`} size={26} />,
     },
     { key: 'matches', label: 'Mat', align: 'right' },
     { key: 'innings', label: 'Inn', align: 'right' },
@@ -417,14 +411,7 @@ export default function Dashboard() {
     {
       key: 'player',
       label: 'Player',
-      render: (val) => (
-        <Link
-          to={`/bowling/${encodeURIComponent(val)}`}
-          className="text-accent-cyan hover:underline"
-        >
-          {val}
-        </Link>
-      ),
+      render: (val) => <PlayerNameCell name={val} to={`/bowling/${encodeURIComponent(val)}`} size={26} />,
     },
     { key: 'matches', label: 'Mat', align: 'right' },
     { key: 'innings', label: 'Inn', align: 'right' },
@@ -1924,7 +1911,7 @@ export default function Dashboard() {
                   <div className="mb-4 flex flex-col gap-2 rounded-xl border border-accent-lime/15 bg-accent-lime/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.18em] text-accent-lime font-bold">Batter spotlight</p>
-                      <p className="text-sm font-semibold text-text-primary">{featuredBatter.player}</p>
+                      <PlayerNameCell name={featuredBatter.player} to={`/batting/${encodeURIComponent(featuredBatter.player)}`} size={30} className="text-sm" />
                     </div>
                     <p className="text-xs text-text-secondary">
                       {formatNumber(featuredBatter.runs)} runs • Avg {formatDecimal(featuredBatter.avg)} • SR {formatDecimal(featuredBatter.sr)}
@@ -1978,7 +1965,9 @@ export default function Dashboard() {
                         return (
                           <div className="rounded-lg px-3 py-2 text-xs shadow-xl border"
                             style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
-                            <p className="text-text-primary font-semibold mb-0.5">{d.fullName}</p>
+                            <div className="mb-1">
+                              <PlayerNameCell name={d.fullName} to={`/batting/${encodeURIComponent(d.fullName)}`} size={24} />
+                            </div>
                             <p style={{ color: '#B8FF00' }}>
                               {batSortLabel}: <span className="font-mono font-bold">{['avg', 'sr', 'economy'].includes(batSort) ? formatDecimal(d.value) : formatNumber(d.value)}</span>
                             </p>
@@ -2066,7 +2055,7 @@ export default function Dashboard() {
                   <div className="mb-4 flex flex-col gap-2 rounded-xl border border-accent-magenta/15 bg-accent-magenta/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.18em] text-accent-magenta font-bold">Bowler spotlight</p>
-                      <p className="text-sm font-semibold text-text-primary">{featuredBowler.player}</p>
+                      <PlayerNameCell name={featuredBowler.player} to={`/bowling/${encodeURIComponent(featuredBowler.player)}`} size={30} className="text-sm" />
                     </div>
                     <p className="text-xs text-text-secondary">
                       {featuredBowler.wickets} wickets • Economy {formatDecimal(featuredBowler.economy)} • Avg {formatDecimal(featuredBowler.avg)}
@@ -2120,7 +2109,9 @@ export default function Dashboard() {
                         return (
                           <div className="rounded-lg px-3 py-2 text-xs shadow-xl border"
                             style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
-                            <p className="text-text-primary font-semibold mb-0.5">{d.fullName}</p>
+                            <div className="mb-1">
+                              <PlayerNameCell name={d.fullName} to={`/bowling/${encodeURIComponent(d.fullName)}`} size={24} />
+                            </div>
                             <p style={{ color: '#FF2D78' }}>
                               {bowlSortLabel}: <span className="font-mono font-bold">{['economy', 'avg', 'sr'].includes(bowlSort) ? formatDecimal(d.value) : d.value}</span>
                             </p>

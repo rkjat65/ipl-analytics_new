@@ -34,8 +34,8 @@
         "D Padikkal",
         "A Singh",
         "KH Pandya",
-        "Sandeep Sharma",
-        "Rajat Patidar",
+        "Suyash Sharma",
+        "RM Patidar",
         "R Shepherd",
         "Tim David"
       ],
@@ -46,7 +46,7 @@
         "A Mhatre",
         "Matt Henry",
         "SN Khan",
-        "KS Sharma",
+        "Kartik Sharma",
         "A Kamboj",
         "S Dube",
         "Prashant Veer",
@@ -58,7 +58,7 @@
       "people": {
         "Philip Salt": "sm_3431",
         "Jacob Duffy": "sm_4799",
-        "Rajat Patidar": "sm_26027",
+        "Kartik Sharma": "sm_60723",
         "Jitesh Sharma": "sm_3092",
         "Prashant Veer": "sm_60167",
         "Noor Ahmad": "sm_8490",
@@ -72,12 +72,12 @@
         "S Dube": "sm_4940",
         "D Padikkal": "sm_4931",
         "J Overton": "sm_3491",
+        "RM Patidar": "sm_26027",
         "SV Samson": "sm_2900",
         "RD Gaikwad": "sm_4856",
         "A Mhatre": "sm_57345",
         "B Kumar": "sm_280",
         "SN Khan": "sm_2774",
-        "KS Sharma": "sm_60723",
         "KH Pandya": "sm_2687",
         "A Singh": "sm_57679",
         "JG Bethell": "sm_26819"
@@ -834,7 +834,7 @@
               ]
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "S Dube",
               "non_striker": "D Padikkal",
               "runs": {
@@ -846,7 +846,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "S Dube",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -859,7 +859,7 @@
           "over": 11,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Noor Ahmad",
               "non_striker": "D Padikkal",
               "runs": {
@@ -869,7 +869,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Noor Ahmad",
               "non_striker": "D Padikkal",
               "runs": {
@@ -881,7 +881,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -891,7 +891,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -902,7 +902,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Noor Ahmad",
               "non_striker": "D Padikkal",
               "runs": {
@@ -914,7 +914,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -929,7 +929,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "S Dube",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -942,7 +942,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "S Dube",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -950,7 +950,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "S Dube",
               "non_striker": "D Padikkal",
               "runs": {
@@ -960,7 +960,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "S Dube",
               "non_striker": "D Padikkal",
               "runs": {
@@ -972,7 +972,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "S Dube",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -982,7 +982,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "S Dube",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -992,7 +992,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "S Dube",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1005,7 +1005,7 @@
           "over": 13,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "MJ Henry",
               "non_striker": "D Padikkal",
               "runs": {
@@ -1015,7 +1015,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "MJ Henry",
               "non_striker": "D Padikkal",
               "runs": {
@@ -1027,7 +1027,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "MJ Henry",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1037,7 +1037,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "MJ Henry",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1047,7 +1047,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "MJ Henry",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1057,7 +1057,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "MJ Henry",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1072,7 +1072,7 @@
             {
               "batter": "D Padikkal",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1088,7 +1088,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1098,7 +1098,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1108,7 +1108,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1118,7 +1118,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1126,7 +1126,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "J Overton",
               "non_striker": "Tim David",
               "runs": {
@@ -1144,7 +1144,7 @@
           "over": 15,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "KK Ahmed",
               "non_striker": "Tim David",
               "runs": {
@@ -1156,7 +1156,7 @@
             {
               "batter": "Tim David",
               "bowler": "KK Ahmed",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1164,7 +1164,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "KK Ahmed",
               "non_striker": "Tim David",
               "runs": {
@@ -1177,7 +1177,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "KK Ahmed",
               "non_striker": "Tim David",
               "runs": {
@@ -1187,7 +1187,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "KK Ahmed",
               "non_striker": "Tim David",
               "runs": {
@@ -1197,7 +1197,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "KK Ahmed",
               "non_striker": "Tim David",
               "runs": {
@@ -1207,7 +1207,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "KK Ahmed",
               "non_striker": "Tim David",
               "runs": {
@@ -1224,7 +1224,7 @@
             {
               "batter": "Tim David",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1232,7 +1232,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "Noor Ahmad",
               "non_striker": "Tim David",
               "runs": {
@@ -1247,7 +1247,7 @@
             {
               "batter": "Tim David",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1257,7 +1257,7 @@
             {
               "batter": "Tim David",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1267,7 +1267,7 @@
             {
               "batter": "Tim David",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1277,7 +1277,7 @@
             {
               "batter": "Tim David",
               "bowler": "Noor Ahmad",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1292,7 +1292,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1302,7 +1302,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1312,7 +1312,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1322,7 +1322,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1332,9 +1332,9 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
-                "batter": 1,
+                "batter": 0,
                 "extras": 1,
                 "total": 1
               },
@@ -1345,7 +1345,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1355,7 +1355,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1370,7 +1370,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1380,7 +1380,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1390,7 +1390,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1400,7 +1400,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1410,7 +1410,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1420,7 +1420,7 @@
             {
               "batter": "Tim David",
               "bowler": "J Overton",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1433,7 +1433,7 @@
           "over": 19,
           "deliveries": [
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "A Kamboj",
               "non_striker": "Tim David",
               "runs": {
@@ -1443,7 +1443,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "A Kamboj",
               "non_striker": "Tim David",
               "runs": {
@@ -1453,7 +1453,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "A Kamboj",
               "non_striker": "Tim David",
               "runs": {
@@ -1465,7 +1465,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1473,7 +1473,7 @@
               }
             },
             {
-              "batter": "Rajat Patidar",
+              "batter": "RM Patidar",
               "bowler": "A Kamboj",
               "non_striker": "Tim David",
               "runs": {
@@ -1485,7 +1485,7 @@
             {
               "batter": "Tim David",
               "bowler": "A Kamboj",
-              "non_striker": "Rajat Patidar",
+              "non_striker": "RM Patidar",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1603,7 +1603,7 @@
                   "kind": "caught",
                   "fielders": [
                     {
-                      "name": "Rajat Patidar"
+                      "name": "RM Patidar"
                     }
                   ]
                 }
@@ -1719,7 +1719,7 @@
               ]
             },
             {
-              "batter": "KS Sharma",
+              "batter": "Kartik Sharma",
               "bowler": "Jacob Duffy",
               "non_striker": "SN Khan",
               "runs": {
@@ -1736,7 +1736,7 @@
             {
               "batter": "SN Khan",
               "bowler": "B Kumar",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1746,7 +1746,7 @@
             {
               "batter": "SN Khan",
               "bowler": "B Kumar",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1756,7 +1756,7 @@
             {
               "batter": "SN Khan",
               "bowler": "B Kumar",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1766,7 +1766,7 @@
             {
               "batter": "SN Khan",
               "bowler": "B Kumar",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1776,7 +1776,7 @@
             {
               "batter": "SN Khan",
               "bowler": "B Kumar",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1786,7 +1786,7 @@
             {
               "batter": "SN Khan",
               "bowler": "B Kumar",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -1804,7 +1804,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1814,7 +1814,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1824,7 +1824,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 1,
@@ -1837,7 +1837,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1847,7 +1847,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1857,7 +1857,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 4,
                 "extras": 1,
@@ -1870,7 +1870,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Jacob Duffy",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1878,7 +1878,7 @@
               }
             },
             {
-              "batter": "KS Sharma",
+              "batter": "Kartik Sharma",
               "bowler": "Jacob Duffy",
               "non_striker": "SN Khan",
               "runs": {
@@ -1895,7 +1895,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Abhinandan Singh",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1905,7 +1905,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Abhinandan Singh",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1915,7 +1915,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Abhinandan Singh",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1925,7 +1925,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Abhinandan Singh",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 4,
                 "extras": 0,
@@ -1935,7 +1935,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Abhinandan Singh",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 2,
                 "extras": 0,
@@ -1945,7 +1945,7 @@
             {
               "batter": "SN Khan",
               "bowler": "Abhinandan Singh",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -1960,7 +1960,7 @@
             {
               "batter": "SN Khan",
               "bowler": "KH Pandya",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -1981,7 +1981,7 @@
             {
               "batter": "S Dube",
               "bowler": "KH Pandya",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 6,
                 "extras": 0,
@@ -1991,7 +1991,7 @@
             {
               "batter": "S Dube",
               "bowler": "KH Pandya",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 0,
                 "extras": 0,
@@ -2001,7 +2001,7 @@
             {
               "batter": "S Dube",
               "bowler": "KH Pandya",
-              "non_striker": "KS Sharma",
+              "non_striker": "Kartik Sharma",
               "runs": {
                 "batter": 1,
                 "extras": 0,
@@ -2009,7 +2009,7 @@
               }
             },
             {
-              "batter": "KS Sharma",
+              "batter": "Kartik Sharma",
               "bowler": "KH Pandya",
               "non_striker": "S Dube",
               "runs": {
@@ -2019,7 +2019,7 @@
               },
               "wickets": [
                 {
-                  "player_out": "KS Sharma",
+                  "player_out": "Kartik Sharma",
                   "kind": "caught",
                   "fielders": [
                     {
@@ -2590,7 +2590,7 @@
                   "kind": "caught",
                   "fielders": [
                     {
-                      "name": "Rajat Patidar"
+                      "name": "RM Patidar"
                     }
                   ]
                 }
@@ -2621,7 +2621,7 @@
               "bowler": "B Kumar",
               "non_striker": "A Kamboj",
               "runs": {
-                "batter": 1,
+                "batter": 4,
                 "extras": 1,
                 "total": 5
               },

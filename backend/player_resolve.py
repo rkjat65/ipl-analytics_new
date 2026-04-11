@@ -33,13 +33,20 @@ def _token_matches_first_name(target_first: str, candidate_first: str) -> bool:
 
 
 @functools.lru_cache(maxsize=512)
-def resolve_player_name(name: str, role: str = "bat") -> str:
-    """Map a full player name (e.g. from Sportmonks) to the historical DB name."""
+def resolve_player_name(name: str, role: str = "bat", *, allow_aliases: bool = False) -> str:
+    """Map a full player name to the canonical DB name.
+
+    Manual alias overrides are intentionally opt-in so they are only used by the
+    Sportmonks live/inject pipeline, not by the main historical DB search or
+    analytics paths.
+    """
     col = "batter" if role == "bat" else "bowler"
     raw = name.strip()
+    if not raw:
+        return raw
 
     term = raw.lower()
-    if term in PLAYER_ALIASES:
+    if allow_aliases and term in PLAYER_ALIASES:
         cand = PLAYER_ALIASES[term]
         hit = query(
             f"SELECT DISTINCT {col} FROM deliveries WHERE {col} = ? LIMIT 1",

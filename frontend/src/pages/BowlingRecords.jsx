@@ -8,6 +8,13 @@ import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal } from '../utils/format'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
+import {
+  AnimatedPresentationSection,
+  PresentationControls,
+  usePresentationDeck,
+} from '../components/ui/ChartPresentation'
+import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
 import { exportAsImage, downloadImage } from '../utils/exportCard'
 import {
   BarChart,
@@ -29,9 +36,16 @@ import {
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
+  const playerName = payload?.[0]?.payload?.fullName || payload?.[0]?.payload?.player || null
   return (
     <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-[#8888A0] text-xs mb-1 font-mono">{label}</p>
+      {playerName ? (
+        <div className="mb-1">
+          <PlayerNameCell name={playerName} to={`/bowling/${encodeURIComponent(playerName)}`} size={24} />
+        </div>
+      ) : (
+        <p className="text-[#8888A0] text-xs mb-1 font-mono">{label}</p>
+      )}
       {payload.map((entry, i) => (
         <p key={i} className="text-xs" style={{ color: entry.color || '#E8E8ED' }}>
           {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
@@ -46,9 +60,8 @@ function MatrixTooltip({ active, payload }) {
   const player = payload[0]?.payload
   return (
     <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg max-w-[240px]">
-      <div className="flex items-center gap-2 mb-1">
-        <PlayerAvatar name={player?.player} size={26} showBorder={false} />
-        <p className="text-text-primary text-xs font-semibold">{player?.player}</p>
+      <div className="mb-1">
+        <PlayerNameCell name={player?.player} to={player?.player ? `/bowling/${encodeURIComponent(player.player)}` : undefined} size={26} />
       </div>
       <p className="text-xs text-accent-magenta">Wickets: <span className="font-mono font-semibold">{formatNumber(player?.wickets)}</span></p>
       <p className="text-xs text-accent-cyan">Average: <span className="font-mono font-semibold">{formatDecimal(player?.avg)}</span></p>
@@ -73,6 +86,16 @@ const BAR_COLORS = [
   '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399',
   '#FB923C', '#FBBF24', '#60A5FA', '#E879F9', '#22C55E',
 ]
+
+const AVATAR_BASE = 'https://ui-avatars.com/api/'
+function playerAvatarUrl(name, size = 28) {
+  const initials = (name || '??').split(' ').map((word) => word[0]).join('').slice(0, 2)
+  return `${AVATAR_BASE}?name=${encodeURIComponent(initials)}&size=${size}&background=16161F&color=00E5FF&bold=true&font-size=0.45`
+}
+
+function realPlayerImageUrl(name) {
+  return `/api/players/${encodeURIComponent(name)}/image`
+}
 
 const rankAccent = (rank) => {
   if (rank === 1) return 'bg-amber-500/10 border-l-2 border-l-amber-400'
@@ -105,6 +128,8 @@ export default function BowlingRecords() {
   const [sortBy, setSortBy] = useState('wickets')
   const [minBalls, setMinBalls] = useState(0)
   const [downloading, setDownloading] = useState(false)
+  const [showcaseOpen, setShowcaseOpen] = useState(false)
+  const deck = usePresentationDeck(3, { autoStart: true, baseDelay: 900 })
 
   const handleDownloadChart = useCallback(async () => {
     if (!chartRef.current) return
@@ -145,12 +170,7 @@ export default function BowlingRecords() {
     {
       key: 'player',
       label: 'Player',
-      render: (val) => (
-        <Link to={`/bowling/${encodeURIComponent(val)}`} className="flex items-center gap-2 text-accent-cyan hover:underline font-medium">
-          <PlayerAvatar name={val} size={28} showBorder={false} />
-          {val}
-        </Link>
-      ),
+      render: (val) => <PlayerNameCell name={val} to={`/bowling/${encodeURIComponent(val)}`} size={28} />,
     },
     { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
     { key: 'innings', label: 'Inn', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
@@ -176,6 +196,11 @@ export default function BowlingRecords() {
   }))
   const leader = dataWithRank[0] || null
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy
+  const getMetricValue = (entry) => {
+    if (sortBy === 'five_wickets') return entry?.five_w ?? entry?.five_wickets ?? 0
+    if (sortBy === 'four_wickets') return entry?.four_w ?? entry?.four_wickets ?? 0
+    return entry?.[sortBy] ?? 0
+  }
   const matrixPoints = useMemo(() => (Array.isArray(bowlingMatrix) ? bowlingMatrix : [])
     .filter((entry) => Number(entry?.avg) > 0 && Number(entry?.economy) > 0 && Number(entry?.wickets) > 0)
     .sort((a, b) => b.wickets - a.wickets)
@@ -194,6 +219,18 @@ export default function BowlingRecords() {
     economy: entry.economy,
     avg: entry.avg,
   }))
+  const showcaseData = dataWithRank
+    .slice(0, 10)
+    .map((entry) => ({
+      rank: entry.rank,
+      player: entry.player,
+      value: getMetricValue(entry),
+      matches: entry.matches,
+      avg: entry.avg,
+      economy: entry.economy,
+      sr: entry.sr,
+    }))
+    .sort((a, b) => b.value - a.value)
 
   if (error) {
     return (
@@ -269,30 +306,45 @@ export default function BowlingRecords() {
         </div>
       </div>
 
+      <PresentationControls deck={deck} title="Bowling chart replay" />
+
       {/* Top 15 Bar Chart */}
       {!loading && dataWithRank.length > 0 && (
+        <AnimatedPresentationSection deck={deck} index={0}>
         <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-heading font-semibold text-text-secondary">
-              Top 15 — {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
-            </h3>
-            <button
-              onClick={handleDownloadChart}
-              disabled={downloading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border-subtle text-text-secondary hover:text-accent-magenta hover:border-accent-magenta/40 transition-colors disabled:opacity-40"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {downloading ? 'Saving...' : 'Download'}
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-sm font-heading font-semibold text-text-secondary">
+                Top 15 — {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
+              </h3>
+              <p className="text-[11px] text-text-muted mt-1">Fullscreen showcase mode now supports reverse order, always-on value labels, and the full avatar summary on completion.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowcaseOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M8 5v14l11-7z" /></svg>
+                Enter animation mode
+              </button>
+              <button
+                onClick={handleDownloadChart}
+                disabled={downloading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border-subtle text-text-secondary hover:text-accent-magenta hover:border-accent-magenta/40 transition-colors disabled:opacity-40"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {downloading ? 'Saving...' : 'Download'}
+              </button>
+            </div>
           </div>
           <div ref={chartRef} className="bg-bg-primary rounded-lg p-2">
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
-              data={dataWithRank.slice(0, 15).map((b) => ({ name: b.player, value: (sortBy === 'five_wickets' ? b.five_w : sortBy === 'four_wickets' ? b.four_w : b[sortBy]) ?? 0 })).sort((a, b) => b.value - a.value)}
+              data={dataWithRank.slice(0, 15).map((b) => ({ name: b.player, value: getMetricValue(b) })).sort((a, b) => b.value - a.value)}
               layout="vertical"
               margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
             >
@@ -317,6 +369,8 @@ export default function BowlingRecords() {
                 name={SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
                 radius={[0, 4, 4, 0]}
                 barSize={18}
+                isAnimationActive
+                animationDuration={deck.chartDuration}
                 label={{
                   position: 'right',
                   fill: '#E8E8F0',
@@ -334,9 +388,11 @@ export default function BowlingRecords() {
           </ResponsiveContainer>
           </div>
         </div>
+        </AnimatedPresentationSection>
       )}
 
       {!loading && bowlingStyleData.length > 0 && (
+        <AnimatedPresentationSection deck={deck} index={1}>
         <div className="card animate-in">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
             <div>
@@ -366,15 +422,17 @@ export default function BowlingRecords() {
                 )
               }} />
               <Legend wrapperStyle={{ fontSize: 11, color: '#8888A0' }} />
-              <Bar yAxisId="left" dataKey="wickets" name="Wickets" fill="#FF2D78" radius={[4, 4, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="economy" name="Economy" stroke="#FFB800" strokeWidth={2.5} dot={{ r: 3, fill: '#FFB800' }} />
-              <Line yAxisId="right" type="monotone" dataKey="avg" name="Average" stroke="#00E5FF" strokeWidth={2} dot={false} />
+              <Bar yAxisId="left" dataKey="wickets" name="Wickets" fill="#FF2D78" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={deck.chartDuration} />
+              <Line yAxisId="right" type="monotone" dataKey="economy" name="Economy" stroke="#FFB800" strokeWidth={2.5} dot={{ r: 3, fill: '#FFB800' }} isAnimationActive animationDuration={deck.chartDuration} animationBegin={120} />
+              <Line yAxisId="right" type="monotone" dataKey="avg" name="Average" stroke="#00E5FF" strokeWidth={2} dot={false} isAnimationActive animationDuration={deck.chartDuration} animationBegin={220} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+        </AnimatedPresentationSection>
       )}
 
       {!loading && (
+        <AnimatedPresentationSection deck={deck} index={2}>
         <div className="card animate-in">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
             <div>
@@ -414,6 +472,8 @@ export default function BowlingRecords() {
                     <Tooltip content={<MatrixTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#8888A0' }} />
                     <Scatter
                       data={matrixPoints}
+                      isAnimationActive
+                      animationDuration={deck.chartDuration}
                       shape={(props) => {
                         const { cx, cy, payload } = props
                         const radius = 5 + (payload.wickets / maxWickets) * 12
@@ -424,10 +484,28 @@ export default function BowlingRecords() {
                             : payload.avg <= 20
                               ? '#00E5FF'
                               : '#8B5CF6'
+                        const clipId = `bowl-record-${payload.player?.replace(/[^a-zA-Z0-9]/g, '')}`
                         return (
                           <g>
-                            <circle cx={cx} cy={cy} r={radius} fill="rgba(11,14,22,0.88)" stroke={stroke} strokeWidth={2} />
-                            <circle cx={cx} cy={cy} r={Math.max(2, radius * 0.35)} fill={stroke} fillOpacity={0.9} />
+                            <circle cx={cx} cy={cy} r={radius + 2} fill="none" stroke={stroke} strokeWidth={2} />
+                            <defs>
+                              <clipPath id={clipId}>
+                                <circle cx={cx} cy={cy} r={radius} />
+                              </clipPath>
+                            </defs>
+                            <image
+                              href={realPlayerImageUrl(payload.player)}
+                              x={cx - radius}
+                              y={cy - radius}
+                              width={radius * 2}
+                              height={radius * 2}
+                              clipPath={`url(#${clipId})`}
+                              preserveAspectRatio="xMidYMid slice"
+                              aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
+                              onError={(event) => { event.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(radius * 3))) }}
+                            >
+                              <title>{payload.player || 'Player'}</title>
+                            </image>
                             {payload.wickets >= labelThreshold && (
                               <text x={cx} y={cy - radius - 6} textAnchor="middle" fill="#E8E8F0" fontSize={10} fontWeight={600} fontFamily="monospace">
                                 {payload.shortName}
@@ -449,7 +527,25 @@ export default function BowlingRecords() {
             )
           })()}
         </div>
+        </AnimatedPresentationSection>
       )}
+
+      <LeaderboardShowcaseModal
+        open={showcaseOpen}
+        onClose={() => setShowcaseOpen(false)}
+        title={`Top bowling ${sortLabel}`}
+        subtitle="Fullscreen presentation mode — one bowler enters at a time, with reverse playback and the complete avatar board after the run finishes."
+        items={showcaseData}
+        metricLabel={sortLabel}
+        accent="#FF2D78"
+        valueFormatter={(value) => ['avg', 'economy', 'sr'].includes(sortBy) ? formatDecimal(value) : formatNumber(value)}
+        detailFields={[
+          { key: 'avg', label: 'Average', formatter: (value) => formatDecimal(value) },
+          { key: 'economy', label: 'Economy', formatter: (value) => formatDecimal(value) },
+          { key: 'matches', label: 'Matches', formatter: (value) => formatNumber(value) },
+        ]}
+        defaultOrder={['avg', 'economy', 'sr'].includes(sortBy) ? 'asc' : 'desc'}
+      />
 
       {/* Table */}
       {loading ? (

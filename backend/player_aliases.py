@@ -334,6 +334,10 @@ PLAYER_ALIASES: dict[str, str] = {
     "shreyas iyer": "SS Iyer",
     "iyer": "SS Iyer",
 
+    # ── RM Patidar ───────────────────────────────────────────────────
+    "rajat": "RM Patidar",
+    "rajat patidar": "RM Patidar",
+
     # ── YBK Jaiswal ──────────────────────────────────────────────────
     "jaiswal": "YBK Jaiswal",
     "yashasvi": "YBK Jaiswal",
