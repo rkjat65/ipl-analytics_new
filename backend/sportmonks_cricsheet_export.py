@@ -228,6 +228,107 @@ def fixture_balls_list(fixture: dict) -> list[dict]:
     return []
 
 
+def fixture_batting_list(fixture: dict) -> list[dict]:
+    batting_raw = fixture.get("batting")
+    if isinstance(batting_raw, list):
+        return batting_raw
+    if isinstance(batting_raw, dict) and isinstance(batting_raw.get("data"), list):
+        return batting_raw["data"]
+    return []
+
+
+def _batting_row_retired_hurt(row: dict, id_to_name: dict[int, str]) -> tuple[str, str, int | None] | None:
+    b = _unwrap(row) or (row if isinstance(row, dict) else None)
+    if not isinstance(b, dict):
+        return None
+
+    score_obj = _unwrap(b.get("score")) or (b.get("score") if isinstance(b.get("score"), dict) else {})
+    score_name = (score_obj.get("name") or b.get("result") or "").strip()
+    if "retired" not in score_name.lower():
+        return None
+    if b.get("active"):
+        return None
+
+    player = _player_name(b.get("batsman"))
+    if not player and b.get("batsman_id") is not None:
+        player = id_to_name.get(int(b.get("batsman_id")), "")
+    if not player:
+        return None
+
+    sb = str(b.get("scoreboard") or "").strip()
+    if not sb:
+        inning = b.get("inning") or b.get("innings") or b.get("inning_number")
+        if isinstance(inning, int) and inning > 0:
+            sb = f"S{inning}"
+
+    team_id = b.get("team_id")
+    return player, sb, int(team_id) if team_id is not None else None
+
+
+def _inject_retired_hurt_wickets(
+    innings_out: list[dict[str, Any]],
+    batting_rows: list[dict],
+    id_to_name: dict[int, str],
+    local_id: int | None,
+    visitor_id: int | None,
+    t1: str,
+    t2: str,
+) -> None:
+    if not batting_rows:
+        return
+
+    retired = []
+    for row in batting_rows:
+        got = _batting_row_retired_hurt(row, id_to_name)
+        if got:
+            retired.append(got)
+    if not retired:
+        return
+
+    team_id_to_name = {local_id: t1, visitor_id: t2}
+
+    for player, scoreboard, team_id in retired:
+        # Resolve target innings by scoreboard first (most reliable), then by team.
+        target: dict[str, Any] | None = None
+        if scoreboard:
+            for inn in innings_out:
+                if str(inn.get("scoreboard") or "") == scoreboard:
+                    target = inn
+                    break
+        if target is None and team_id in team_id_to_name:
+            team_name = team_id_to_name.get(team_id, "")
+            for inn in innings_out:
+                if inn.get("team") == team_name:
+                    target = inn
+                    break
+        if target is None:
+            continue
+
+        deliveries: list[dict[str, Any]] = []
+        for ob in target.get("overs", []) or []:
+            deliveries.extend(ob.get("deliveries", []) or [])
+        if not deliveries:
+            continue
+
+        already_out = False
+        last_player_delivery: dict[str, Any] | None = None
+        for d in deliveries:
+            if d.get("batter") == player:
+                last_player_delivery = d
+            for w in d.get("wickets", []) or []:
+                if (w.get("player_out") or "") == player:
+                    already_out = True
+                    break
+            if already_out:
+                break
+
+        if already_out or last_player_delivery is None:
+            continue
+
+        wickets = last_player_delivery.setdefault("wickets", [])
+        wickets.append({"player_out": player, "kind": "retired hurt"})
+
+
 def normalize_cricsheet_names_to_duckdb(doc: dict[str, Any]) -> None:
     """Map Sportmonks full names to existing Cricsheet names in DuckDB (e.g. Virat Kohli → V Kohli)."""
     try:
@@ -308,6 +409,7 @@ def fixture_to_cricsheet(
         raise ValueError("fixture_to_cricsheet: fixture has no balls")
 
     balls_sorted = sorted(balls, key=lambda b: float(b.get("ball", 0)))
+    batting_rows = fixture_batting_list(fixture)
     id_to_name = _id_to_name_map(balls_sorted)
     registry_people = _collect_registry(fixture, balls_sorted)
 
@@ -432,6 +534,16 @@ def fixture_to_cricsheet(
         if is_super_over:
             inn["super_over"] = True
         innings_out.append(inn)
+
+    _inject_retired_hurt_wickets(
+        innings_out,
+        batting_rows,
+        id_to_name,
+        local_id,
+        visitor_id,
+        t1,
+        t2,
+    )
 
     event: dict[str, Any] = {"name": league_name}
     if match_no is not None:

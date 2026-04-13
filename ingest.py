@@ -324,6 +324,116 @@ def delete_match_rows(con: duckdb.DuckDBPyConnection, match_id: str) -> None:
     con.execute("DELETE FROM matches WHERE match_id = ?", [match_id])
 
 
+def apply_retired_hurt_fallback(
+    con: duckdb.DuckDBPyConnection,
+    match_ids: list[str],
+) -> int:
+    """Mark missing Sportmonks retirements as outs based on innings state.
+
+    Some Sportmonks fixtures expose tactical retirements in batting cards but not in
+    ball events. In that case, one batter can disappear from an innings without a
+    dismissal event, leaving more than two unresolved batters in completed innings.
+    We mark unresolved non-terminal batters as ``retired hurt`` on their last faced
+    delivery so batting averages and wickets are consistent.
+    """
+    fixed = 0
+    for match_id in match_ids:
+        if not match_id.startswith("sm_"):
+            continue
+        innings_rows = con.execute(
+            """
+            SELECT DISTINCT innings_number
+            FROM deliveries
+            WHERE match_id = ?
+            ORDER BY innings_number
+            """,
+            [match_id],
+        ).fetchall()
+        for (innings_number,) in innings_rows:
+            batter_rows = con.execute(
+                """
+                SELECT DISTINCT batter
+                FROM deliveries
+                WHERE match_id = ? AND innings_number = ?
+                  AND batter IS NOT NULL AND batter <> ''
+                """,
+                [match_id, innings_number],
+            ).fetchall()
+            dismissed_rows = con.execute(
+                """
+                SELECT DISTINCT player_dismissed
+                FROM deliveries
+                WHERE match_id = ? AND innings_number = ?
+                  AND is_wicket = TRUE
+                  AND player_dismissed IS NOT NULL AND player_dismissed <> ''
+                """,
+                [match_id, innings_number],
+            ).fetchall()
+            batters = {r[0] for r in batter_rows}
+            dismissed = {r[0] for r in dismissed_rows}
+            unresolved = batters - dismissed
+            if len(unresolved) <= 2:
+                continue
+
+            last_ball = con.execute(
+                """
+                SELECT batter, non_striker
+                FROM deliveries
+                WHERE match_id = ? AND innings_number = ?
+                ORDER BY over_number DESC, ball_number DESC, delivery_id DESC
+                LIMIT 1
+                """,
+                [match_id, innings_number],
+            ).fetchone()
+            if not last_ball:
+                continue
+            terminal_not_out = {x for x in last_ball if x}
+            retirement_candidates = sorted(p for p in unresolved if p not in terminal_not_out)
+            if not retirement_candidates:
+                continue
+
+            for player in retirement_candidates:
+                row = con.execute(
+                    """
+                    SELECT delivery_id
+                    FROM deliveries
+                    WHERE match_id = ? AND innings_number = ? AND batter = ?
+                    ORDER BY over_number DESC, ball_number DESC, delivery_id DESC
+                    LIMIT 1
+                    """,
+                    [match_id, innings_number, player],
+                ).fetchone()
+                if not row:
+                    continue
+                con.execute(
+                    """
+                    UPDATE deliveries
+                    SET is_wicket = TRUE,
+                        player_dismissed = ?,
+                        dismissal_kind = 'retired hurt'
+                    WHERE delivery_id = ?
+                    """,
+                    [player, row[0]],
+                )
+                fixed += 1
+
+            con.execute(
+                """
+                UPDATE innings
+                SET total_wickets = (
+                    SELECT COUNT(*)
+                    FROM deliveries d
+                    WHERE d.match_id = innings.match_id
+                      AND d.innings_number = innings.innings_number
+                      AND d.is_wicket = TRUE
+                )
+                WHERE match_id = ? AND innings_number = ?
+                """,
+                [match_id, innings_number],
+            )
+    return fixed
+
+
 def ingest_json_paths(
     db_path: Path | str,
     paths: list[Path],
@@ -361,8 +471,10 @@ def ingest_json_paths(
     extractor = MatchExtractor()
     extractor._delivery_id = int(last_id)  # noqa: SLF001
 
+    ingested_match_ids: list[str] = []
     for path in paths:
         match_id = path.stem
+        ingested_match_ids.append(match_id)
         if replace_existing_match:
             delete_match_rows(con, match_id)
         with path.open("rb") as fh:
@@ -370,6 +482,7 @@ def ingest_json_paths(
         extractor.process(match_id, data)
 
     _load_to_duckdb_rowwise(con, extractor)
+    apply_retired_hurt_fallback(con, ingested_match_ids)
     con.close()
     return extractor
 
@@ -534,6 +647,7 @@ def main() -> None:
                 log.warning("Skipping %s — %s: %s", path.name, type(exc).__name__, exc)
                 errors.append(str(path))
         _load_to_duckdb_rowwise(con, extractor)
+        apply_retired_hurt_fallback(con, [p.stem for p in json_files])
     else:
         extractor = MatchExtractor()
         errors: list[str] = []
@@ -560,6 +674,7 @@ def main() -> None:
 
         # Final flush
         _load_to_duckdb(con, extractor)
+        apply_retired_hurt_fallback(con, [p.stem for p in json_files])
 
     # Summary
     print("\n" + "=" * 60)

@@ -646,6 +646,26 @@ class SportmonksProvider(CricketAPIProvider):
         """
         include_tiers = [
             "localteam,visitorteam,venue,runs,season,league,manofmatch,"
+            "batting.batsman,batting.score,batting.bowler,batting.catchstump,"
+            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
+            "localteam,visitorteam,venue,runs,season,league,manofmatch,"
+            "batting.batsman,batting.score,"
+            "balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,venue,runs,season,league,manofmatch,batting,"
+            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
+            "localteam,visitorteam,venue,runs,season,league,manofmatch,batting,"
+            "balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,venue,runs,manofmatch,"
+            "batting.batsman,batting.score,batting.bowler,batting.catchstump,"
+            "balls.batsman,balls.bowler,balls.score,balls.catchstump",
+            "localteam,visitorteam,venue,runs,manofmatch,"
+            "batting.batsman,batting.score,"
+            "balls.batsman,balls.bowler,balls.score",
+            "localteam,visitorteam,runs,manofmatch,"
+            "batting.batsman,batting.score,"
+            "balls.batsman,balls.bowler,balls.score",
+            # Backward-compatible no-batting fallbacks (some fixtures reject batting includes).
+            "localteam,visitorteam,venue,runs,season,league,manofmatch,"
             "balls.batsman,balls.bowler,balls.score,balls.catchstump",
             "localteam,visitorteam,venue,runs,season,league,manofmatch,"
             "balls.batsman,balls.bowler,balls.score",
