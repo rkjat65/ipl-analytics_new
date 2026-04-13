@@ -24,6 +24,57 @@ import {
   Area,
 } from 'recharts'
 
+function SeasonWinRing({ row, accent, index = 0 }) {
+  const wins = Number(row?.wins || 0)
+  const losses = Number(row?.losses || 0)
+  const ties = Number(row?.ties || 0)
+  const noResults = Number(row?.no_results || 0)
+  const decided = Math.max(wins + losses + ties, 1)
+  const winPct = Math.round((wins / decided) * 100)
+  const radius = 34
+  const circumference = 2 * Math.PI * radius
+  const progress = (winPct / 100) * circumference
+
+  return (
+    <div
+      className="group rounded-2xl border border-white/10 bg-white/5 p-3 text-center animate-in"
+      style={{ animationDelay: `${index * 55}ms` }}
+    >
+      <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Season</p>
+      <p className="text-sm font-heading font-bold text-text-primary">{row?.season}</p>
+
+      <div className="mt-2 flex items-center justify-center">
+        <svg width="96" height="96" viewBox="0 0 96 96" className="drop-shadow-[0_0_12px_rgba(0,0,0,0.35)]">
+          <circle cx="48" cy="48" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+          <circle
+            cx="48"
+            cy="48"
+            r={radius}
+            fill="none"
+            stroke={accent}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${progress} ${Math.max(circumference - progress, 0)}`}
+            transform="rotate(-90 48 48)"
+          />
+          <text x="48" y="45" textAnchor="middle" className="fill-text-primary text-[17px] font-bold">
+            {winPct}
+          </text>
+          <text x="48" y="58" textAnchor="middle" className="fill-text-muted text-[9px] uppercase tracking-[0.16em]">
+            Win%
+          </text>
+        </svg>
+      </div>
+
+      <div className="mt-1 grid grid-cols-2 gap-2 text-[11px]">
+        <span className="rounded-lg border border-accent-lime/20 bg-accent-lime/10 px-2 py-1 text-accent-lime">W {wins}</span>
+        <span className="rounded-lg border border-danger/20 bg-danger/10 px-2 py-1 text-danger">L {losses}</span>
+      </div>
+      <p className="mt-2 text-[10px] text-text-muted">T {ties} • NR {noResults}</p>
+    </div>
+  )
+}
+
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
@@ -86,6 +137,7 @@ export default function TeamProfile() {
   ]
 
   const h2hData = (h2h || []).slice().sort((a, b) => b.played - a.played)
+  const seasonRingData = (seasons || []).slice().reverse()
   const seasonShowcaseData = (seasons || [])
     .map((row) => ({
       player: String(row.season),
@@ -172,6 +224,22 @@ export default function TeamProfile() {
           <div className="w-1 h-6 rounded-full" style={{ backgroundColor: color }} />
           <h2 className="text-xl font-heading font-bold text-text-primary">Season Record</h2>
         </div>
+
+        {!seasonsLoading && seasonRingData.length > 0 && (
+          <div className="card mb-6">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-heading font-semibold text-text-secondary">Season-wise Win/Loss Rings</h3>
+              <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-[10px] font-semibold text-accent-cyan">
+                Circular performance lens
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {seasonRingData.map((row, idx) => (
+                <SeasonWinRing key={row.season} row={row} accent={color} index={idx} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Season Win/Loss Chart */}
         {!seasonsLoading && (seasons || []).length > 0 && (

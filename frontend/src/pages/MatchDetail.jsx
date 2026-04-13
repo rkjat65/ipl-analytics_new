@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
 import { useFetch } from '../hooks/useFetch'
 import { getMatch, getWinProbability } from '../lib/api'
@@ -12,7 +12,7 @@ import Badge from '../components/ui/Badge'
 import { formatDate, formatDecimal } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 
-const TABS = ['Scorecard', 'Manhattan', 'Worm', 'Partnerships', 'Win Probability']
+const TABS = ['Scorecard', 'Manhattan', 'Worm', 'Run Rate Battle', 'Momentum Swing', 'Partnerships', 'Win Probability']
 
 function ChartTooltip({ active, payload, label, extra }) {
   if (!active || !payload?.length) return null
@@ -123,6 +123,37 @@ export default function MatchDetail() {
     })
     return Object.values(overMap)
   }, [overs])
+
+  const runRateData = useMemo(() => {
+    if (!overs.length) return []
+    const inn1 = overs.filter((o) => o.innings_number === 1)
+    const inn2 = overs.filter((o) => o.innings_number === 2)
+    const target = winProbData?.target || null
+    const map1 = new Map(inn1.map((o) => [o.over_number + 1, o.cumulative_runs]))
+    const map2 = new Map(inn2.map((o) => [o.over_number + 1, o.cumulative_runs]))
+    const rows = []
+    for (let over = 1; over <= 20; over += 1) {
+      const c1 = map1.get(over)
+      const c2 = map2.get(over)
+      rows.push({
+        over,
+        rr1: c1 != null ? c1 / over : null,
+        rr2: c2 != null ? c2 / over : null,
+        required_rr: target && c2 != null && over < 20 ? Math.max((target - c2) / (20 - over), 0) : null,
+      })
+    }
+    return rows
+  }, [overs, winProbData])
+
+  const momentumData = useMemo(() => {
+    if (!winProbChartData.length) return []
+    let prev = winProbChartData[0].win_prob
+    return winProbChartData.map((point, idx) => {
+      const swing = idx === 0 ? 0 : point.win_prob - prev
+      prev = point.win_prob
+      return { ...point, swing }
+    })
+  }, [winProbChartData])
 
   // Build partnership data
   const partnershipData = useMemo(() => {
@@ -562,6 +593,85 @@ export default function MatchDetail() {
     )
   }
 
+  function renderRunRateBattle() {
+    if (!runRateData.length) {
+      return <p className="text-text-muted text-sm py-12 text-center">Run-rate trend unavailable for this match.</p>
+    }
+    const inn1 = getInningsScore(1)
+    const inn2 = getInningsScore(2)
+    const team1Name = inn1 ? getTeamAbbr(inn1.batting_team) : 'Innings 1'
+    const team2Name = inn2 ? getTeamAbbr(inn2.batting_team) : 'Innings 2'
+    const color1 = inn1 ? getTeamColor(inn1.batting_team) : team1Color
+    const color2 = inn2 ? getTeamColor(inn2.batting_team) : team2Color
+
+    return (
+      <div className="card animate-in">
+        <h3 className="text-lg font-heading font-bold text-text-primary mb-1">Run Rate Battle</h3>
+        <p className="text-text-secondary text-xs mb-4">Instant view of tempo control vs chase pressure over the full innings arc.</p>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={runRateData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" vertical={false} />
+              <XAxis dataKey="over" tick={{ fill: '#8888A0', fontSize: 12 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} />
+              <YAxis tick={{ fill: '#8888A0', fontSize: 12 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} domain={[0, 'auto']} />
+              <Tooltip content={<ChartTooltip extra="Run rate by over" />} />
+              <Legend wrapperStyle={{ color: '#8888A0', fontSize: 12 }} />
+              <Line type="monotone" dataKey="rr1" name={`${team1Name} RR`} stroke={color1} strokeWidth={2.5} dot={false} connectNulls />
+              {inn2 && <Line type="monotone" dataKey="rr2" name={`${team2Name} RR`} stroke={color2} strokeWidth={2.5} dot={false} connectNulls />}
+              {inn2 && <Line type="monotone" dataKey="required_rr" name="Required RR" stroke="#FFB800" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    )
+  }
+
+  function renderMomentumSwing() {
+    if (!momentumData.length) {
+      return <p className="text-text-muted text-sm py-12 text-center">Momentum timeline unavailable for this match.</p>
+    }
+
+    const swingPeak = momentumData.reduce((best, d) => (Math.abs(d.swing) > Math.abs(best.swing) ? d : best), momentumData[0])
+    return (
+      <div className="card animate-in">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-lg font-heading font-bold text-text-primary">Momentum Swing</h3>
+            <p className="text-text-secondary text-xs">Ball-by-ball swing in chase win probability.</p>
+          </div>
+          <span className="rounded-full border border-accent-amber/20 bg-accent-amber/10 px-3 py-1 text-[10px] font-semibold text-accent-amber">
+            Peak swing: {formatDecimal(swingPeak?.swing || 0, 1)}%
+          </span>
+        </div>
+
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={momentumData} margin={{ top: 8, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" vertical={false} />
+              <XAxis dataKey="ball_label" tick={{ fill: '#8888A0', fontSize: 10 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} />
+              <Tooltip
+                formatter={(value, key) => {
+                  if (key === 'swing') return [`${formatDecimal(value, 1)}%`, 'Momentum swing']
+                  if (key === 'win_prob') return [`${formatDecimal(value, 1)}%`, 'Win probability']
+                  return [value, key]
+                }}
+                labelFormatter={(label) => `Ball ${label}`}
+                contentStyle={{ background: '#16161F', border: '1px solid #2A2A3A', borderRadius: '12px' }}
+              />
+              <ReferenceLine y={0} stroke="#8888A0" strokeOpacity={0.6} />
+              <Bar dataKey="swing" name="Momentum swing" radius={[2, 2, 0, 0]}>
+                {momentumData.map((entry) => (
+                  <Cell key={entry.ball_label} fill={entry.swing >= 0 ? '#22C55E' : '#FF2D78'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    )
+  }
+
   function renderWinProbability() {
     if (!winProbChartData.length) {
       return <p className="text-text-muted text-sm py-12 text-center">Win probability data not available for this match.</p>
@@ -754,6 +864,8 @@ export default function MatchDetail() {
         {activeTab === 'Scorecard' && renderScorecard()}
         {activeTab === 'Manhattan' && renderManhattan()}
         {activeTab === 'Worm' && renderWorm()}
+        {activeTab === 'Run Rate Battle' && renderRunRateBattle()}
+        {activeTab === 'Momentum Swing' && renderMomentumSwing()}
         {activeTab === 'Partnerships' && renderPartnerships()}
         {activeTab === 'Win Probability' && renderWinProbability()}
       </div>

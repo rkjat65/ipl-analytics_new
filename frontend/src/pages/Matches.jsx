@@ -6,8 +6,23 @@ import { getMatches, getSeasons, getTeams } from '../lib/api'
 import Loading from '../components/ui/Loading'
 import Badge from '../components/ui/Badge'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
-import { formatDate, getMatchResult } from '../utils/format'
+import { formatDate, formatDecimal, getMatchResult } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  AreaChart,
+  Area,
+} from 'recharts'
 
 const PAGE_SIZE = 20
 
@@ -42,8 +57,13 @@ export default function Matches() {
     () => getMatches({ season, team, limit: PAGE_SIZE, offset }),
     [season, team, page]
   )
+  const { data: analyticsData, loading: analyticsLoading } = useFetch(
+    () => getMatches({ season, team, limit: 500, offset: 0 }),
+    [season, team]
+  )
 
   const matches = matchesData?.matches || []
+  const analyticsMatches = analyticsData?.matches || []
   const total = matchesData?.total || 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const [sortKey, setSortKey] = useState('date')
@@ -73,6 +93,75 @@ export default function Matches() {
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
     })
   }, [matches, sortDir, sortKey])
+
+  const outcomeData = useMemo(() => {
+    const bucket = { Won: 0, Tie: 0, 'No Result': 0 }
+    analyticsMatches.forEach((m) => {
+      if ((m.result || '').toLowerCase() === 'tie') bucket.Tie += 1
+      else if ((m.result || '').toLowerCase() === 'no result' || !m.winner) bucket['No Result'] += 1
+      else bucket.Won += 1
+    })
+    return [
+      { name: 'Won', value: bucket.Won, color: '#22C55E' },
+      { name: 'Tie', value: bucket.Tie, color: '#FFB800' },
+      { name: 'No Result', value: bucket['No Result'], color: '#6B7280' },
+    ].filter((d) => d.value > 0)
+  }, [analyticsMatches])
+
+  const tossImpactData = useMemo(() => {
+    let batMatches = 0
+    let batWins = 0
+    let fieldMatches = 0
+    let fieldWins = 0
+    analyticsMatches.forEach((m) => {
+      if (!m.toss_winner || !m.winner || !m.toss_decision) return
+      if (m.toss_decision === 'bat') {
+        batMatches += 1
+        if (m.toss_winner === m.winner) batWins += 1
+      } else {
+        fieldMatches += 1
+        if (m.toss_winner === m.winner) fieldWins += 1
+      }
+    })
+    return [
+      {
+        mode: 'Bat First',
+        toss_wins: batWins,
+        toss_losses: Math.max(batMatches - batWins, 0),
+        win_pct: batMatches ? (batWins * 100) / batMatches : 0,
+      },
+      {
+        mode: 'Field First',
+        toss_wins: fieldWins,
+        toss_losses: Math.max(fieldMatches - fieldWins, 0),
+        win_pct: fieldMatches ? (fieldWins * 100) / fieldMatches : 0,
+      },
+    ]
+  }, [analyticsMatches])
+
+  const seasonIntensityData = useMemo(() => {
+    const map = new Map()
+    analyticsMatches.forEach((m) => {
+      const key = m.season || 'Unknown'
+      if (!map.has(key)) {
+        map.set(key, { season: key, matches: 0, avg_runs_margin: 0, avg_wickets_margin: 0, close_games: 0 })
+      }
+      const row = map.get(key)
+      row.matches += 1
+      row.avg_runs_margin += Number(m.win_by_runs || 0)
+      row.avg_wickets_margin += Number(m.win_by_wickets || 0)
+      const tight = (m.win_by_runs > 0 && m.win_by_runs <= 10) || (m.win_by_wickets > 0 && m.win_by_wickets <= 2)
+      if (tight) row.close_games += 1
+    })
+    return [...map.values()]
+      .sort((a, b) => String(a.season).localeCompare(String(b.season)))
+      .map((r) => ({
+        ...r,
+        avg_runs_margin: r.matches ? r.avg_runs_margin / r.matches : 0,
+        avg_wickets_margin: r.matches ? r.avg_wickets_margin / r.matches : 0,
+        close_game_pct: r.matches ? (r.close_games * 100) / r.matches : 0,
+      }))
+  }, [analyticsMatches])
 
   function updateParam(key, value) {
     const params = new URLSearchParams(searchParams)
@@ -176,6 +265,85 @@ export default function Matches() {
           </select>
         </div>
       </div>
+
+      {!analyticsLoading && analyticsMatches.length > 0 && (
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="card animate-in">
+            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-1">Result Shape</h3>
+            <p className="text-[11px] text-text-muted mb-3">How decisive this filtered sample is.</p>
+            <ResponsiveContainer width="100%" height={230}>
+              <PieChart>
+                <Pie data={outcomeData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={54} outerRadius={84} paddingAngle={3}>
+                  {outcomeData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => [value, 'Matches']}
+                  contentStyle={{ background: '#16161F', border: '1px solid #2A2A3A', borderRadius: '12px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="card animate-in" style={{ animationDelay: '80ms' }}>
+            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-1">Toss Decision Impact</h3>
+            <p className="text-[11px] text-text-muted mb-3">Win conversion after winning toss.</p>
+            <ResponsiveContainer width="100%" height={230}>
+              <BarChart data={tossImpactData} margin={{ top: 10, right: 10, left: -12, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+                <XAxis dataKey="mode" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} />
+                <YAxis tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  formatter={(value, key, payload) => {
+                    if (key === 'toss_wins') return [value, 'Won after toss']
+                    if (key === 'toss_losses') return [value, 'Lost after toss']
+                    return [value, key]
+                  }}
+                  labelFormatter={(label) => {
+                    const row = tossImpactData.find((d) => d.mode === label)
+                    return `${label} • ${formatDecimal(row?.win_pct || 0, 1)}% success`
+                  }}
+                  contentStyle={{ background: '#16161F', border: '1px solid #2A2A3A', borderRadius: '12px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="toss_wins" stackId="a" fill="#00E5FF" name="Won after toss" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="toss_losses" stackId="a" fill="#FF2D78" name="Lost after toss" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="card animate-in" style={{ animationDelay: '140ms' }}>
+            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-1">Season Intensity</h3>
+            <p className="text-[11px] text-text-muted mb-3">Close-game percentage by season filter.</p>
+            <ResponsiveContainer width="100%" height={230}>
+              <AreaChart data={seasonIntensityData} margin={{ top: 10, right: 10, left: -12, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="closeRate" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#B8FF00" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#B8FF00" stopOpacity={0.06} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
+                <XAxis dataKey="season" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} />
+                <YAxis tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} />
+                <Tooltip
+                  formatter={(value, key) => {
+                    if (key === 'close_game_pct') return [`${formatDecimal(value, 1)}%`, 'Close games']
+                    if (key === 'matches') return [value, 'Matches']
+                    return [value, key]
+                  }}
+                  contentStyle={{ background: '#16161F', border: '1px solid #2A2A3A', borderRadius: '12px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area type="monotone" dataKey="close_game_pct" name="Close games %" stroke="#B8FF00" strokeWidth={2} fill="url(#closeRate)" />
+                <Area type="monotone" dataKey="matches" name="Matches" stroke="#00E5FF" strokeWidth={1.8} fill="transparent" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      )}
 
       {/* Match List */}
       {loading ? (

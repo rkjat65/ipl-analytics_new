@@ -231,6 +231,15 @@ export default function BowlingRecords() {
       sr: entry.sr,
     }))
     .sort((a, b) => b.value - a.value)
+  const bowlingPulse = dataWithRank.slice(0, 6).map((entry) => {
+    const controlIndex = entry.economy > 0 ? (entry.wickets || 0) / entry.economy : 0
+    const strikeThreat = entry.avg > 0 ? 100 / entry.avg : 0
+    return {
+      ...entry,
+      controlIndex,
+      strikeThreat,
+    }
+  })
 
   if (error) {
     return (
@@ -528,6 +537,34 @@ export default function BowlingRecords() {
           })()}
         </div>
         </AnimatedPresentationSection>
+      )}
+
+      {!loading && bowlingPulse.length > 0 && (
+        <div className="card animate-in">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-lg font-heading font-bold text-text-primary">Bowling Control Strips</h3>
+            <span className="rounded-full border border-accent-magenta/20 bg-accent-magenta/10 px-3 py-1 text-[10px] font-semibold text-accent-magenta">
+              Top 6 pressure profiles
+            </span>
+          </div>
+          <div className="space-y-3">
+            {bowlingPulse.map((p, idx) => (
+              <div key={p.player} className="rounded-xl border border-white/10 bg-white/5 p-3 animate-in" style={{ animationDelay: `${idx * 50}ms` }}>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <PlayerNameCell name={p.player} to={`/bowling/${encodeURIComponent(p.player)}`} size={24} />
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="rounded-md border border-accent-magenta/20 bg-accent-magenta/10 px-2 py-1 text-accent-magenta">Wkts {formatNumber(p.wickets)}</span>
+                    <span className="rounded-md border border-accent-amber/20 bg-accent-amber/10 px-2 py-1 text-accent-amber">Econ {formatDecimal(p.economy, 2)}</span>
+                    <span className="rounded-md border border-accent-cyan/20 bg-accent-cyan/10 px-2 py-1 text-accent-cyan">Index {formatDecimal(p.controlIndex, 2)}</span>
+                  </div>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-[#1A1C27]">
+                  <div className="h-full rounded-full bg-[linear-gradient(90deg,#FF2D78,#8B5CF6,#00E5FF)] animate-in" style={{ width: `${Math.min(p.strikeThreat * 8, 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <LeaderboardShowcaseModal
