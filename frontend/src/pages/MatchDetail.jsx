@@ -145,6 +145,22 @@ export default function MatchDetail() {
     return rows
   }, [overs, winProbData])
 
+  // Win probability data (must come before momentumData which depends on it)
+  const winProbChartData = useMemo(() => {
+    const probabilities = winProbData?.probabilities
+    if (!probabilities || !Array.isArray(probabilities) || !probabilities.length) return []
+    return probabilities.map((d) => ({
+      ...d,
+      over: d.over_number,
+      ball: d.ball_number,
+      target: winProbData.target,
+      total_runs: d.runs_scored,
+      total_wickets: 10 - (d.wickets_in_hand || 0),
+      ball_label: `${d.over_number}.${d.ball_number}`,
+      win_prob: Math.round(d.win_probability * 100 * 10) / 10,
+    }))
+  }, [winProbData])
+
   const momentumData = useMemo(() => {
     if (!winProbChartData.length) return []
     let prev = winProbChartData[0].win_prob
@@ -166,22 +182,6 @@ export default function MatchDetail() {
       id: i,
     }))
   }, [partnerships, innings])
-
-  // Win probability data
-  const winProbChartData = useMemo(() => {
-    const probabilities = winProbData?.probabilities
-    if (!probabilities || !Array.isArray(probabilities) || !probabilities.length) return []
-    return probabilities.map((d) => ({
-      ...d,
-      over: d.over_number,
-      ball: d.ball_number,
-      target: winProbData.target,
-      total_runs: d.runs_scored,
-      total_wickets: 10 - (d.wickets_in_hand || 0),
-      ball_label: `${d.over_number}.${d.ball_number}`,
-      win_prob: Math.round(d.win_probability * 100 * 10) / 10,
-    }))
-  }, [winProbData])
 
   if (loading) return <Loading message="Loading match details..." />
 
