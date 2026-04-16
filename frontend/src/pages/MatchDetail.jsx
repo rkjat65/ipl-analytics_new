@@ -12,7 +12,7 @@ import Badge from '../components/ui/Badge'
 import { formatDate, formatDecimal } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 
-const TABS = ['Scorecard', 'Manhattan', 'Worm', 'Run Rate Battle', 'Momentum Swing', 'Partnerships', 'Win Probability']
+const TABS = ['Scorecard', 'Match Report', 'Worm', 'Run Rate Battle', 'Partnerships']
 
 function ChartTooltip({ active, payload, label, extra }) {
   if (!active || !payload?.length) return null
@@ -288,7 +288,24 @@ export default function MatchDetail() {
                             </Link>
                           </td>
                           <td className="px-4 py-2.5 text-text-secondary text-xs max-w-[200px] truncate">
-                            {b.dismissal || 'not out'}
+                            {b.dismissal ? (
+                              <span>
+                                {b.dismissal === 'bowled' && <span>b {b.dismissed_by}</span>}
+                                {b.dismissal === 'lbw' && <span>lbw b {b.dismissed_by}</span>}
+                                {b.dismissal === 'caught' && (
+                                  <span>
+                                    {b.fielder && b.fielder !== b.dismissed_by ? `c ${b.fielder} b ${b.dismissed_by}` : `c & b ${b.dismissed_by}`}
+                                  </span>
+                                )}
+                                {b.dismissal === 'stumped' && <span>st {b.fielder} b {b.dismissed_by}</span>}
+                                {b.dismissal === 'run out' && <span>run out ({b.fielder})</span>}
+                                {!['bowled', 'lbw', 'caught', 'stumped', 'run out'].includes(b.dismissal) && (
+                                  <span>{b.dismissal} {b.dismissed_by ? `b ${b.dismissed_by}` : ''}</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-accent-lime font-medium italic">not out</span>
+                            )}
                           </td>
                           <td className={`px-4 py-2.5 text-right font-mono font-semibold ${
                             isTopScorer ? 'text-accent-cyan' : 'text-text-primary'
@@ -402,48 +419,6 @@ export default function MatchDetail() {
     )
   }
 
-  function renderManhattan() {
-    if (!manhattanData.length) {
-      return <p className="text-text-muted text-sm py-12 text-center">No over-by-over data available.</p>
-    }
-
-    const inn1 = getInningsScore(1)
-    const inn2 = getInningsScore(2)
-    const team1Name = inn1 ? getTeamAbbr(inn1.batting_team) : 'Inn 1'
-    const team2Name = inn2 ? getTeamAbbr(inn2.batting_team) : 'Inn 2'
-    const color1 = inn1 ? getTeamColor(inn1.batting_team) : team1Color
-    const color2 = inn2 ? getTeamColor(inn2.batting_team) : team2Color
-
-    return (
-      <div className="card">
-        <h3 className="text-lg font-heading font-bold text-text-primary mb-4">Manhattan Chart</h3>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={manhattanData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" vertical={false} />
-              <XAxis
-                dataKey="over"
-                tick={{ fill: '#8888A0', fontSize: 12 }}
-                axisLine={{ stroke: '#1E1E2A' }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: '#8888A0', fontSize: 12 }}
-                axisLine={{ stroke: '#1E1E2A' }}
-                tickLine={false}
-              />
-              <Tooltip content={<ManhattanTooltip />} />
-              <Legend
-                wrapperStyle={{ color: '#8888A0', fontSize: 12 }}
-              />
-              <Bar dataKey="runs_1" name={team1Name} fill={color1} radius={[2, 2, 0, 0]} />
-              {inn2 && <Bar dataKey="runs_2" name={team2Name} fill={color2} radius={[2, 2, 0, 0]} />}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    )
-  }
 
   function renderWorm() {
     if (!wormData.length) {
@@ -626,126 +601,254 @@ export default function MatchDetail() {
     )
   }
 
-  function renderMomentumSwing() {
-    if (!momentumData.length) {
-      return <p className="text-text-muted text-sm py-12 text-center">Momentum timeline unavailable for this match.</p>
-    }
 
-    const swingPeak = momentumData.reduce((best, d) => (Math.abs(d.swing) > Math.abs(best.swing) ? d : best), momentumData[0])
+  function renderMatchReport() {
+    const inn1 = getInningsScore(1)
+    const inn2 = getInningsScore(2)
+    const team1Abbr = inn1 ? getTeamAbbr(inn1.batting_team) : 'T1'
+    const team2Abbr = inn2 ? getTeamAbbr(inn2.batting_team) : 'T2'
+
+    // Derived Data for Report
+    const inningsGrouped = [1, 2].map(num => {
+      const b = batting.filter(x => x.innings_number === num).sort((a, b) => b.runs - a.runs)
+      const w = bowling.filter(x => x.innings_number === num).sort((a, b) => b.wickets - a.wickets || a.runs - b.runs)
+      const team = num === 1 ? inn1?.batting_team : inn2?.batting_team
+      return { num, team, batters: b, bowlers: w }
+    }).filter(x => x.team)
+
+    const allBatters = batting.sort((a, b) => b.runs - a.runs)
+    const allBowlers = bowling.sort((a, b) => b.wickets - a.wickets || a.runs - b.runs)
+
+    const topBat = allBatters[0]
+    const topBowl = allBowlers[0]
+    const bestSR = batting.filter(b => b.balls >= 10).sort((a, b) => b.strike_rate - a.strike_rate)[0]
+    const bestEco = bowling.filter(b => b.overs >= 2).sort((a, b) => a.economy - b.economy)[0]
+
     return (
-      <div className="card animate-in">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-lg font-heading font-bold text-text-primary">Momentum Swing</h3>
-            <p className="text-text-secondary text-xs">Ball-by-ball swing in chase win probability.</p>
+      <div className="space-y-6 animate-in">
+        <style>{`
+          @keyframes slideInUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes fadeInScale {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+          }
+          .report-card-glow {
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.08);
+          }
+        `}</style>
+
+        {/* Cinematic Header Banner */}
+        <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0F] p-1 shadow-2xl report-card-glow">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent-cyan/15 via-transparent to-accent-magenta/15" />
+          <div className="relative rounded-[31px] bg-[#0A0A0F]/60 backdrop-blur-3xl p-6 sm:p-10 overflow-hidden">
+            {/* Branding */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-accent-cyan/20 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 text-accent-cyan">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5" />
+                  </svg>
+                </span>
+                <span className="text-xs font-black uppercase tracking-widest text-white/50">Crickrida Stats</span>
+              </div>
+              <div className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em]">Season {match.season} Report</div>
+            </div>
+
+            <div className="grid sm:grid-cols-[1fr_auto_1fr] items-center gap-6 sm:gap-12">
+              {/* Team 1 */}
+              <div className="flex flex-col items-center sm:items-end text-center sm:text-right space-y-3">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-3xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-4 shadow-inner relative group">
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="text-4xl sm:text-6xl font-heading font-black" style={{ color: team1Color }}>{team1Abbr}</div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white/90">{match.team1}</h3>
+                  <div className="text-2xl sm:text-4xl font-mono font-black" style={{ color: team1Color }}>
+                    {inn1?.total_runs}<span className="text-xl sm:text-2xl text-white/20">/{inn1?.total_wickets}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* VS Divider */}
+              <div className="flex flex-col items-center">
+                <div className="w-px h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+                <div className="my-2 text-white/20 font-black text-2xl italic">VS</div>
+                <div className="w-px h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+              </div>
+
+              {/* Team 2 */}
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-3">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-3xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-4 shadow-inner relative group">
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="text-4xl sm:text-6xl font-heading font-black" style={{ color: team2Color }}>{team2Abbr}</div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white/90">{match.team2}</h3>
+                  <div className="text-2xl sm:text-4xl font-mono font-black" style={{ color: team2Color }}>
+                    {inn2?.total_runs}<span className="text-xl sm:text-2xl text-white/20">/{inn2?.total_wickets}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Result footer */}
+            <div className="mt-10 pt-8 border-t border-white/5 text-center">
+              <div className="inline-block px-4 py-1 rounded-full bg-accent-lime/10 border border-accent-lime/20 text-accent-lime text-[10px] font-bold uppercase tracking-[0.2em] mb-3">
+                Official Result
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-heading font-black text-white leading-tight drop-shadow-lg">
+                {resultText}
+              </h2>
+              <p className="text-white/40 text-xs sm:text-sm font-mono mt-3">
+                {formatDate(match.date)} • {match.venue}
+              </p>
+            </div>
           </div>
-          <span className="rounded-full border border-accent-amber/20 bg-accent-amber/10 px-3 py-1 text-[10px] font-semibold text-accent-amber">
-            Peak swing: {formatDecimal(swingPeak?.swing || 0, 1)}%
-          </span>
         </div>
 
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={momentumData} margin={{ top: 8, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" vertical={false} />
-              <XAxis dataKey="ball_label" tick={{ fill: '#8888A0', fontSize: 10 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={false} />
-              <Tooltip
-                formatter={(value, key) => {
-                  if (key === 'swing') return [`${formatDecimal(value, 1)}%`, 'Momentum swing']
-                  if (key === 'win_prob') return [`${formatDecimal(value, 1)}%`, 'Win probability']
-                  return [value, key]
-                }}
-                labelFormatter={(label) => `Ball ${label}`}
-                contentStyle={{ background: '#16161F', border: '1px solid #2A2A3A', borderRadius: '12px' }}
-              />
-              <ReferenceLine y={0} stroke="#8888A0" strokeOpacity={0.6} />
-              <Bar dataKey="swing" name="Momentum swing" radius={[2, 2, 0, 0]}>
-                {momentumData.map((entry) => (
-                  <Cell key={entry.ball_label} fill={entry.swing >= 0 ? '#22C55E' : '#FF2D78'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Performer Spotlight Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Player of the Match */}
+          <div className="card !bg-[#0E121E] !border-accent-amber/30 !p-5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 text-accent-amber">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-accent-amber mb-4">Player of Match</div>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-accent-amber/10 border border-accent-amber/20 flex items-center justify-center text-3xl">🌟</div>
+              <div className="min-w-0">
+                <div className="text-lg font-bold text-white truncate">{match.player_of_match || 'N/A'}</div>
+                <div className="text-[10px] text-accent-amber/60 font-mono">STANDOUT PERFORMANCE</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Batting */}
+          <div className="card !bg-[#0E121E] !border-accent-cyan/30 !p-5 relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 text-accent-cyan">
+                <path d="M18.823 4.823a2.5 2.5 0 1 1 3.536 3.536L12.5 18.213l-4 1 1-4 9.323-9.39Z" />
+              </svg>
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-accent-cyan mb-4">Most Runs</div>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/20 flex items-center justify-center text-3xl">🏏</div>
+              <div className="min-w-0">
+                <div className="text-lg font-bold text-white truncate">{topBat?.batter || '—'}</div>
+                <div className="text-xl font-mono font-black text-accent-cyan">{topBat?.runs || 0}<span className="text-xs text-white/30 ml-1">({topBat?.balls}b)</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Bowling */}
+          <div className="card !bg-[#0E121E] !border-accent-magenta/30 !p-5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 text-accent-magenta">
+                <circle cx="12" cy="12" r="10" /><path d="m12 12-4 10 4-10-4-10 4 10 4-10-4 10 4 10-4-10z" />
+              </svg>
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-accent-magenta mb-4">Best Bowling</div>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-accent-magenta/10 border border-accent-magenta/20 flex items-center justify-center text-3xl">🔥</div>
+              <div className="min-w-0">
+                <div className="text-lg font-bold text-white truncate">{topBowl?.bowler || '—'}</div>
+                <div className="text-xl font-mono font-black text-accent-magenta">{topBowl?.wickets || 0}<span className="text-xs text-white/30 ml-1">/{topBowl?.runs || 0}</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Efficiency */}
+          <div className="card !bg-[#0E121E] !border-accent-lime/30 !p-5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 text-accent-lime">
+                <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93" />
+              </svg>
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-accent-lime mb-4">Precision</div>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-accent-lime/10 border border-accent-lime/20 flex items-center justify-center text-3xl">⚡</div>
+              <div className="min-w-0">
+                <div className="text-lg font-bold text-white truncate">{bestSR?.batter || '—'}</div>
+                <div className="text-xl font-mono font-black text-accent-lime">{bestSR?.strike_rate || 0}<span className="text-[10px] text-white/30 ml-1 uppercase">SR</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Top Performers Grid */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {inningsGrouped.map((innGroup, idx) => {
+            const teamColor = getTeamColor(innGroup.team)
+            return (
+              <div key={innGroup.num} className="card !p-0 overflow-hidden">
+                <div className="px-5 py-3 flex items-center justify-between border-b border-white/5" style={{ background: `${teamColor}08` }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: teamColor }} />
+                    <span className="text-xs font-black uppercase tracking-widest" style={{ color: teamColor }}>{getTeamAbbr(innGroup.team)} Performance</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-white/20">Innings {innGroup.num}</span>
+                </div>
+                
+                <div className="p-4 space-y-4">
+                  {/* Top 3 Batters */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Key Batsmen</p>
+                    {innGroup.batters.slice(0, 3).map((b, bi) => (
+                      <div key={bi} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-black text-white/20">0{bi+1}</span>
+                          <span className="text-sm font-bold text-white/90">{b.batter}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-mono font-black" style={{ color: teamColor }}>{b.runs}<span className="text-[10px] text-white/25 ml-1">({b.balls})</span></div>
+                          <div className="text-[9px] font-mono text-white/30 uppercase">SR {formatDecimal(b.strike_rate, 1)} • {b.fours}×4 {b.sixes}×6</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Top 3 Bowlers */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Sharp Bowlers</p>
+                    {innGroup.bowlers.slice(0, 2).map((b, bi) => (
+                      <div key={bi} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-black text-white/20">0{bi+1}</span>
+                          <span className="text-sm font-bold text-white/90">{b.bowler}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-mono font-black text-accent-magenta">{b.wickets}/{b.runs}<span className="text-[10px] text-white/25 ml-1">({b.overs}ov)</span></div>
+                          <div className="text-[9px] font-mono text-white/30 uppercase">ECON {formatDecimal(b.economy, 1)} • {b.maidens} MDN</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer Orientation Hint */}
+        <div className="flex items-center justify-center py-4 opacity-50">
+          <div className="flex items-center gap-4 text-[10px] font-mono uppercase tracking-[0.4em] text-white/60">
+            <span>Responsive Report</span>
+            <div className="w-1 h-1 rounded-full bg-white/20" />
+            <span>Premium UI</span>
+            <div className="w-1 h-1 rounded-full bg-white/20" />
+            <span>Crickrida</span>
+          </div>
         </div>
       </div>
     )
   }
 
-  function renderWinProbability() {
-    if (!winProbChartData.length) {
-      return <p className="text-text-muted text-sm py-12 text-center">Win probability data not available for this match.</p>
-    }
 
-    const inn2 = innings.find((i) => i.innings_number === 2)
-    const battingTeam = inn2?.batting_team || ''
-    const battingColor = getTeamColor(battingTeam)
-
-    return (
-      <div className="card">
-        <h3 className="text-lg font-heading font-bold text-text-primary mb-1">Win Probability</h3>
-        <p className="text-text-secondary text-xs mb-4">
-          {getTeamAbbr(battingTeam)} batting in 2nd innings (chasing {winProbData?.target || '?'})
-        </p>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={winProbChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="winProbGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={battingColor} stopOpacity={0.4} />
-                  <stop offset="95%" stopColor={battingColor} stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" vertical={false} />
-              <XAxis
-                dataKey="ball_label"
-                tick={{ fill: '#8888A0', fontSize: 10 }}
-                axisLine={{ stroke: '#1E1E2A' }}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: '#8888A0', fontSize: 12 }}
-                axisLine={{ stroke: '#1E1E2A' }}
-                tickLine={false}
-                tickFormatter={(v) => `${v}%`}
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const d = payload[0].payload
-                  return (
-                    <div className="bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 shadow-lg">
-                      <p className="text-text-secondary text-xs font-mono mb-1">
-                        Over {d.over}.{d.ball}
-                      </p>
-                      <p className="text-xs" style={{ color: battingColor }}>
-                        {getTeamAbbr(battingTeam)} Win: <span className="font-mono font-semibold">{d.win_prob}%</span>
-                      </p>
-                      <p className="text-text-muted text-xs mt-1">
-                        Score: {d.total_runs}/{d.total_wickets}
-                        {d.runs_scored > 0 && <span className="text-accent-lime ml-1">+{d.runs_scored}</span>}
-                      </p>
-                    </div>
-                  )
-                }}
-              />
-              <ReferenceLine y={50} stroke="#8888A0" strokeDasharray="6 4" strokeOpacity={0.5} />
-              <Area
-                type="monotone"
-                dataKey="win_prob"
-                name={`${getTeamAbbr(battingTeam)} Win %`}
-                stroke={battingColor}
-                strokeWidth={2}
-                fill="url(#winProbGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-6">
@@ -862,12 +965,10 @@ export default function MatchDetail() {
       {/* Tab Content */}
       <div>
         {activeTab === 'Scorecard' && renderScorecard()}
-        {activeTab === 'Manhattan' && renderManhattan()}
+        {activeTab === 'Match Report' && renderMatchReport()}
         {activeTab === 'Worm' && renderWorm()}
         {activeTab === 'Run Rate Battle' && renderRunRateBattle()}
-        {activeTab === 'Momentum Swing' && renderMomentumSwing()}
         {activeTab === 'Partnerships' && renderPartnerships()}
-        {activeTab === 'Win Probability' && renderWinProbability()}
       </div>
     </div>
   )
