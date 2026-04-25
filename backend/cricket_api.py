@@ -223,11 +223,23 @@ class SportmonksProvider(CricketAPIProvider):
     def is_configured(self) -> bool:
         return bool(self._token)
 
-    async def _call(self, path: str, include: str = "") -> dict:
+    async def _call(
+        self,
+        path: str,
+        include: str = "",
+        *,
+        extra_params: dict[str, str | int] | None = None,
+        timeout: float = 20,
+    ) -> dict:
         params: dict[str, str] = {"api_token": self._token}
         if include:
             params["include"] = include
-        async with httpx.AsyncClient(timeout=20) as client:
+        if extra_params:
+            for k, v in extra_params.items():
+                if v is None:
+                    continue
+                params[str(k)] = str(v)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.get(f"{self._BASE}/{path}", params=params)
             if r.status_code in (400, 429):
                 try:
@@ -243,6 +255,38 @@ class SportmonksProvider(CricketAPIProvider):
                     raise RateLimitError(f"Rate limited by Sportmonks: {msg}")
             r.raise_for_status()
             return r.json()
+
+    async def fetch_fixtures_by_season_page(
+        self,
+        season_id: int,
+        *,
+        page: int = 1,
+        include: str = "localteam,visitorteam",
+    ) -> dict:
+        """One page of fixtures for a Sportmonks season (for captain backfill / schedules).
+
+        Uses ``filter[season_id]`` + ``page`` per Cricket API 2.0 docs.
+        Note: nested ``lineup`` is often absent here; use ``fetch_fixture_for_lineup``.
+        """
+        return await self._call(
+            "fixtures",
+            include=include,
+            extra_params={"filter[season_id]": int(season_id), "page": int(page)},
+            timeout=45,
+        )
+
+    async def fetch_fixture_for_lineup(self, fixture_id: str) -> dict | None:
+        """Single fixture with ``lineup`` (list endpoints often omit nested lineups)."""
+        try:
+            j = await self._call(
+                f"fixtures/{fixture_id}",
+                include="localteam,visitorteam,lineup",
+                timeout=30,
+            )
+        except httpx.HTTPStatusError:
+            return None
+        inner = j.get("data")
+        return inner if isinstance(inner, dict) else None
 
     # ── helpers ──
 
@@ -775,8 +819,16 @@ class SportmonksProvider(CricketAPIProvider):
         for entry in lineup_list:
             if not isinstance(entry, dict):
                 continue
-            tid = entry.get("team_id")
-            if tid not in teams_map:
+            nested = entry.get("lineup")
+            if isinstance(nested, dict):
+                tid = nested.get("team_id") if nested.get("team_id") is not None else entry.get("team_id")
+                captain = bool(nested.get("captain") or entry.get("captain"))
+                wicketkeeper = bool(nested.get("wicketkeeper") or entry.get("wicketkeeper"))
+            else:
+                tid = entry.get("team_id")
+                captain = bool(entry.get("captain"))
+                wicketkeeper = bool(entry.get("wicketkeeper"))
+            if tid is None or tid not in teams_map:
                 continue
 
             name = (
@@ -786,8 +838,6 @@ class SportmonksProvider(CricketAPIProvider):
                 or ""
             ).strip()
             image = self._sportmonks_image_url(entry.get("image_path") or "")
-            captain = bool(entry.get("captain"))
-            wicketkeeper = bool(entry.get("wicketkeeper"))
 
             teams_map[tid]["players"].append({
                 "name": name,

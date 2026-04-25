@@ -751,3 +751,14 @@ def cap_winners():
     """)
 
     return {"orange_cap": orange, "purple_cap": purple}
+
+
+@router.get("/captain-stats-duckdb")
+def captain_stats_duckdb(season: str = Query(..., description="DuckDB season year, e.g. 2023")):
+    """Captain W/L/NR from DuckDB results joined to Sportmonks-backed captain cache (SQLite).
+
+    Populate the cache first via ``POST /api/live/admin/enrich-duckdb-captains-sportmonks``.
+    """
+    from ..captain_enrichment import aggregate_captain_stats_from_duckdb_cache
+
+    return aggregate_captain_stats_from_duckdb_cache(season)

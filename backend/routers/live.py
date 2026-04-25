@@ -7,16 +7,18 @@ the external cricket API on behalf of a user request.
 
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Header, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from ..ball_sync import build_balls_response, compute_innings_scores_from_balls, compute_scorecard_from_balls, sync_balls_for_match
 from ..cricket_api import get_cricket_api
-from ..ipl_schedule import compute_schedule_with_status
+from ..ipl_schedule import compute_schedule_with_status, ipl_2026_all_franchises
 from ..live_db import (
+    aggregate_ipl_captain_match_statistics,
     delete_balls_for_match,
     get_all_matches,
     get_ball_sync_state,
+    get_captain_map_from_scorecards,
     get_last_poll_time,
     get_match,
     get_matches_for_admin,
@@ -101,6 +103,86 @@ def live_match_info(match_id: str):
 def ipl_schedule():
     """Return IPL 2026 league-stage schedule with computed status."""
     return compute_schedule_with_status()
+
+
+@router.get("/ipl-captains")
+def ipl_captains():
+    """IPL 2026 captains derived from the latest cached scorecard lineups (Sportmonks).
+
+    Populated by the live poller after matches have lineups; no extra external API
+    calls on this request.
+    """
+    cap_map = get_captain_map_from_scorecards()
+    teams = ipl_2026_all_franchises()
+    rows = []
+    for t in teams:
+        info = cap_map.get(t)
+        rows.append(
+            {
+                "team": t,
+                "captain": info["captain"] if info else None,
+                "image": (info.get("image") or "") if info else "",
+                "sourceMatchId": info.get("matchId") if info else None,
+            }
+        )
+    filled = sum(1 for r in rows if r.get("captain"))
+    return {
+        "teams": rows,
+        "filled": filled,
+        "total": len(rows),
+        "source": "live_scorecard_cache",
+    }
+
+
+@router.get("/ipl-captain-stats")
+def ipl_captain_stats(
+    season_year: int = Query(2026, ge=2008, le=2035, description="Fixture calendar year (from cached scorecard date)."),
+    all_years: bool = Query(False, description="If true, include all cached IPL scorecards regardless of year."),
+):
+    """Captain W/L/NR from cached scorecards: lineup captain flags + ``matchWinner``.
+
+    One read of SQLite; no external API. Stats appear as the poller caches completed
+    IPL fixtures with full lineups.
+    """
+    y = None if all_years else season_year
+    return aggregate_ipl_captain_match_statistics(y)
+
+
+class DuckdbCaptainEnrichBody(BaseModel):
+    """Match DuckDB IPL rows to Sportmonks fixtures and store captains in SQLite."""
+
+    duckdb_season: str
+    sportmonks_season_id: int
+    dry_run: bool = False
+    max_pages: int = Field(80, ge=1, le=500, description="Fixture API pages to fetch (pagination).")
+
+
+@router.post("/admin/enrich-duckdb-captains-sportmonks")
+async def admin_enrich_duckdb_captains_sportmonks(
+    body: DuckdbCaptainEnrichBody,
+    authorization: Optional[str] = Header(None),
+):
+    """Fetch IPL fixtures + lineups from Sportmonks for a season and upsert captain rows.
+
+    Costs roughly one API request per page of fixtures (see Sportmonks pagination).
+    You must pass the Sportmonks **season_id** for the IPL edition (from Mysportmonks
+    or ``GET /seasons`` with a league filter), plus the DuckDB ``season`` string
+    (e.g. ``2023``) that matches ``matches.season``.
+
+    Admin only.
+    """
+    _require_admin(authorization)
+    from ..captain_enrichment import enrich_duckdb_season_from_sportmonks
+
+    try:
+        return await enrich_duckdb_season_from_sportmonks(
+            body.duckdb_season,
+            body.sportmonks_season_id,
+            dry_run=body.dry_run,
+            max_pages=body.max_pages,
+        )
+    except Exception as exc:
+        raise HTTPException(502, str(exc)) from exc
 
 
 @router.get("/poller-status")

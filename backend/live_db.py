@@ -119,6 +119,23 @@ def init_live_db():
             sync_mode       TEXT DEFAULT 'manual'
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS duckdb_match_captains (
+            match_id               TEXT PRIMARY KEY,
+            duckdb_season          TEXT NOT NULL,
+            sportmonks_fixture_id  TEXT,
+            match_date             TEXT NOT NULL,
+            team1                  TEXT NOT NULL,
+            team2                  TEXT NOT NULL,
+            captain_team1          TEXT NOT NULL,
+            captain_team2          TEXT NOT NULL,
+            updated_at             TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_duckdb_match_captains_season
+        ON duckdb_match_captains(duckdb_season)
+    """)
     # Migration: add is_tracked column (NULL = auto, 1 = force on, 0 = force off)
     try:
         conn.execute("ALTER TABLE live_matches ADD COLUMN is_tracked INTEGER")
@@ -275,6 +292,309 @@ def get_scorecard(match_id: str) -> dict | None:
         "SELECT data FROM live_scorecards WHERE match_id = ?", (match_id,)
     ).fetchone()
     return json.loads(row["data"]) if row else None
+
+
+def get_captain_map_from_scorecards() -> dict[str, dict]:
+    """Latest captain per franchise from cached scorecards (Sportmonks ``lineup``).
+
+    Rows are processed newest-first so the first captain seen for each team wins.
+    """
+    from .database import normalize_team
+
+    conn = get_live_db()
+    rows = conn.execute(
+        "SELECT match_id, data, updated_at FROM live_scorecards ORDER BY updated_at DESC"
+    ).fetchall()
+    out: dict[str, dict] = {}
+    for r in rows:
+        try:
+            sc = json.loads(r["data"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        lineup = sc.get("lineup")
+        if not isinstance(lineup, list):
+            continue
+        for block in lineup:
+            if not isinstance(block, dict):
+                continue
+            team_raw = (block.get("team") or "").strip()
+            if not team_raw:
+                continue
+            team = normalize_team(team_raw)
+            if team in out:
+                continue
+            players = block.get("players") or []
+            if not isinstance(players, list):
+                continue
+            for p in players:
+                if not isinstance(p, dict) or not p.get("captain"):
+                    continue
+                name = (p.get("name") or "").strip()
+                if not name:
+                    continue
+                out[team] = {
+                    "captain": name,
+                    "image": (p.get("image") or "").strip(),
+                    "matchId": r["match_id"],
+                    "updatedAt": r["updated_at"],
+                }
+                break
+    return out
+
+
+def _scorecard_start_year(sc: dict) -> int | None:
+    dt = (sc.get("dateTimeGMT") or sc.get("date") or "")[:10]
+    if len(dt) >= 4 and dt[:4].isdigit():
+        return int(dt[:4])
+    return None
+
+
+def _lineup_team_captains(sc: dict) -> dict[str, dict]:
+    """Map canonical franchise name → { name, image } for the flagged captain in each XI."""
+    from .database import normalize_team
+
+    out: dict[str, dict] = {}
+    lineup = sc.get("lineup")
+    if not isinstance(lineup, list):
+        return out
+    for block in lineup:
+        if not isinstance(block, dict):
+            continue
+        team_raw = (block.get("team") or "").strip()
+        if not team_raw:
+            continue
+        team = normalize_team(team_raw)
+        players = block.get("players") or []
+        if not isinstance(players, list):
+            continue
+        for p in players:
+            if not isinstance(p, dict) or not p.get("captain"):
+                continue
+            name = (p.get("name") or "").strip()
+            if not name:
+                continue
+            out[team] = {
+                "name": name,
+                "image": (p.get("image") or "").strip(),
+            }
+            break
+    return out
+
+
+def _is_ipl_franchise_matchup(sc: dict) -> bool:
+    from .database import normalize_team
+
+    teams = sc.get("teams") or []
+    if len(teams) < 2:
+        return False
+    t1 = normalize_team(teams[0])
+    t2 = normalize_team(teams[1])
+    return t1 in _IPL_TEAMS and t2 in _IPL_TEAMS
+
+
+def aggregate_ipl_captain_match_statistics(season_year: int | None = 2026) -> dict:
+    """Win / loss / NR counts per captain and per (franchise, captain) from cached IPL scorecards.
+
+    Uses Sportmonks-derived ``lineup`` (captain flag) plus ``matchWinner``. Rows without
+    both captains or without a finished result are skipped.
+
+    ``season_year`` filters by the fixture calendar year (``date`` / ``dateTimeGMT``).
+    Pass ``None`` to include all cached IPL fixtures regardless of year.
+    """
+    from .database import normalize_team
+
+    conn = get_live_db()
+    rows = conn.execute(
+        "SELECT match_id, data, updated_at FROM live_scorecards ORDER BY updated_at ASC"
+    ).fetchall()
+
+    # (franchise, captain_name) -> tallies
+    pair: dict[tuple[str, str], dict[str, int]] = {}
+    captain_image: dict[str, str] = {}
+
+    def _bump(key: tuple[str, str], field: str) -> None:
+        d = pair.setdefault(key, {"won": 0, "lost": 0, "nr": 0})
+        d[field] = d.get(field, 0) + 1
+
+    matches_used = 0
+
+    for r in rows:
+        try:
+            sc = json.loads(r["data"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not _is_ipl_franchise_matchup(sc):
+            continue
+        y = _scorecard_start_year(sc)
+        if season_year is not None and y != season_year:
+            continue
+
+        teams_raw = sc.get("teams") or []
+        if len(teams_raw) < 2:
+            continue
+        t1 = normalize_team(teams_raw[0])
+        t2 = normalize_team(teams_raw[1])
+
+        caps = _lineup_team_captains(sc)
+        if t1 not in caps or t2 not in caps:
+            continue
+
+        for _t, info in caps.items():
+            img = (info.get("image") or "").strip()
+            if img and info.get("name"):
+                captain_image[info["name"]] = img
+
+        winner_raw = (sc.get("matchWinner") or "").strip()
+        winner_n = normalize_team(winner_raw) if winner_raw else ""
+        ended = bool(sc.get("matchEnded"))
+        status_l = ((sc.get("status") or "") + " " + (sc.get("result") or "")).lower()
+
+        if winner_n and winner_n in (t1, t2):
+            loser = t2 if winner_n == t1 else t1
+            wc = caps[winner_n]["name"]
+            lc = caps[loser]["name"]
+            _bump((winner_n, wc), "won")
+            _bump((loser, lc), "lost")
+            matches_used += 1
+            continue
+
+        if ended and (
+            "no result" in status_l
+            or "abandoned" in status_l
+            or "rain" in status_l
+            or "tie" in status_l
+        ):
+            for t in (t1, t2):
+                _bump((t, caps[t]["name"]), "nr")
+            matches_used += 1
+
+    # --- Per (team, captain) rows ---
+    by_team: dict[str, list[dict]] = {}
+    for (franchise, cap_name), tallies in pair.items():
+        w, l, nr = tallies.get("won", 0), tallies.get("lost", 0), tallies.get("nr", 0)
+        played = w + l + nr
+        dec = w + l
+        win_pct = round(100.0 * w / dec, 1) if dec else None
+        row = {
+            "captain": cap_name,
+            "played": played,
+            "won": w,
+            "lost": l,
+            "nr": nr,
+            "winPct": win_pct,
+        }
+        by_team.setdefault(franchise, []).append(row)
+
+    for flist in by_team.values():
+        flist.sort(key=lambda x: (-x["won"], -x["played"], x["captain"]))
+
+    if season_year == 2026:
+        from .ipl_schedule import ipl_2026_all_franchises
+
+        for tm in ipl_2026_all_franchises():
+            by_team.setdefault(tm, [])
+
+    team_order = sorted(by_team.keys())
+    by_team_out = [
+        {"team": tm, "captains": by_team[tm]}
+        for tm in team_order
+    ]
+
+    # --- Global captain rollup (same name may captain one franchise only in practice) ---
+    cap_tot: dict[str, dict] = {}
+    for (franchise, cap_name), tallies in pair.items():
+        agg = cap_tot.setdefault(
+            cap_name,
+            {"won": 0, "lost": 0, "nr": 0, "teams": set()},
+        )
+        agg["won"] += tallies.get("won", 0)
+        agg["lost"] += tallies.get("lost", 0)
+        agg["nr"] += tallies.get("nr", 0)
+        agg["teams"].add(franchise)
+
+    captains_out: list[dict] = []
+    for cap_name, agg in cap_tot.items():
+        w, l, nr = agg["won"], agg["lost"], agg["nr"]
+        played = w + l + nr
+        dec = w + l
+        win_pct = round(100.0 * w / dec, 1) if dec else None
+        teams_led = sorted(agg["teams"])
+        captains_out.append(
+            {
+                "captain": cap_name,
+                "played": played,
+                "won": w,
+                "lost": l,
+                "nr": nr,
+                "winPct": win_pct,
+                "teamsLed": teams_led,
+                "image": captain_image.get(cap_name, ""),
+            }
+        )
+    captains_out.sort(key=lambda x: (-x["won"], -(x["winPct"] or -1), -x["played"], x["captain"]))
+
+    return {
+        "seasonYear": season_year,
+        "matchesUsed": matches_used,
+        "captains": captains_out,
+        "byTeam": by_team_out,
+        "source": "live_scorecard_cache",
+    }
+
+
+def upsert_duckdb_match_captains(
+    match_id: str,
+    duckdb_season: str,
+    sportmonks_fixture_id: str | None,
+    match_date: str,
+    team1: str,
+    team2: str,
+    captain_team1: str,
+    captain_team2: str,
+) -> None:
+    """Persist Sportmonks-derived captains for a DuckDB ``match_id`` (Cricsheet id)."""
+    conn = get_live_db()
+    now = datetime.now(timezone.utc).isoformat()
+    d = (match_date or "")[:10]
+    conn.execute(
+        """INSERT INTO duckdb_match_captains (
+            match_id, duckdb_season, sportmonks_fixture_id, match_date,
+            team1, team2, captain_team1, captain_team2, updated_at
+        ) VALUES (?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(match_id) DO UPDATE SET
+            duckdb_season=excluded.duckdb_season,
+            sportmonks_fixture_id=excluded.sportmonks_fixture_id,
+            match_date=excluded.match_date,
+            team1=excluded.team1,
+            team2=excluded.team2,
+            captain_team1=excluded.captain_team1,
+            captain_team2=excluded.captain_team2,
+            updated_at=excluded.updated_at""",
+        (
+            str(match_id),
+            str(duckdb_season),
+            str(sportmonks_fixture_id or ""),
+            d,
+            team1,
+            team2,
+            captain_team1,
+            captain_team2,
+            now,
+        ),
+    )
+    conn.commit()
+
+
+def get_duckdb_match_captains_for_season(duckdb_season: str) -> list[dict]:
+    conn = get_live_db()
+    rows = conn.execute(
+        "SELECT match_id, duckdb_season, sportmonks_fixture_id, match_date, "
+        "team1, team2, captain_team1, captain_team2, updated_at "
+        "FROM duckdb_match_captains WHERE duckdb_season = ? "
+        "ORDER BY match_date, match_id",
+        (str(duckdb_season),),
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def _looks_completed_match_status(text: str | None) -> bool:

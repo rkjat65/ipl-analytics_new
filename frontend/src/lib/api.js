@@ -156,6 +156,8 @@ export const getTitleWinners = () => fetchAPI('/analytics/title-winners')
 export const getManOfTheMatch = (params) => fetchAPI('/analytics/man-of-the-match', params)
 export const getCapWinners = () => fetchAPI('/analytics/cap-winners')
 export const getIPLPointsTable = (season = '2026') => fetchAPI('/analytics/points-table', { season })
+/** Captain W/L after Sportmonks enrich (see admin enrich-duckdb-captains-sportmonks). */
+export const getCaptainStatsDuckdb = (season) => fetchAPI('/analytics/captain-stats-duckdb', { season })
 
 // Pulse — Social Growth Engine
 export const getPulseFeed = (params) => fetchAPI('/pulse/feed', params)
@@ -220,6 +222,11 @@ export const getLiveMatches = () => fetchAPI('/live/matches')
 export const getLiveScorecard = (id) => fetchAPI(`/live/scorecard/${encodeURIComponent(id)}`)
 export const getLiveMatchInfo = (id) => fetchAPI(`/live/info/${encodeURIComponent(id)}`)
 export const getIPLSchedule = () => fetchAPI('/live/schedule')
+/** IPL 2026 captains from cached live scorecards (Sportmonks lineups). */
+export const getIPL2026Captains = () => fetchAPI('/live/ipl-captains')
+/** Captain win/loss/NR from cached scorecards (lineup + match winner). */
+export const getIPL2026CaptainStats = (season_year = 2026, all_years = false) =>
+  fetchAPI('/live/ipl-captain-stats', all_years ? { all_years: true } : { season_year })
 
 // Live Analytics
 export const getLiveMatchup = (batter, bowler, matchId) =>

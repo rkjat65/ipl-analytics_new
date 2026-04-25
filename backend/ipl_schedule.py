@@ -87,6 +87,15 @@ MATCH_WINDOW_BEFORE = timedelta(minutes=15)
 MATCH_WINDOW_AFTER = timedelta(hours=4, minutes=30)
 
 
+def ipl_2026_all_franchises() -> list[str]:
+    """Canonical franchise names appearing in the IPL 2026 league schedule (sorted)."""
+    names: set[str] = set()
+    for m in IPL_2026_SCHEDULE:
+        names.add(normalize_team(m["home"]))
+        names.add(normalize_team(m["away"]))
+    return sorted(names)
+
+
 def _parse_ist_to_utc(date_str: str, time_str: str) -> datetime:
     """Parse an IST date+time string into a UTC datetime."""
     h, m = map(int, time_str.split(":"))

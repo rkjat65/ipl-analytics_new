@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { getIPLSchedule, getMatches, getIPLPointsTable } from '../lib/api'
+import { getIPLSchedule, getMatches, getIPLPointsTable, getIPL2026CaptainStats } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
 import Loading from '../components/ui/Loading'
@@ -100,6 +100,224 @@ function SeasonProgress({ completed, total }) {
 }
 
 const QUALIFY_LINE = 4
+
+function pctLabel(v) {
+  if (v == null || Number.isNaN(v)) return '—'
+  return `${v}%`
+}
+
+function IPLCaptainStatsPanel({ data, loading, error }) {
+  const [open, setOpen] = useState(true)
+  const [teamSectionOpen, setTeamSectionOpen] = useState(true)
+  const captains = data?.captains || []
+  const byTeam = data?.byTeam || []
+  const matchesUsed = data?.matchesUsed ?? 0
+  const seasonYear = data?.seasonYear ?? 2026
+
+  return (
+    <div className="rounded-2xl border border-border-subtle bg-surface-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-4 py-3 border-b border-border-subtle/50 bg-white/[0.02] flex items-center justify-between cursor-pointer hover:bg-white/[0.04] transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg bg-accent-amber/15 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-accent-amber">
+              <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7L12 17.8 5.7 21l2.3-7-6-4.6h7.6L12 2z" />
+            </svg>
+          </span>
+          <div className="text-left">
+            <h2 className="text-sm font-bold text-text-primary tracking-tight">Captain statistics</h2>
+            <p className="text-[10px] text-text-muted font-normal">
+              Wins & losses from playing-XI captains vs match results
+              {matchesUsed > 0 && (
+                <span className="text-text-secondary">
+                  {' · '}
+                  {matchesUsed}
+                  {' '}
+                  match
+                  {matchesUsed === 1 ? '' : 'es'}
+                  {' · '}
+                  IPL
+                  {' '}
+                  {seasonYear ?? 'all'}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`w-4 h-4 text-text-muted transition-transform duration-300 ${open ? 'rotate-0' : '-rotate-90'}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      <div
+        className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden"
+        style={{ maxHeight: open ? '2400px' : '0px', opacity: open ? 1 : 0 }}
+      >
+        <div className="p-4 space-y-5">
+          {loading && <Loading />}
+          {error && <p className="text-sm text-accent-magenta">{error}</p>}
+          {!loading && !error && (
+            <>
+              {matchesUsed === 0 && (
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Numbers fill in as completed IPL matches are cached with full lineups and a winner (Sportmonks via the live poller). Follow{' '}
+                  <Link to="/live" className="text-accent-cyan font-bold hover:underline">
+                    Live Scores
+                  </Link>
+                  {' '}
+                  during the season so scorecards stay up to date.
+                </p>
+              )}
+
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-accent-cyan mb-2">Leaderboard (all franchises)</h3>
+                <div className="rounded-xl border border-border-subtle/60 overflow-x-auto">
+                  <table className="w-full text-xs min-w-[520px]">
+                    <thead>
+                      <tr className="border-b border-border-subtle/40 bg-white/[0.02] text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                        <th className="py-2 pl-3 pr-2 text-left">#</th>
+                        <th className="py-2 pr-2 text-left">Captain</th>
+                        <th className="py-2 text-center w-10">M</th>
+                        <th className="py-2 text-center w-10 text-accent-lime">W</th>
+                        <th className="py-2 text-center w-10">L</th>
+                        <th className="py-2 text-center w-10">NR</th>
+                        <th className="py-2 pr-3 text-right w-14">Win%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {captains.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-6 text-center text-text-muted font-mono text-[11px]">
+                            No completed matches with captains in cache yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        captains.map((row, idx) => (
+                          <tr key={row.captain} className="border-b border-border-subtle/20 hover:bg-white/[0.02]">
+                            <td className="py-2.5 pl-3 pr-2 font-mono text-text-muted">{idx + 1}</td>
+                            <td className="py-2.5 pr-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {row.image ? (
+                                  <img src={row.image} alt="" className="w-7 h-7 rounded-full object-cover border border-border-subtle shrink-0" />
+                                ) : (
+                                  <span className="w-7 h-7 rounded-full bg-white/[0.06] shrink-0" />
+                                )}
+                                <Link
+                                  to={`/players/${encodeURIComponent(row.captain)}`}
+                                  className="font-bold text-text-primary hover:text-accent-cyan truncate"
+                                >
+                                  {row.captain}
+                                </Link>
+                              </div>
+                            </td>
+                            <td className="py-2.5 text-center font-mono text-text-secondary">{row.played}</td>
+                            <td className="py-2.5 text-center font-mono font-bold text-accent-lime">{row.won}</td>
+                            <td className="py-2.5 text-center font-mono text-text-secondary">{row.lost}</td>
+                            <td className="py-2.5 text-center font-mono text-text-muted">{row.nr}</td>
+                            <td className="py-2.5 pr-3 text-right font-mono text-text-primary">{pctLabel(row.winPct)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border-subtle/50 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setTeamSectionOpen((o) => !o)}
+                  className="w-full px-3 py-2.5 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                >
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-accent-magenta text-left">Team-wise</h3>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={`w-3.5 h-3.5 text-text-muted transition-transform ${teamSectionOpen ? 'rotate-0' : '-rotate-90'}`}
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <div
+                  className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden border-t border-border-subtle/30"
+                  style={{ maxHeight: teamSectionOpen ? '2000px' : '0px', opacity: teamSectionOpen ? 1 : 0 }}
+                >
+                  <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {byTeam.map((block) => {
+                      const color = getTeamColor(block.team)
+                      return (
+                        <div
+                          key={block.team}
+                          className="rounded-lg border border-border-subtle/60 bg-bg-card/50 overflow-hidden"
+                          style={{ borderLeftWidth: 3, borderLeftColor: color }}
+                        >
+                          <div className="px-3 py-2 flex items-center gap-2 border-b border-border-subtle/30 bg-white/[0.02]">
+                            <TeamLogo team={block.team} size={28} />
+                            <span className="text-xs font-black text-text-primary">{getTeamAbbr(block.team)}</span>
+                            <span className="text-[10px] text-text-muted truncate">{block.team}</span>
+                          </div>
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
+                                <th className="py-1.5 pl-3 text-left">Captain</th>
+                                <th className="py-1.5 text-center w-8">M</th>
+                                <th className="py-1.5 text-center w-8 text-accent-lime">W</th>
+                                <th className="py-1.5 text-center w-8">L</th>
+                                <th className="py-1.5 text-center w-8">NR</th>
+                                <th className="py-1.5 pr-3 text-right w-12">%</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {block.captains?.length ? (
+                                block.captains.map((r) => (
+                                  <tr key={`${block.team}-${r.captain}`} className="border-t border-border-subtle/15">
+                                    <td className="py-1.5 pl-3 pr-1">
+                                      <Link
+                                        to={`/players/${encodeURIComponent(r.captain)}`}
+                                        className="font-semibold text-text-primary hover:text-accent-cyan truncate block max-w-[140px]"
+                                        title={r.captain}
+                                      >
+                                        {r.captain}
+                                      </Link>
+                                    </td>
+                                    <td className="py-1.5 text-center font-mono text-text-secondary">{r.played}</td>
+                                    <td className="py-1.5 text-center font-mono font-bold text-accent-lime">{r.won}</td>
+                                    <td className="py-1.5 text-center font-mono">{r.lost}</td>
+                                    <td className="py-1.5 text-center font-mono text-text-muted">{r.nr}</td>
+                                    <td className="py-1.5 pr-3 text-right font-mono">{pctLabel(r.winPct)}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={6} className="py-3 text-center text-text-muted">—</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function PointsTable({ data }) {
   const [open, setOpen] = useState(true)
@@ -218,6 +436,10 @@ export default function IPLSchedule() {
   const { data: schedule, loading, error } = useFetch(() => getIPLSchedule(), [])
   const { data: dbData } = useFetch(() => getMatches({ season: '2026', limit: 100, offset: 0 }), [])
   const { data: pointsTable } = useFetch(() => getIPLPointsTable('2026'), [])
+  const { data: captainStats, loading: captainStatsLoading, error: captainStatsError } = useFetch(
+    () => getIPL2026CaptainStats(2026),
+    [],
+  )
   const [teamFilter, setTeamFilter] = useState('all')
   const [reportCtx, setReportCtx] = useState(null)
   const scrollRef = useRef(null)
@@ -345,6 +567,9 @@ export default function IPLSchedule() {
 
       {/* Season progress bar (animated) */}
       <SeasonProgress completed={completedCount} total={schedule.totalMatches} />
+
+      {/* Captain W/L from cached lineups + results */}
+      <IPLCaptainStatsPanel data={captainStats} loading={captainStatsLoading} error={captainStatsError} />
 
       {/* Points Table */}
       <PointsTable data={pointsTable} />
