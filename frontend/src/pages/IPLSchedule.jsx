@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getIPLSchedule, getMatches, getIPLPointsTable, getIPL2026CaptainStats } from '../lib/api'
@@ -442,8 +442,11 @@ export default function IPLSchedule() {
   )
   const [teamFilter, setTeamFilter] = useState('all')
   const [reportCtx, setReportCtx] = useState(null)
-  const scrollRef = useRef(null)
   const countdown = useCountdown(schedule?.nextMatch?.dateTimeGMT)
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
 
   const matchLookup = useMemo(() => buildMatchLookup(dbData?.matches), [dbData])
 
@@ -459,12 +462,6 @@ export default function IPLSchedule() {
     if (teamFilter === 'all') return schedule.matches
     return schedule.matches.filter(m => m.home === teamFilter || m.away === teamFilter)
   }, [schedule, teamFilter])
-
-  useEffect(() => {
-    if (!schedule?.nextMatch || !scrollRef.current) return
-    const el = scrollRef.current.querySelector(`[data-match="${schedule.nextMatch.match}"]`)
-    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
-  }, [schedule])
 
   if (loading) return <Loading />
   if (error) return <div className="text-accent-magenta text-sm p-4">{error}</div>
@@ -594,7 +591,7 @@ export default function IPLSchedule() {
       </div>
 
       {/* Match tiles */}
-      <div ref={scrollRef} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {filteredMatches.map((m) => {
           const d = new Date(m.date + 'T00:00:00')
           const dayStr = DAYS[d.getDay()]

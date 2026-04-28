@@ -59,7 +59,8 @@ async def main() -> None:
 
     import duckdb
 
-    con = duckdb.connect(str(ROOT / "ipl.duckdb"), read_only=True)
+    duck_path = os.environ.get("DUCKDB_PATH") or str(ROOT / "ipl.duckdb")
+    con = duckdb.connect(duck_path, read_only=True)
     seasons = [
         r[0]
         for r in con.execute(

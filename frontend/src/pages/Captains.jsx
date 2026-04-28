@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import {
@@ -218,14 +218,27 @@ export default function Captains() {
   )
   const { data: live26Squads, loading: squadsLoading, error: squadsErr } = useFetch(() => getIPL2026Captains(), [])
 
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   return (
     <div className="space-y-6">
       <SEO
-        title="Captains — Crickrida"
+        title="Captains (admin) — Crickrida"
         description="IPL captain statistics, win-loss records by franchise, and current playing-XI captains."
-        url="https://crickrida.rkjat.in/captains"
+        url="https://crickrida.rkjat.in/admin/captains"
         keywords="IPL captains, captain statistics, IPL win loss captain, playing XI captain"
       />
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Link
+          to="/admin"
+          className="text-text-muted hover:text-accent-cyan font-mono font-semibold"
+        >
+          ← Admin panel
+        </Link>
+      </div>
 
       <div>
         <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-3">

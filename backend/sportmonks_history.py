@@ -10,7 +10,7 @@ from pathlib import Path
 import orjson
 
 from .cricket_api import SportmonksProvider, get_cricket_api
-from .database import refresh_db
+from .database import DB_PATH, refresh_db
 from .live_db import get_match, get_scorecard, upsert_scorecard
 from .sportmonks_cricsheet_export import fixture_to_cricsheet, normalize_cricsheet_names_to_duckdb
 
@@ -18,7 +18,8 @@ log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _IPL_JSON = REPO_ROOT / "ipl_json"
-_DUCKDB = REPO_ROOT / "ipl.duckdb"
+# Same file the API uses (respects DUCKDB_PATH in Docker / Oracle).
+_DUCKDB = Path(DB_PATH)
 
 
 def _completed_match_status_from_doc(doc: dict) -> str:

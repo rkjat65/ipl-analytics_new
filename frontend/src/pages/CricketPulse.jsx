@@ -297,7 +297,7 @@ function SavedQueryCard({ item, onRestore, onDelete }) {
           <div className="flex gap-1.5 shrink-0">
             <button onClick={() => onRestore(item)}
               className="w-8 h-8 rounded-lg bg-accent-cyan/10 flex items-center justify-center text-accent-cyan hover:bg-accent-cyan/20 transition-all text-xs"
-              title="Restore & view">
+              title="Copy question to clipboard & open Pulse feed">
               ↩
             </button>
             <button onClick={() => onDelete(item.timestamp)}
@@ -741,7 +741,10 @@ export default function CricketPulse() {
   }
 
   const handleRestoreSaved = (item) => {
-    setActiveTab('ask')
+    if (item?.question) {
+      navigator.clipboard.writeText(item.question).catch(() => {})
+    }
+    setActiveTab('feed')
   }
 
   const TABS = [
@@ -1006,11 +1009,9 @@ export default function CricketPulse() {
             <div className="text-center py-16 bg-bg-card border border-border-subtle rounded-2xl">
               <span className="text-5xl block mb-4 opacity-40">📌</span>
               <h3 className="text-lg font-heading font-bold text-text-primary mb-2">No Saved Queries Yet</h3>
-              <p className="text-text-secondary text-sm mb-4">{"Ask questions in the \"Ask Cricket\" tab and hit Save to bookmark them here"}</p>
-              <button onClick={() => setActiveTab('ask')}
-                className="px-5 py-2.5 rounded-xl bg-accent-cyan/15 text-accent-cyan text-sm font-heading font-semibold border border-accent-cyan/30 hover:bg-accent-cyan/25 transition-all">
-                🏏 Go to Ask Cricket
-              </button>
+              <p className="text-text-secondary text-sm max-w-md mx-auto">
+                Bookmarked Ask Cricket answers you saved earlier will show here. New saves are not available while that experience is turned off.
+              </p>
             </div>
           )}
 

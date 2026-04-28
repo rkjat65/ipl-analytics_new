@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getAdminUsers, getAdminStats, runAdminSqlQuery, getLivePollerConfig, startLivePoller, stopLivePoller, setLivePollerInterval, refreshLiveMatches, getAdminLiveMatches, setMatchTracking, deleteBalls, syncBalls } from '../lib/api'
 import SEO from '../components/SEO'
@@ -568,6 +569,25 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* Experimental tools */}
+      <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border-subtle">
+          <h2 className="font-heading font-bold text-text-primary text-sm">Experimental</h2>
+          <p className="text-[10px] text-text-muted font-mono mt-1">
+            Internal-only views; not linked in the main navigation.
+          </p>
+        </div>
+        <div className="p-5 flex flex-wrap gap-3">
+          <Link
+            to="/admin/captains"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent-amber/10 border border-accent-amber/25 text-accent-amber text-xs font-bold hover:bg-accent-amber/15 transition-colors"
+          >
+            <span className="text-base" aria-hidden>⭐</span>
+            Captain statistics (Sportmonks / DuckDB)
+          </Link>
+        </div>
+      </div>
 
       {/* SQL Query Console */}
       <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden">

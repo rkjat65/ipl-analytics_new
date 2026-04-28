@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-
-const ADMIN_EMAIL = 'rkdevanda65@gmail.com'
+import { PLATFORM_ADMIN_EMAIL } from '../../constants/adminAccess'
 
 const navItems = [
   {
@@ -30,16 +29,6 @@ const navItems = [
     ),
   },
   {
-    to: '/captains',
-    label: 'Captains',
-    highlight: 'amber',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
-        <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7L12 17.8 5.7 21l2.3-7-6-4.6h7.6L12 2z" />
-      </svg>
-    ),
-  },
-  {
     to: '/dashboard',
     label: 'Dashboard',
     highlight: 'purple',
@@ -49,19 +38,6 @@ const navItems = [
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
         <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
-   {
-    to: '/ask',
-    label: 'Ask AI',
-    highlight: 'magenta',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        <circle cx="12" cy="10" r="1" fill="currentColor" />
-        <circle cx="8" cy="10" r="1" fill="currentColor" />
-        <circle cx="16" cy="10" r="1" fill="currentColor" />
       </svg>
     ),
   },
@@ -134,21 +110,6 @@ const navItems = [
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-      </svg>
-    ),
-  },
-  {
-    to: '/player-impact',
-    label: 'Impact',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="6" />
-        <circle cx="12" cy="12" r="2" />
-        <line x1="12" y1="2" x2="12" y2="6" />
-        <line x1="12" y1="18" x2="12" y2="22" />
-        <line x1="2" y1="12" x2="6" y2="12" />
-        <line x1="18" y1="12" x2="22" y2="12" />
       </svg>
     ),
   },
@@ -338,7 +299,7 @@ export default function Sidebar({ open, onToggle }) {
               </div>
 
               {/* Admin button */}
-              {user?.email?.toLowerCase() === ADMIN_EMAIL && (
+              {user?.email?.toLowerCase() === PLATFORM_ADMIN_EMAIL && (
                 <NavLink
                   to="/admin"
                   className={({ isActive }) =>

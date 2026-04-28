@@ -4,7 +4,10 @@ import os
 import threading
 import duckdb
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "ipl.duckdb")
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_default_duckdb = os.path.join(_repo_root, "ipl.duckdb")
+# Oracle / Docker: compose sets DUCKDB_PATH=/data/ipl.duckdb so reads match persistent volume ingests.
+DB_PATH = os.path.abspath(os.environ.get("DUCKDB_PATH", _default_duckdb))
 
 # ── Team name normalisation ──────────────────────────────────────────
 TEAM_NAME_MAP = {

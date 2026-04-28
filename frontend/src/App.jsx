@@ -16,16 +16,15 @@ import Seasons from './pages/Seasons'
 import HeadToHead from './pages/HeadToHead'
 import BattingCompare from './pages/BattingCompare'
 import ContentStudio from './pages/ContentStudio'
-import AskCricket from './pages/AskCricket'
 import SocialCompose from './pages/SocialCompose'
 // AdvancedAnalytics removed — Team Form Index moved to Content Studio
 import CricketPulse from './pages/CricketPulse'
-import PlayerImpact from './pages/PlayerImpact'
 import LiveScores from './pages/LiveScores'
 import IPLSchedule from './pages/IPLSchedule'
 import Captains from './pages/Captains'
 import Admin from './pages/Admin'
 import About from './pages/About'
+import AdminOnlyRoute from './components/auth/AdminOnlyRoute'
 
 export default function App() {
   return (
@@ -53,15 +52,25 @@ export default function App() {
         <Route path="/players/:playerName" element={<PlayerProfile />} />
         <Route path="/h2h" element={<HeadToHead />} />
         <Route path="/content-studio" element={<ContentStudio />} />
-        <Route path="/ask" element={<ProtectedRoute><AskCricket /></ProtectedRoute>} />
+        <Route path="/ask" element={<Navigate to="/live" replace />} />
         <Route path="/social" element={<SocialCompose />} />
         <Route path="/charts" element={<Navigate to="/dashboard#dashboard-insights" replace />} />
         <Route path="/live" element={<LiveScores />} />
         <Route path="/ipl-schedule" element={<IPLSchedule />} />
-        <Route path="/captains" element={<Captains />} />
+        <Route path="/captains" element={<Navigate to="/live" replace />} />
         <Route path="/pulse" element={<CricketPulse />} />
-        <Route path="/player-impact" element={<PlayerImpact />} />
+        <Route path="/player-impact" element={<Navigate to="/live" replace />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+        <Route
+          path="/admin/captains"
+          element={(
+            <ProtectedRoute>
+              <AdminOnlyRoute>
+                <Captains />
+              </AdminOnlyRoute>
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/about" element={<About />} />
       </Route>
     </Routes>
