@@ -15,6 +15,7 @@ import {
   usePresentationDeck,
 } from '../components/ui/ChartPresentation'
 import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
+import PlayerCompare from '../components/ui/PlayerCompare'
 import { exportAsImage, downloadImage } from '../utils/exportCard'
 import {
   BarChart,
@@ -130,6 +131,7 @@ export default function BattingRecords() {
   const [minBalls, setMinBalls] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [showcaseOpen, setShowcaseOpen] = useState(false)
+  const [comparePlayers, setComparePlayers] = useState([])
   const deck = usePresentationDeck(3, { autoStart: true, baseDelay: 900 })
 
   const handleDownloadChart = useCallback(async () => {
@@ -188,6 +190,37 @@ export default function BattingRecords() {
     { key: 'hundreds', label: '100s', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
     { key: 'fours', label: '4s', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
     { key: 'sixes', label: '6s', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
+    {
+      key: 'compare',
+      label: 'Compare',
+      align: 'center',
+      render: (_, row) => {
+        const isSelected = comparePlayers.some(p => p.player === row.player)
+        return (
+          <button
+            onClick={() => {
+              if (isSelected) {
+                setComparePlayers(prev => prev.filter(p => p.player !== row.player))
+              } else if (comparePlayers.length < 3) {
+                setComparePlayers(prev => [...prev, row])
+              }
+            }}
+            className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center ${
+              isSelected 
+                ? 'bg-accent-cyan border-accent-cyan text-bg-primary shadow-[0_0_12px_rgba(0,229,255,0.4)]' 
+                : 'border-white/10 bg-white/5 text-text-muted hover:border-accent-cyan/40 hover:text-accent-cyan'
+            }`}
+            title={isSelected ? 'Remove from comparison' : 'Add to comparison'}
+          >
+            {isSelected ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-4 h-4"><polyline points="20 6 9 17 4 12" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            )}
+          </button>
+        )
+      }
+    }
   ]
 
   const dataWithRank = (Array.isArray(batters) ? batters : []).map((b, i) => ({
@@ -252,6 +285,11 @@ export default function BattingRecords() {
       <SEO
         title="Batting Records & Leaderboard"
         description="IPL batting records and leaderboard. Top run scorers, highest strike rates, centuries, and batting averages across all IPL seasons."
+      />
+
+      <PlayerCompare 
+        players={comparePlayers} 
+        onRemove={(name) => setComparePlayers(prev => prev.filter(p => p.player !== name))} 
       />
       <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(184,255,0,0.16),transparent_0%,transparent_36%),radial-gradient(circle_at_bottom_right,rgba(0,229,255,0.12),transparent_0%,transparent_34%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] animate-in">
         <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">

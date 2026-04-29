@@ -29,8 +29,8 @@ import AdminOnlyRoute from './components/auth/AdminOnlyRoute'
 export default function App() {
   return (
     <Routes>
-      {/* Default: redirect to live scores */}
-      <Route path="/" element={<Navigate to="/live" replace />} />
+      {/* Default: redirect to dashboard */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<Login />} />
 
       {/* App routes (with sidebar/header layout) */}
@@ -52,14 +52,14 @@ export default function App() {
         <Route path="/players/:playerName" element={<PlayerProfile />} />
         <Route path="/h2h" element={<HeadToHead />} />
         <Route path="/content-studio" element={<ContentStudio />} />
-        <Route path="/ask" element={<Navigate to="/live" replace />} />
+        <Route path="/ask" element={<Navigate to="/dashboard" replace />} />
         <Route path="/social" element={<SocialCompose />} />
         <Route path="/charts" element={<Navigate to="/dashboard#dashboard-insights" replace />} />
-        <Route path="/live" element={<LiveScores />} />
-        <Route path="/ipl-schedule" element={<IPLSchedule />} />
-        <Route path="/captains" element={<Navigate to="/live" replace />} />
+        {/* <Route path="/live" element={<LiveScores />} /> */}
+        {/* <Route path="/ipl-schedule" element={<IPLSchedule />} /> */}
+        <Route path="/captains" element={<Navigate to="/dashboard" replace />} />
         <Route path="/pulse" element={<CricketPulse />} />
-        <Route path="/player-impact" element={<Navigate to="/live" replace />} />
+        <Route path="/player-impact" element={<Navigate to="/dashboard" replace />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route
           path="/admin/captains"

@@ -708,9 +708,9 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Link to="/live" className="inline-flex items-center rounded-full border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/15 transition-colors">
+{/* <Link to="/live" className="inline-flex items-center rounded-full border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/15 transition-colors">
                 Live centre
-              </Link>
+              </Link> */}
               <Link to="/matches" className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary transition-colors">
                 Matches
               </Link>
@@ -844,13 +844,16 @@ export default function Dashboard() {
               <div className="flex items-baseline gap-2 mb-2">
                 <span className="text-text-muted font-mono text-xs w-5 text-right">#1</span>
                 <Link to={`/matches/${topTotalsList[0].match_id}`} className="hover:underline flex-1 min-w-0">
-                  <span className="text-xl font-heading font-bold text-accent-lime stat-glow-lime">
-                    {topTotalsList[0].total_runs}
-                  </span>
-                  <span className="text-text-secondary ml-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-heading font-bold text-accent-lime stat-glow-lime">
+                      {topTotalsList[0].total_runs}
+                    </span>
+                    <TeamLogo team={topTotalsList[0].batting_team} size={20} />
+                  </div>
+                  <span className="text-text-secondary text-sm block truncate">
                     {topTotalsList[0].batting_team}
                   </span>
-                  <span className="text-text-muted ml-1 text-xs">
+                  <span className="text-text-muted text-xs">
                     vs {topTotalsList[0].opponent}
                   </span>
                 </Link>
@@ -861,9 +864,11 @@ export default function Dashboard() {
                 <div key={item.match_id || idx} className="flex items-baseline gap-2 py-1.5 border-t border-[#1E1E2A]">
                   <span className="text-text-muted font-mono text-xs w-5 text-right">#{idx + 2}</span>
                   <Link to={`/matches/${item.match_id}`} className="hover:underline flex-1 min-w-0">
-                    <span className="font-mono font-bold text-accent-lime text-sm">{item.total_runs}</span>
-                    <span className="text-text-secondary ml-2 text-xs">{item.batting_team}</span>
-                    <span className="text-text-muted ml-1 text-xs">vs {item.opponent}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-accent-lime text-sm">{item.total_runs}</span>
+                      <TeamLogo team={item.batting_team} size={16} />
+                      <span className="text-text-secondary text-xs truncate">{item.batting_team}</span>
+                    </div>
                   </Link>
                 </div>
               ))}
@@ -1100,8 +1105,15 @@ export default function Dashboard() {
                   <YAxis
                     type="category"
                     dataKey="team"
-                    width={60}
-                    tick={{ fill: '#C8C8D8', fontSize: 12 }}
+                    width={80}
+                    tick={({ x, y, payload }) => (
+                      <g transform={`translate(${x},${y})`}>
+                        <foreignObject x={-75} y={-10} width={20} height={20}>
+                          <TeamLogo team={payload.value} size={18} />
+                        </foreignObject>
+                        <text x={-52} y={5} fill="#C8C8D8" fontSize={10} textAnchor="start">{getTeamAbbr(payload.value)}</text>
+                      </g>
+                    )}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -1477,7 +1489,21 @@ export default function Dashboard() {
                   <BarChart data={phaseInsightData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
                     <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
-                    <YAxis type="category" dataKey="team" width={48} tick={{ fill: '#C8C8D8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis 
+                      type="category" 
+                      dataKey="team" 
+                      width={60} 
+                      tick={({ x, y, payload }) => (
+                        <g transform={`translate(${x},${y})`}>
+                          <foreignObject x={-55} y={-10} width={20} height={20}>
+                            <TeamLogo team={payload.value} size={18} />
+                          </foreignObject>
+                          <text x={-32} y={5} fill="#C8C8D8" fontSize={10} textAnchor="start">{getTeamAbbr(payload.value)}</text>
+                        </g>
+                      )}
+                      axisLine={false} 
+                      tickLine={false} 
+                    />
                     <Tooltip content={({ active, payload }) => {
                       if (!active || !payload?.length) return null
                       const d = payload[0]?.payload

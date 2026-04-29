@@ -403,7 +403,7 @@ export function LandingContent() {
         <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
           <div className="animate-slide-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/5 mb-8">
             <div className="w-2 h-2 rounded-full bg-[#B8FF00] animate-pulse" />
-            <span className="text-xs font-mono text-[#00E5FF] uppercase tracking-wider">IPL 2026 Live Scores &bull; 17+ Years of Data</span>
+            <span className="text-xs font-mono text-[#00E5FF] uppercase tracking-wider">IPL Analytics &bull; 17+ Years of Data</span>
           </div>
 
           <h1 className="animate-slide-up-delay-1 font-heading font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] mb-6">
@@ -450,9 +450,9 @@ export function LandingContent() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            <FeatureCard delay={0} accent="from-[#FF2D78]/20 to-[#FF2D78]/5"
+            {/* <FeatureCard delay={0} accent="from-[#FF2D78]/20 to-[#FF2D78]/5"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" /></svg>}
-              title="Live Scores & Schedule" description="Real-time cricket scores via CricAPI with IPL 2026 full schedule, countdown to next match, and team filtering." />
+              title="Live Scores & Schedule" description="Real-time cricket scores via CricAPI with IPL 2026 full schedule, countdown to next match, and team filtering." /> */}
             <FeatureCard delay={80} accent="from-[#00E5FF]/20 to-[#00E5FF]/5"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>}
               title="Interactive Dashboard" description="KPIs, leaderboards, win charts, and season trends — all filterable with multi-season selection and animated counters." />
@@ -486,8 +486,8 @@ export function LandingContent() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <ShowcaseCard delay={0} title="Interactive Dashboard" description="Real-time KPIs, leaderboards, and animated trend charts in one glance." gradient="from-[#00E5FF] to-[#00E5FF]/50" mockup={(vis) => <MockDashboard animate={vis} />}
               features={['Animated counters for matches, runs, wickets, sixes', 'Season-filterable bar charts and leaderboards', 'Top batters, bowlers, and team win charts', 'Downloadable chart images for sharing']} />
-            <ShowcaseCard delay={100} title="Live Scores & Schedule" description="Real-time scores via CricAPI with IPL 2026 complete schedule and countdown." gradient="from-[#FF2D78] to-[#FF2D78]/50" mockup={(vis) => <MockLiveScores animate={vis} />}
-              features={['Live match scores with auto-refresh every 15 min', 'IPL 2026 full 70-match schedule with team filter', 'Countdown timer to next upcoming match', 'IPL matches highlighted and sorted first']} />
+            {/* <ShowcaseCard delay={100} title="Live Scores & Schedule" description="Real-time scores via CricAPI with IPL 2026 complete schedule and countdown." gradient="from-[#FF2D78] to-[#FF2D78]/50" mockup={(vis) => <MockLiveScores animate={vis} />}
+              features={['Live match scores with auto-refresh every 15 min', 'IPL 2026 full 70-match schedule with team filter', 'Countdown timer to next upcoming match', 'IPL matches highlighted and sorted first']} /> */}
             <ShowcaseCard delay={200} title="Ask Cricket AI" description="Natural language queries powered by Gemini AI with instant chart responses." gradient="from-[#B8FF00] to-[#B8FF00]/50" mockup={(vis) => <MockAIChat animate={vis} />}
               features={['Ask any question in plain English', 'Context-aware SQL generation from your data', 'Instant table and chart rendering', 'Powered by Gemini AI model']} />
             <ShowcaseCard delay={300} title="Content Studio" description="Generate share-ready stat cards in branded templates for social media." gradient="from-[#FFB800] to-[#FFB800]/50" mockup={(vis) => <MockContentStudio animate={vis} />}
@@ -709,7 +709,7 @@ export default function Landing() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            <FeatureCard
+            {/* <FeatureCard
               delay={0}
               accent="from-[#FF2D78]/20 to-[#FF2D78]/5"
               icon={
@@ -719,7 +719,7 @@ export default function Landing() {
               }
               title="Live Scores & Schedule"
               description="Real-time cricket scores via CricAPI with IPL 2026 full schedule, countdown to next match, and team filtering."
-            />
+            /> */}
             <FeatureCard
               delay={80}
               accent="from-[#00E5FF]/20 to-[#00E5FF]/5"
@@ -804,7 +804,7 @@ export default function Landing() {
                 'Downloadable chart images for sharing',
               ]}
             />
-            <ShowcaseCard
+            {/* <ShowcaseCard
               delay={100}
               title="Live Scores & Schedule"
               description="Real-time scores via CricAPI with IPL 2026 complete schedule and countdown."
@@ -816,7 +816,7 @@ export default function Landing() {
                 'Countdown timer to next upcoming match',
                 'IPL matches highlighted and sorted first',
               ]}
-            />
+            /> */}
             <ShowcaseCard
               delay={200}
               title="Ask Cricket AI"

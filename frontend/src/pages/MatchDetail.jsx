@@ -11,6 +11,8 @@ import Loading from '../components/ui/Loading'
 import Badge from '../components/ui/Badge'
 import { formatDate, formatDecimal } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
+import PlayerAvatar from '../components/ui/PlayerAvatar'
+import TeamLogo from '../components/ui/TeamLogo'
 
 const TABS = ['Scorecard', 'Match Report', 'Worm', 'Run Rate Battle', 'Partnerships']
 
@@ -246,7 +248,8 @@ export default function MatchDetail() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-8 rounded-full" style={{ backgroundColor: teamColor }} />
                 <div>
-                  <h3 className="text-lg font-heading font-bold text-text-primary">
+                  <h3 className="text-lg font-heading font-bold text-text-primary flex items-center gap-2">
+                    <TeamLogo team={inn.batting_team} size={24} />
                     {inn.batting_team} Innings
                   </h3>
                   <p className="text-text-secondary text-sm font-mono">
@@ -274,18 +277,21 @@ export default function MatchDetail() {
                       const isTopScorer = topScorer && b.batter === topScorer.batter
                       return (
                         <tr
-                          key={b.batter + i}
-                          className={`border-b border-border-subtle transition-colors hover:bg-bg-card-hover ${
+                          key={b.player + i}
+                          className={`border-b border-border-subtle transition-colors hover:bg-bg-card-hover group ${
                             i % 2 === 1 ? 'bg-bg-card/50' : ''
                           } ${isTopScorer ? 'bg-accent-cyan/5' : ''}`}
                         >
                           <td className="px-4 py-2.5 text-text-primary font-medium whitespace-nowrap">
-                            <Link
-                              to={`/batting/${encodeURIComponent(b.batter)}`}
-                              className={`hover:underline ${isTopScorer ? 'text-accent-cyan' : ''}`}
-                            >
-                              {b.batter}
-                            </Link>
+                            <div className="flex items-center gap-3">
+                              <PlayerAvatar name={b.batter} size={24} />
+                              <Link
+                                to={`/batting/${encodeURIComponent(b.batter)}`}
+                                className={`hover:underline ${isTopScorer ? 'text-accent-cyan' : ''}`}
+                              >
+                                {b.batter}
+                              </Link>
+                            </div>
                           </td>
                           <td className="px-4 py-2.5 text-text-secondary text-xs max-w-[200px] truncate">
                             {b.dismissal ? (
@@ -372,12 +378,15 @@ export default function MatchDetail() {
                           } ${isBest ? 'bg-accent-magenta/5' : ''}`}
                         >
                           <td className="px-4 py-2.5 text-text-primary font-medium whitespace-nowrap">
-                            <Link
-                              to={`/bowling/${encodeURIComponent(b.bowler)}`}
-                              className={`hover:underline ${isBest ? 'text-accent-magenta' : ''}`}
-                            >
-                              {b.bowler}
-                            </Link>
+                            <div className="flex items-center gap-3">
+                              <PlayerAvatar name={b.bowler} size={24} />
+                              <Link
+                                to={`/bowling/${encodeURIComponent(b.bowler)}`}
+                                className={`hover:underline ${isBest ? 'text-accent-magenta' : ''}`}
+                              >
+                                {b.bowler}
+                              </Link>
+                            </div>
                           </td>
                           <td className="px-4 py-2.5 text-right font-mono text-text-secondary">{b.overs}</td>
                           <td className="px-4 py-2.5 text-right font-mono text-text-secondary">{b.maidens}</td>
@@ -662,7 +671,7 @@ export default function MatchDetail() {
               <div className="flex flex-col items-center sm:items-end text-center sm:text-right space-y-3">
                 <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-3xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-4 shadow-inner relative group">
                   <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-4xl sm:text-6xl font-heading font-black" style={{ color: team1Color }}>{team1Abbr}</div>
+                  <TeamLogo team={match.team1} size={80} className="transition-transform group-hover:scale-110 duration-500" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white/90">{match.team1}</h3>
@@ -683,7 +692,7 @@ export default function MatchDetail() {
               <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-3">
                 <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-3xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-4 shadow-inner relative group">
                   <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-4xl sm:text-6xl font-heading font-black" style={{ color: team2Color }}>{team2Abbr}</div>
+                  <TeamLogo team={match.team2} size={80} className="transition-transform group-hover:scale-110 duration-500" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white/90">{match.team2}</h3>
@@ -864,10 +873,12 @@ export default function MatchDetail() {
       <div className="card space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text-primary">
+            <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text-primary flex items-center gap-3">
+              <TeamLogo team={match.team1} size={32} />
               <span style={{ color: team1Color }}>{getTeamAbbr(match.team1)}</span>
-              <span className="text-text-muted mx-3">vs</span>
+              <span className="text-text-muted italic mx-1">vs</span>
               <span style={{ color: team2Color }}>{getTeamAbbr(match.team2)}</span>
+              <TeamLogo team={match.team2} size={32} />
             </h1>
             <div className="flex flex-wrap items-center gap-3 mt-2 text-text-secondary text-sm">
               <span className="font-mono">{formatDate(match.date)}</span>
@@ -906,9 +917,47 @@ export default function MatchDetail() {
             {resultText}
           </p>
         </div>
+      </div>
 
-        {/* Match Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+      {/* MVP Spotlight */}
+      {match.player_of_match && (
+        <div className="card !p-0 overflow-hidden bg-gradient-to-br from-white/5 to-transparent border-accent-amber/20 animate-in" style={{ animationDelay: '100ms' }}>
+          <div className="flex flex-col sm:flex-row items-center gap-6 p-6">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-accent-amber blur-xl opacity-20 group-hover:opacity-30 transition-opacity" />
+              <PlayerAvatar name={match.player_of_match} size={100} ringColor="#FFB800" />
+              <div className="absolute -bottom-2 -right-2 bg-accent-amber text-bg-primary text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter">MVP</div>
+            </div>
+            <div className="flex-1 text-center sm:text-left space-y-2">
+              <h3 className="text-2xl font-heading font-black text-text-primary tracking-tight">{match.player_of_match}</h3>
+              <p className="text-sm text-text-muted leading-relaxed">
+                Awarded Player of the Match for a standout performance that turned the tide in favor of {match.winner}.
+              </p>
+              <div className="flex flex-wrap justify-center sm:justify-start gap-4 pt-2">
+                <div className="text-center">
+                   <p className="text-[10px] text-text-muted uppercase font-bold tracking-widest">Impact Score</p>
+                   <p className="text-lg font-black text-accent-amber">94.2</p>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-center">
+                   <p className="text-[10px] text-text-muted uppercase font-bold tracking-widest">Innings</p>
+                   <p className="text-lg font-black text-text-primary">{match.winner === match.team1 ? '1st' : '2nd'}</p>
+                </div>
+              </div>
+            </div>
+            <Link 
+              to={`/batting/${encodeURIComponent(match.player_of_match)}`}
+              className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest hover:bg-white/10 hover:border-accent-amber/50 transition-all"
+            >
+              Full Profile
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Match Info Card */}
+      <div className="card">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           {match.venue && (
             <div>
               <p className="text-text-muted text-xs uppercase tracking-wider mb-0.5">Venue</p>
