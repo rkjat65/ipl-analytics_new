@@ -1,36 +1,43 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getVenueStats, getVenueTopPerformers } from '../lib/api'
-import StatCard from '../components/ui/StatCard'
-import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
 import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
 import PlayerNameCell from '../components/ui/PlayerNameCell'
-import { formatDecimal } from '../utils/format'
+import TeamLogo from '../components/ui/TeamLogo'
+import { formatDecimal, formatNumber } from '../utils/format'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  LineChart, Line, AreaChart, Area
 } from 'recharts'
+import SEO from '../components/SEO'
 
-function ChartTooltip({ active, payload, label }) {
+/* ── Custom Tooltip ───────────────────────────────────────── */
+function DashboardTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
-  const isBowler = payload?.[0]?.dataKey === 'wickets'
   return (
-    <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
-      <div className="mb-1">
-        <PlayerNameCell name={label} to={`/${isBowler ? 'bowling' : 'batting'}/${encodeURIComponent(label)}`} size={24} />
-      </div>
+    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+      <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">{label}</p>
       {payload.map((entry, i) => (
-        <p key={i} className="text-xs" style={{ color: entry.color || '#E8E8ED' }}>
-          {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
+        <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color }}>
+          {entry.name}: <span className="font-mono">{entry.value}</span>
         </p>
       ))}
+    </div>
+  )
+}
+
+/* ── Metric Card ─────────────────────────────────────────── */
+function MetricCard({ label, value, color, hint }) {
+  return (
+    <div className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-6 group transition-all hover:border-white/10">
+      <div className="relative z-10">
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-text-muted mb-2">{label}</p>
+        <p className="text-3xl font-black font-heading text-white">{value}</p>
+        {hint && <p className="mt-2 text-[10px] font-bold text-white/30 uppercase tracking-tighter">{hint}</p>}
+      </div>
+      <div className="absolute bottom-0 left-0 h-1 w-full opacity-20" style={{ backgroundColor: color }} />
     </div>
   )
 }
@@ -40,243 +47,280 @@ export default function VenueProfile() {
   const decoded = decodeURIComponent(venueName)
   const [showcaseConfig, setShowcaseConfig] = useState(null)
 
-  const { data: stats, loading: statsLoading, error: statsError } = useFetch(
-    () => getVenueStats(decoded),
-    [decoded]
-  )
+  const { data: stats, loading: statsLoading, error: statsError } = useFetch(() => getVenueStats(decoded), [decoded])
+  const { data: performers, loading: perfLoading } = useFetch(() => getVenueTopPerformers(decoded), [decoded])
 
-  const { data: performers, loading: perfLoading } = useFetch(
-    () => getVenueTopPerformers(decoded),
-    [decoded]
-  )
+  const topBatters = (performers?.top_batters || []).slice(0, 10)
+  const topBowlers = (performers?.top_bowlers || []).slice(0, 10)
+
+  // Scoring Patterns Data
+  const scoringData = useMemo(() => {
+    if (!stats?.scoring_patterns) return []
+    const p = stats.scoring_patterns
+    return [
+      { name: '< 150', count: p.low_scores || 0, fill: '#64748B' },
+      { name: '150-179', count: p.medium_scores || 0, fill: '#00E5FF' },
+      { name: '180-199', count: p.high_scores || 0, fill: '#B8FF00' },
+      { name: '200+', count: p.massive_scores || 0, fill: '#FF2D78' }
+    ]
+  }, [stats])
 
   if (statsError) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-danger font-heading text-lg">Failed to load venue</p>
+        <p className="text-danger font-heading text-lg font-black uppercase tracking-widest">Ground Connection Failed</p>
         <p className="text-text-secondary text-sm">{statsError}</p>
+        <Link to="/venues" className="px-6 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest">Return to Gallery</Link>
       </div>
     )
   }
 
-  const batterColumns = [
-    { key: 'rank', label: '#', align: 'center' },
-    {
-      key: 'player',
-      label: 'Player',
-      render: (val) => <PlayerNameCell name={val} to={`/batting/${encodeURIComponent(val)}`} size={26} />,
-    },
-    { key: 'runs', label: 'Runs', align: 'right', render: (val) => <span className="font-mono font-semibold text-accent-lime">{val}</span> },
-    { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
-    { key: 'sr', label: 'SR', align: 'right', render: (val) => <span className="font-mono">{val ? formatDecimal(val, 1) : '-'}</span> },
-  ]
-
-  const bowlerColumns = [
-    { key: 'rank', label: '#', align: 'center' },
-    {
-      key: 'player',
-      label: 'Player',
-      render: (val) => <PlayerNameCell name={val} to={`/bowling/${encodeURIComponent(val)}`} size={26} />,
-    },
-    { key: 'wickets', label: 'Wkts', align: 'right', render: (val) => <span className="font-mono font-semibold text-accent-magenta">{val}</span> },
-    { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
-    { key: 'economy', label: 'Econ', align: 'right', render: (val) => <span className="font-mono">{val ? formatDecimal(val, 1) : '-'}</span> },
-  ]
-
-  const topBatters = (performers?.top_batters || []).slice(0, 5).map((b, i) => ({ ...b, rank: i + 1 }))
-  const topBowlers = (performers?.top_bowlers || []).slice(0, 5).map((b, i) => ({ ...b, rank: i + 1 }))
-
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <Link to="/venues" className="text-text-muted text-sm hover:text-accent-cyan transition-colors mb-2 inline-block">
-          &larr; All Venues
-        </Link>
-        <h1 className="text-3xl font-heading font-bold text-text-primary">{decoded}</h1>
-        <div className="h-1 w-24 bg-accent-cyan rounded-full mt-2" />
-      </div>
+    <div className="space-y-12 pb-20">
+      <SEO title={`${decoded} - Territory Intel`} />
 
-      {/* Stats Row */}
-      {statsLoading ? (
-        <Loading message="Loading venue stats..." />
-      ) : stats?.stats ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <StatCard label="Matches" value={stats.stats.matches} color="cyan" />
-          <StatCard label="Avg 1st Inn" value={formatDecimal(stats.stats.avg_1st_innings, 1)} color="lime" />
-          <StatCard label="Avg 2nd Inn" value={formatDecimal(stats.stats.avg_2nd_innings, 1)} color="magenta" />
-          <StatCard
-            label="Bat First Win%"
-            value={stats.stats.bat_first_win_pct ? `${formatDecimal(stats.stats.bat_first_win_pct, 1)}%` : '-'}
-            color="amber"
+      {/* ── CINEMATIC HERO ────────────────────────────────────── */}
+      <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] min-h-[440px] flex items-end">
+        <div className="absolute inset-0">
+          <img
+            src={`/api/venues/${encodeURIComponent(decoded)}/image`}
+            alt={decoded}
+            className="w-full h-full object-cover opacity-30"
+            onError={(e) => { e.target.style.display = 'none' }}
           />
-          <StatCard label="Highest Total" value={stats.stats.highest_total ?? '-'} color="lime" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E16] via-transparent to-transparent" />
         </div>
-      ) : null}
 
-      {/* Bat First vs Chase Win % Bar */}
-      {!statsLoading && stats?.stats?.bat_first_win_pct != null && (
-        <div className="card">
-          <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">Bat First vs Chase Success</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-text-secondary font-mono w-20 text-right">Bat First</span>
-            <div className="flex-1 h-8 bg-[#1E1E2A] rounded-full overflow-hidden flex">
-              <div
-                className="h-full flex items-center justify-center text-xs font-mono font-semibold transition-all duration-500"
-                style={{
-                  width: `${stats.stats.bat_first_win_pct}%`,
-                  backgroundColor: '#FFB800',
-                  color: '#0A0A0F',
-                  minWidth: stats.stats.bat_first_win_pct > 5 ? undefined : '2rem',
-                }}
-              >
-                {formatDecimal(stats.stats.bat_first_win_pct, 1)}%
-              </div>
-              <div
-                className="h-full flex items-center justify-center text-xs font-mono font-semibold transition-all duration-500"
-                style={{
-                  width: `${100 - stats.stats.bat_first_win_pct}%`,
-                  backgroundColor: '#00E5FF',
-                  color: '#0A0A0F',
-                  minWidth: (100 - stats.stats.bat_first_win_pct) > 5 ? undefined : '2rem',
-                }}
-              >
-                {formatDecimal(100 - stats.stats.bat_first_win_pct, 1)}%
-              </div>
+        <div className="relative w-full p-10 md:p-16 flex flex-col lg:flex-row lg:items-end justify-between gap-12">
+          <div className="max-w-3xl">
+            <Link to="/venues" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-accent-cyan hover:text-white transition-colors mb-8">
+              &larr; Return to Venue Gallery
+            </Link>
+            <span className="inline-block px-3 py-1 rounded-full bg-accent-cyan/10 border border-accent-cyan/20 text-[10px] font-black uppercase tracking-[0.4em] text-accent-cyan mb-6">
+              Ground Command Center
+            </span>
+            <h1 className="text-5xl md:text-8xl font-black font-heading text-white tracking-tighter leading-[0.85] mb-4">
+               {decoded.split(',')[0]}
+            </h1>
+            <p className="text-xl text-text-muted font-bold tracking-tight uppercase">{decoded.split(',')[1] || 'Major Hub'}</p>
+          </div>
+
+          {!statsLoading && stats?.stats && (
+            <div className="flex gap-12 border-t lg:border-t-0 lg:border-l border-white/10 pt-8 lg:pt-0 lg:pl-12">
+               <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Battles</p>
+                  <p className="text-5xl font-black font-heading text-white tracking-tighter">{stats.stats.matches}</p>
+               </div>
+               <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Avg 1st Inn</p>
+                  <p className="text-5xl font-black font-heading text-accent-cyan tracking-tighter">{Math.round(stats.stats.avg_1st_innings)}</p>
+               </div>
             </div>
-            <span className="text-xs text-text-secondary font-mono w-20">Chase</span>
+          )}
+        </div>
+      </section>
+
+      {/* ── TERRITORY STATS ───────────────────────────────────── */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {!statsLoading && stats?.stats && (
+          <>
+            <MetricCard label="Avg 2nd Inn" value={Math.round(stats.stats.avg_2nd_innings)} color="#FF2D78" hint="Chasing Temperament" />
+            <MetricCard label="Highest Total" value={stats.stats.highest_total || '-'} color="#B8FF00" hint="Scoring Peak" />
+            <MetricCard label="Avg Wickets" value={formatDecimal(stats.stats.avg_wickets, 1)} color="#00E5FF" hint="Bowling Threat" />
+            <MetricCard label="Defending Edge" value={`${formatDecimal(stats.stats.bat_first_win_pct, 1)}%`} color="#FFB800" hint="Bat First Win Rate" />
+          </>
+        )}
+      </section>
+
+      {/* ── STRATEGY OPS ───────────────────────────────────────── */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-accent-cyan/5 blur-[60px]" />
+          <h3 className="text-xl font-black font-heading text-white mb-6 uppercase tracking-tighter">Strategy Intel</h3>
+          <div className="space-y-6">
+             <div className="flex justify-between items-end border-b border-white/5 pb-4">
+                <div>
+                   <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-1">Toss Luck Factor</p>
+                   <p className="text-sm font-bold text-white">Win Match after Win Toss</p>
+                </div>
+                <p className="text-2xl font-black font-heading text-accent-cyan">{stats?.stats?.toss_win_pct}%</p>
+             </div>
+             <div className="flex justify-between items-end border-b border-white/5 pb-4">
+                <div>
+                   <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-1">Batting Pressure</p>
+                   <p className="text-sm font-bold text-white">Defending 1st Innings</p>
+                </div>
+                <p className="text-2xl font-black font-heading text-accent-lime">{stats?.stats?.bat_first_win_pct}%</p>
+             </div>
+             <div className="flex justify-between items-end">
+                <div>
+                   <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-1">Innings Pace</p>
+                   <p className="text-sm font-bold text-white">Avg Score per Innings</p>
+                </div>
+                <p className="text-2xl font-black font-heading text-accent-magenta">{stats?.stats?.avg_score}</p>
+             </div>
           </div>
         </div>
-      )}
 
-      {/* Top Performers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Batters */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-1 h-6 bg-accent-lime rounded-full" />
-            <h2 className="text-xl font-heading font-bold text-text-primary">Top Batters</h2>
-          </div>
-          {!perfLoading && topBatters.length > 0 && (
-            <div className="card mb-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-text-secondary">Top run scorers at this venue, ready for a fullscreen one-by-one replay.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowcaseConfig({
-                    title: `${decoded} top batters`,
-                    subtitle: 'A venue-level batting reveal with persistent labels and the full avatar summary at the end.',
-                    items: topBatters.map((b) => ({ rank: b.rank, player: b.player, value: b.runs, matches: b.matches, sr: b.sr })).sort((a, b) => b.value - a.value),
-                    metricLabel: 'Runs',
-                    accent: '#B8FF00',
-                    detailFields: [
-                      { key: 'matches', label: 'Matches', formatter: (value) => value },
-                      { key: 'sr', label: 'Strike rate', formatter: (value) => formatDecimal(value, 1) },
-                    ],
-                  })}
-                  className="rounded-lg border border-accent-lime/30 bg-accent-lime/10 px-3 py-1.5 text-xs font-semibold text-accent-lime hover:bg-accent-lime/20"
-                >
-                  Enter animation mode
-                </button>
-              </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart
-                  data={topBatters.map((b) => ({ name: b.player, runs: b.runs }))}
-
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#8888A0', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
-                  <Bar
-                    dataKey="runs"
-                    fill="#B8FF00"
-                    name="Runs"
-                    radius={[0, 4, 4, 0]}
-                    barSize={16}
-                    label={{ position: 'right', fill: '#E8E8F0', fontSize: 10, fontWeight: 700, fontFamily: 'monospace' }}
-                  />
-                </BarChart>
+        {/* Scoring Evolution */}
+        <div className="lg:col-span-2 bg-[#0B0E16] rounded-[32px] border border-white/5 p-8">
+           <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black font-heading text-white uppercase tracking-tighter">Scoring Evolution</h3>
+              <span className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em]">Season-wise Trend</span>
+           </div>
+           <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                 <AreaChart data={stats?.seasons}>
+                    <defs>
+                       <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#00E5FF" stopOpacity={0} />
+                       </linearGradient>
+                    </defs>
+                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                    <Tooltip content={<DashboardTooltip />} />
+                    <Area type="monotone" dataKey="avg_score" stroke="#00E5FF" strokeWidth={3} fill="url(#scoreGrad)" dot={{ r: 4, fill: '#00E5FF' }} />
+                 </AreaChart>
               </ResponsiveContainer>
-            </div>
-          )}
-          {perfLoading ? (
-            <Loading message="Loading top batters..." />
-          ) : (
-            <DataTable columns={batterColumns} data={topBatters} />
-          )}
+           </div>
+        </div>
+      </section>
+
+      {/* ── DATA VISUALIZATION CENTER ─────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Scoring Distribution */}
+        <section className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 md:p-10">
+           <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black font-heading text-white tracking-tight">Scoring Pulse</h3>
+                <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Innings-wise bucket distribution</p>
+              </div>
+           </div>
+           <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={scoringData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                    <Tooltip content={<DashboardTooltip />} />
+                    <Bar dataKey="count" radius={[8, 8, 0, 0]} name="Occurrences">
+                       {scoringData.map((entry, index) => (
+                         <Cell key={`cell-${index}`} fill={entry.fill} />
+                       ))}
+                    </Bar>
+                 </BarChart>
+              </ResponsiveContainer>
+           </div>
         </section>
 
-        {/* Top Bowlers */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-1 h-6 bg-accent-magenta rounded-full" />
-            <h2 className="text-xl font-heading font-bold text-text-primary">Top Bowlers</h2>
-          </div>
-          {!perfLoading && topBowlers.length > 0 && (
-            <div className="card mb-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-text-secondary">Top wicket-takers here can now be replayed in the same fullscreen showcase mode.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowcaseConfig({
-                    title: `${decoded} top bowlers`,
-                    subtitle: 'A venue-level bowling reveal with persistent labels and the full avatar summary at the end.',
-                    items: topBowlers.map((b) => ({ rank: b.rank, player: b.player, value: b.wickets, matches: b.matches, economy: b.economy })).sort((a, b) => b.value - a.value),
-                    metricLabel: 'Wickets',
-                    accent: '#FF2D78',
-                    detailFields: [
-                      { key: 'matches', label: 'Matches', formatter: (value) => value },
-                      { key: 'economy', label: 'Economy', formatter: (value) => formatDecimal(value, 1) },
-                    ],
-                  })}
-                  className="rounded-lg border border-accent-magenta/30 bg-accent-magenta/10 px-3 py-1.5 text-xs font-semibold text-accent-magenta hover:bg-accent-magenta/20"
-                >
-                  Enter animation mode
-                </button>
+        {/* Team Dominance */}
+        <section className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 md:p-10">
+           <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black font-heading text-white tracking-tight">Territory Ownership</h3>
+                <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Franchise performance at this venue</p>
               </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart
-                  data={topBowlers.map((b) => ({ name: b.player, wickets: b.wickets }))}
+           </div>
+           <div className="space-y-4 max-h-72 overflow-y-auto scrollbar-hide pr-2">
+              {!statsLoading && stats?.team_performance?.map((tp, idx) => (
+                <div key={tp.team} className="flex items-center justify-between group p-3 rounded-2xl hover:bg-white/5 transition-all">
+                   <div className="flex items-center gap-4">
+                      <TeamLogo team={tp.team} size={36} />
+                      <div>
+                        <p className="text-sm font-black text-white group-hover:text-accent-cyan transition-colors">{tp.team}</p>
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-tighter">{tp.matches} Matches played</p>
+                      </div>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-lg font-black font-heading text-white">{tp.win_pct}%</p>
+                      <div className="flex items-center gap-1.5 justify-end">
+                         <span className="w-1 h-1 rounded-full bg-accent-lime" />
+                         <p className="text-[9px] font-bold text-accent-lime uppercase tracking-widest">{tp.wins} Wins</p>
+                      </div>
+                   </div>
+                </div>
+              ))}
+           </div>
+        </section>
+      </div>
 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#8888A0', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
-                  <Bar
-                    dataKey="wickets"
-                    fill="#FF2D78"
-                    name="Wickets"
-                    radius={[0, 4, 4, 0]}
-                    barSize={16}
-                    label={{ position: 'right', fill: '#E8E8F0', fontSize: 10, fontWeight: 700, fontFamily: 'monospace' }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-          {perfLoading ? (
-            <Loading message="Loading top bowlers..." />
-          ) : (
-            <DataTable columns={bowlerColumns} data={topBowlers} />
-          )}
+      {/* ── TOP PERFORMERS ────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {/* Batting */}
+        <section className="space-y-8">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-4">
+                 <div className="w-1.5 h-8 rounded-full bg-accent-lime" />
+                 <h2 className="text-3xl font-black font-heading text-white tracking-tighter uppercase">Ground Titans</h2>
+              </div>
+              <button 
+                 onClick={() => setShowcaseConfig({
+                   title: `${decoded} Titans`,
+                   items: topBatters.map(b => ({ player: b.player, value: b.runs, sr: b.sr })),
+                   metricLabel: 'Runs', accent: '#B8FF00',
+                   detailFields: [{ key: 'sr', label: 'SR', formatter: (v) => formatDecimal(v, 1) }]
+                 })}
+                 className="px-4 py-2 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-accent-lime hover:bg-accent-lime hover:text-black transition-all"
+              >
+                Launch Showcase
+              </button>
+           </div>
+           <div className="space-y-3">
+              {perfLoading ? <Loading message="Analyzing batters..." /> : topBatters.map((b, i) => (
+                <div key={b.player} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-5 flex items-center justify-between transition-all hover:border-white/20">
+                   <div className="flex items-center gap-6">
+                      <span className="text-[10px] font-black text-white/20 italic">{i + 1}</span>
+                      <PlayerNameCell name={b.player} to={`/batting/${encodeURIComponent(b.player)}`} size={40} />
+                   </div>
+                   <div className="text-right">
+                      <p className="text-2xl font-black font-heading text-accent-lime tracking-tighter">{b.runs}</p>
+                      <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{b.matches} Matches &bull; {formatDecimal(b.sr, 0)} SR</p>
+                   </div>
+                </div>
+              ))}
+           </div>
+        </section>
+
+        {/* Bowling */}
+        <section className="space-y-8">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-4">
+                 <div className="w-1.5 h-8 rounded-full bg-accent-magenta" />
+                 <h2 className="text-3xl font-black font-heading text-white tracking-tighter uppercase">Ball Masters</h2>
+              </div>
+              <button 
+                 onClick={() => setShowcaseConfig({
+                   title: `${decoded} Masters`,
+                   items: topBowlers.map(b => ({ player: b.player, value: b.wickets, econ: b.economy })),
+                   metricLabel: 'Wickets', accent: '#FF2D78',
+                   detailFields: [{ key: 'econ', label: 'Econ', formatter: (v) => formatDecimal(v, 1) }]
+                 })}
+                 className="px-4 py-2 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-accent-magenta hover:bg-accent-magenta hover:text-black transition-all"
+              >
+                Launch Showcase
+              </button>
+           </div>
+           <div className="space-y-3">
+              {perfLoading ? <Loading message="Analyzing bowlers..." /> : topBowlers.map((b, i) => (
+                <div key={b.player} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-5 flex items-center justify-between transition-all hover:border-white/20">
+                   <div className="flex items-center gap-6">
+                      <span className="text-[10px] font-black text-white/20 italic">{i + 1}</span>
+                      <PlayerNameCell name={b.player} to={`/bowling/${encodeURIComponent(b.player)}`} size={40} />
+                   </div>
+                   <div className="text-right">
+                      <p className="text-2xl font-black font-heading text-accent-magenta tracking-tighter">{b.wickets}</p>
+                      <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{b.matches} Matches &bull; {formatDecimal(b.economy, 1)} Econ</p>
+                   </div>
+                </div>
+              ))}
+           </div>
         </section>
       </div>
 
       <LeaderboardShowcaseModal
         open={Boolean(showcaseConfig)}
         onClose={() => setShowcaseConfig(null)}
-        title={showcaseConfig?.title || 'Animation mode'}
-        subtitle={showcaseConfig?.subtitle || 'Fullscreen presentation mode'}
-        items={showcaseConfig?.items || []}
-        metricLabel={showcaseConfig?.metricLabel || 'Value'}
-        accent={showcaseConfig?.accent || '#00E5FF'}
-        detailFields={showcaseConfig?.detailFields || []}
+        {...showcaseConfig}
       />
     </div>
   )

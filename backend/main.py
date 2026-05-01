@@ -19,9 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .auth_db import init_auth_db
-from .live_db import init_live_db
-from .live_poller import run_poller
-from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth, live, live_analytics
+from .routers import meta, matches, players, teams, analytics, venues, seasons, ai, images, social, advanced, pulse, auth
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -34,19 +32,8 @@ TEAM_IMAGES_DIR = Path(__file__).resolve().parent / "team_images"
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle for the application."""
     init_auth_db()
-    init_live_db()
-
-    poller_task = asyncio.create_task(run_poller())
-    logger.info("Live-score poller task launched")
 
     yield
-
-    poller_task.cancel()
-    try:
-        await poller_task
-    except asyncio.CancelledError:
-        pass
-    logger.info("Live-score poller task stopped")
 
 
 app = FastAPI(title="IPL Analytics API", version="1.0.0", lifespan=lifespan)
@@ -75,8 +62,6 @@ app.include_router(social.router)
 app.include_router(advanced.router)
 app.include_router(pulse.router)
 app.include_router(auth.router)
-app.include_router(live.router)
-app.include_router(live_analytics.router)
 
 
 @app.get("/api/health")

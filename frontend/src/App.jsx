@@ -19,9 +19,7 @@ import ContentStudio from './pages/ContentStudio'
 import SocialCompose from './pages/SocialCompose'
 // AdvancedAnalytics removed — Team Form Index moved to Content Studio
 import CricketPulse from './pages/CricketPulse'
-import LiveScores from './pages/LiveScores'
-import IPLSchedule from './pages/IPLSchedule'
-import Captains from './pages/Captains'
+
 import Admin from './pages/Admin'
 import About from './pages/About'
 import AdminOnlyRoute from './components/auth/AdminOnlyRoute'
@@ -55,22 +53,11 @@ export default function App() {
         <Route path="/ask" element={<Navigate to="/dashboard" replace />} />
         <Route path="/social" element={<SocialCompose />} />
         <Route path="/charts" element={<Navigate to="/dashboard#dashboard-insights" replace />} />
-        {/* <Route path="/live" element={<LiveScores />} /> */}
-        {/* <Route path="/ipl-schedule" element={<IPLSchedule />} /> */}
-        <Route path="/captains" element={<Navigate to="/dashboard" replace />} />
+
         <Route path="/pulse" element={<CricketPulse />} />
         <Route path="/player-impact" element={<Navigate to="/dashboard" replace />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-        <Route
-          path="/admin/captains"
-          element={(
-            <ProtectedRoute>
-              <AdminOnlyRoute>
-                <Captains />
-              </AdminOnlyRoute>
-            </ProtectedRoute>
-          )}
-        />
+
         <Route path="/about" element={<About />} />
       </Route>
     </Routes>

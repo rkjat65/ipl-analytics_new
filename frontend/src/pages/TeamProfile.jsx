@@ -1,90 +1,74 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { getTeamStats, getTeamSeasons, getTeamH2H, getTeams } from '../lib/api'
-import StatCard from '../components/ui/StatCard'
-import DataTable from '../components/ui/DataTable'
+import { getTeamStats, getTeamSeasons, getTeamH2H, getTeams, getBattingMatrix, getBowlingMatrix } from '../lib/api'
 import Loading from '../components/ui/Loading'
 import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
 import { formatNumber, formatDecimal } from '../utils/format'
-import { getTeamColor, getTeamAbbr, getTeamLogo } from '../constants/teams'
+import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
+import SEO from '../components/SEO'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area,
 } from 'recharts'
 
-function SeasonWinRing({ row, accent, index = 0 }) {
-  const wins = Number(row?.wins || 0)
-  const losses = Number(row?.losses || 0)
-  const ties = Number(row?.ties || 0)
-  const noResults = Number(row?.no_results || 0)
-  const decided = Math.max(wins + losses + ties, 1)
-  const winPct = Math.round((wins / decided) * 100)
-  const radius = 34
-  const circumference = 2 * Math.PI * radius
-  const progress = (winPct / 100) * circumference
-
+/* ── Custom Components ────────────────────────────────── */
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
   return (
-    <div
-      className="group rounded-2xl border border-white/10 bg-white/5 p-3 text-center animate-in"
-      style={{ animationDelay: `${index * 55}ms` }}
-    >
-      <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Season</p>
-      <p className="text-sm font-heading font-bold text-text-primary">{row?.season}</p>
-
-      <div className="mt-2 flex items-center justify-center">
-        <svg width="96" height="96" viewBox="0 0 96 96" className="drop-shadow-[0_0_12px_rgba(0,0,0,0.35)]">
-          <circle cx="48" cy="48" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-          <circle
-            cx="48"
-            cy="48"
-            r={radius}
-            fill="none"
-            stroke={accent}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={`${progress} ${Math.max(circumference - progress, 0)}`}
-            transform="rotate(-90 48 48)"
-          />
-          <text x="48" y="45" textAnchor="middle" className="fill-text-primary text-[17px] font-bold">
-            {winPct}
-          </text>
-          <text x="48" y="58" textAnchor="middle" className="fill-text-muted text-[9px] uppercase tracking-[0.16em]">
-            Win%
-          </text>
-        </svg>
-      </div>
-
-      <div className="mt-1 grid grid-cols-2 gap-2 text-[11px]">
-        <span className="rounded-lg border border-accent-lime/20 bg-accent-lime/10 px-2 py-1 text-accent-lime">W {wins}</span>
-        <span className="rounded-lg border border-danger/20 bg-danger/10 px-2 py-1 text-danger">L {losses}</span>
-      </div>
-      <p className="mt-2 text-[10px] text-text-muted">T {ties} • NR {noResults}</p>
+    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
+        </p>
+      ))}
     </div>
   )
 }
 
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
+function SeasonMetricCard({ row, accent, index }) {
+  const wins = Number(row?.wins || 0)
+  const losses = Number(row?.losses || 0)
+  const total = Math.max(wins + losses, 1)
+  const winPct = Math.round((wins / total) * 100)
+  
   return (
-    <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-[#8888A0] text-xs mb-1 font-mono">{label}</p>
-      {payload.map((entry, i) => (
-        <p key={i} className="text-xs" style={{ color: entry.color || '#E8E8ED' }}>
-          {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
-        </p>
-      ))}
+    <div 
+      className="relative overflow-hidden rounded-[28px] border border-white/5 bg-[#0B0E16] p-6 transition-all duration-500 hover:border-white/10 group"
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
+      <div className="flex items-center justify-between mb-6">
+        <span className="text-2xl font-black font-heading text-white tracking-tighter italic">{row?.season}</span>
+        <span className="px-3 py-1 rounded-full bg-white/5 text-[9px] font-black uppercase tracking-widest text-text-muted">{row.matches} Mat</span>
+      </div>
+      
+      <div className="flex items-end gap-2 mb-6">
+        <span className="text-4xl font-black font-heading leading-[0.8] tracking-tighter" style={{ color: accent }}>{winPct}%</span>
+        <span className="text-[9px] text-text-muted uppercase font-black pb-1 tracking-[0.2em]">Efficiency</span>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+          <div className="h-full transition-all duration-1000" style={{ width: `${(wins/total)*100}%`, backgroundColor: accent }} />
+        </div>
+        <div className="flex justify-between font-mono text-[10px] font-black uppercase">
+          <span style={{ color: accent }}>{wins} Wins</span>
+          <span className="text-white/20">{losses} Losses</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProfileStat({ label, value, color, meta = "" }) {
+  return (
+    <div className="bg-[#0B0E16] border border-white/5 rounded-3xl p-8 transition-all hover:border-white/10 group">
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-text-muted mb-3">{label}</p>
+      <p className="text-4xl font-black font-heading tracking-tighter text-white group-hover:scale-105 transition-transform origin-left">{value}<span className="text-sm font-black ml-1 text-white/20">{meta}</span></p>
+      <div className="h-1 w-12 rounded-full mt-4" style={{ backgroundColor: color }} />
     </div>
   )
 }
@@ -95,325 +79,257 @@ export default function TeamProfile() {
   const color = getTeamColor(decoded)
   const [showcaseConfig, setShowcaseConfig] = useState(null)
 
-  const { data: stats, loading: statsLoading, error: statsError } = useFetch(
-    () => getTeamStats(decoded),
-    [decoded]
-  )
-
-  const { data: seasons, loading: seasonsLoading } = useFetch(
-    () => getTeamSeasons(decoded),
-    [decoded]
-  )
-
-  const { data: h2h, loading: h2hLoading } = useFetch(
-    () => getTeamH2H(decoded),
-    [decoded]
-  )
-
+  const { data: stats, loading: statsLoading, error: statsError } = useFetch(() => getTeamStats(decoded), [decoded])
+  const { data: seasons, loading: seasonsLoading } = useFetch(() => getTeamSeasons(decoded), [decoded])
+  const { data: h2h, loading: h2hLoading } = useFetch(() => getTeamH2H(decoded), [decoded])
   const { data: teams } = useFetch(() => getTeams(), [])
+  
+  // High-fidelity Performers
+  const { data: batters, loading: batLoad } = useFetch(() => getBattingMatrix(null, 1, decoded), [decoded])
+  const { data: bowlers, loading: bowlLoad } = useFetch(() => getBowlingMatrix(null, 1, decoded), [decoded])
 
-  if (statsError) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-danger font-heading text-lg">Failed to load team profile</p>
-        <p className="text-text-secondary text-sm">{statsError}</p>
-      </div>
-    )
-  }
+  const sortedSeasons = useMemo(() => (seasons || []).slice().reverse(), [seasons])
+  const topBatters = useMemo(() => (batters || []).slice(0, 5), [batters])
+  const topBowlers = useMemo(() => (bowlers || []).slice(0, 5), [bowlers])
 
-  const seasonColumns = [
-    { key: 'season', label: 'Season' },
-    { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
-    { key: 'wins', label: 'W', align: 'right', render: (val) => <span className="font-mono text-accent-lime">{val}</span> },
-    { key: 'losses', label: 'L', align: 'right', render: (val) => <span className="font-mono text-danger">{val}</span> },
-    { key: 'ties', label: 'T', align: 'right', render: (val) => <span className="font-mono text-accent-amber">{val || 0}</span> },
-    { key: 'no_results', label: 'NR', align: 'right', render: (val) => <span className="font-mono text-text-muted">{val || 0}</span> },
-    {
-      key: 'win_pct',
-      label: 'Win%',
-      align: 'right',
-      render: (val) => <span className="font-mono font-semibold text-accent-cyan">{formatDecimal(val, 1)}%</span>,
-    },
-  ]
-
-  const h2hData = (h2h || []).slice().sort((a, b) => b.played - a.played)
-  const seasonRingData = (seasons || []).slice().reverse()
-  const seasonShowcaseData = (seasons || [])
-    .map((row) => ({
-      player: String(row.season),
-      value: row.wins,
-      losses: row.losses,
-      win_pct: row.win_pct,
-      matches: row.matches,
-    }))
-    .sort((a, b) => b.value - a.value)
-
-  const h2hShowcaseData = h2hData
-    .map((row) => ({
-      player: row.opponent,
-      value: row.won,
-      lost: row.lost,
-      played: row.played,
-      win_pct: row.win_pct,
-    }))
-    .sort((a, b) => b.value - a.value)
-  const h2hColumns = [
-    {
-      key: 'opponent',
-      label: 'Opponent',
-      render: (val) => (
-        <div className="flex items-center gap-2">
-          <TeamLogo team={val} size={22} />
-          <Link to={`/teams/${encodeURIComponent(val)}`} className="text-accent-cyan hover:underline">
-            {val}
-          </Link>
-        </div>
-      ),
-    },
-    { key: 'played', label: 'Played', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
-    { key: 'won', label: 'Won', align: 'right', render: (val) => <span className="font-mono text-accent-lime">{val}</span> },
-    { key: 'lost', label: 'Lost', align: 'right', render: (val) => <span className="font-mono text-danger">{val}</span> },
-    {
-      key: 'win_pct',
-      label: 'Win%',
-      align: 'right',
-      render: (val) => <span className="font-mono font-semibold text-accent-cyan">{formatDecimal(val, 1)}%</span>,
-    },
-  ]
-
-  // Pick a random other team for compare link
-  const otherTeams = (teams || []).filter((t) => t !== decoded)
+  if (statsError) return <div className="py-20 text-center text-danger font-black font-heading">Franchise Data Sync Error</div>
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <Link to="/teams" className="text-text-muted text-sm hover:text-accent-cyan transition-colors mb-2 inline-block">
-          &larr; All Teams
-        </Link>
-        <div className="flex items-center gap-4 mt-1">
-          <TeamLogo team={decoded} size={56} />
-          <div>
-            <h1 className="text-3xl font-heading font-bold" style={{ color }}>
-              {decoded}
-            </h1>
-            <div className="h-1 w-24 rounded-full mt-2" style={{ backgroundColor: color }} />
+    <div className="space-y-16 pb-24">
+      <SEO title={`${decoded} - Franchise HQ`} />
+
+      {/* ── CINEMATIC FRANCHISE HEADER ───────────────────────── */}
+      <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-20">
+        <div 
+          className="absolute inset-0 opacity-10 blur-[120px] animate-pulse"
+          style={{ background: `radial-gradient(circle at 20% 30%, ${color}, transparent), radial-gradient(circle at 80% 70%, #00F0FF, transparent)` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E16] via-transparent to-transparent" />
+        
+        <div className="relative z-10 flex flex-col lg:flex-row items-center lg:items-end justify-between gap-12">
+          <div className="flex flex-col md:flex-row items-center gap-10">
+            <div className="relative group shrink-0">
+              <div className="absolute inset-0 rounded-full blur-3xl opacity-30 group-hover:opacity-60 transition-opacity" style={{ backgroundColor: color }} />
+              <TeamLogo team={decoded} size={160} className="relative drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] group-hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="text-center md:text-left">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-6">
+                <span className="px-4 py-1.5 rounded-full bg-accent-cyan/10 border border-accent-cyan/20 text-[10px] font-black uppercase tracking-[0.3em] text-accent-cyan">
+                  Franchise Mainframe
+                </span>
+                {stats?.titles > 0 && (
+                  <span className="px-4 py-1.5 rounded-full bg-accent-amber/10 border border-accent-amber/20 text-[10px] font-black uppercase tracking-[0.3em] text-accent-amber animate-pulse">
+                    {stats.titles}x Championship Legacy
+                  </span>
+                )}
+              </div>
+              <h1 className="text-5xl md:text-8xl font-black font-heading text-white tracking-tighter leading-[0.8]">
+                {decoded}
+              </h1>
+            </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── PERFORMANCE GRID ─────────────────────────────────── */}
+      {!statsLoading && stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+           <ProfileStat label="Deployments" value={stats.matches} color="cyan" meta="Matches" />
+           <ProfileStat label="Win Index" value={formatDecimal(stats.win_pct, 1)} color={color} meta="%" />
+           <ProfileStat label="Scoring Peak" value={formatDecimal(stats.avg_score, 0)} color="lime" meta="Avg" />
+           <ProfileStat label="Legacy Titles" value={stats.titles || 0} color="amber" meta="🏆" />
+        </div>
+      )}
+
+      {/* ── ELITE STRIKE FORCE ───────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+         {/* Batting Unit */}
+         <section className="space-y-8">
+            <div className="flex items-center justify-between px-2">
+               <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-8 rounded-full bg-accent-lime" />
+                  <div>
+                     <h2 className="text-2xl font-black font-heading text-white tracking-tighter uppercase">Firepower Matrix</h2>
+                     <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">Leading Batting Units</p>
+                  </div>
+               </div>
+               <button 
+                  onClick={() => setShowcaseConfig({
+                    title: `${decoded} Firepower`,
+                    items: topBatters.map(b => ({ player: b.player, value: b.runs, sr: b.sr })),
+                    metricLabel: 'Runs', accent: '#B8FF00',
+                    detailFields: [{ key: 'sr', label: 'SR', formatter: (v) => formatDecimal(v, 1) }]
+                  })}
+                  className="px-4 py-2 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-accent-lime hover:bg-accent-lime hover:text-black transition-all"
+               >
+                 Launch Intel
+               </button>
+            </div>
+            <div className="space-y-3">
+               {batLoad ? <Loading message="Syncing batting data..." /> : topBatters.map((b, i) => (
+                 <div key={b.player} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-5 flex items-center justify-between transition-all hover:border-white/20">
+                    <div className="flex items-center gap-6">
+                       <span className="text-[10px] font-black text-white/20 italic">{i + 1}</span>
+                       <PlayerNameCell name={b.player} to={`/batting/${encodeURIComponent(b.player)}`} size={40} />
+                    </div>
+                    <div className="text-right">
+                       <p className="text-2xl font-black font-heading text-accent-lime tracking-tighter">{b.runs}</p>
+                       <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{b.innings} Innings &bull; {formatDecimal(b.sr, 0)} SR</p>
+                    </div>
+                 </div>
+               ))}
+            </div>
+         </section>
+
+         {/* Bowling Unit */}
+         <section className="space-y-8">
+            <div className="flex items-center justify-between px-2">
+               <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-8 rounded-full bg-accent-magenta" />
+                  <div>
+                     <h2 className="text-2xl font-black font-heading text-white tracking-tighter uppercase">Execution Matrix</h2>
+                     <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">Strategic Bowling Assets</p>
+                  </div>
+               </div>
+               <button 
+                  onClick={() => setShowcaseConfig({
+                    title: `${decoded} Execution`,
+                    items: topBowlers.map(b => ({ player: b.player, value: b.wickets, econ: b.economy })),
+                    metricLabel: 'Wickets', accent: '#FF2D78',
+                    detailFields: [{ key: 'econ', label: 'Econ', formatter: (v) => formatDecimal(v, 1) }]
+                  })}
+                  className="px-4 py-2 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-accent-magenta hover:bg-accent-magenta hover:text-black transition-all"
+               >
+                 Launch Intel
+               </button>
+            </div>
+            <div className="space-y-3">
+               {bowlLoad ? <Loading message="Syncing bowling data..." /> : topBowlers.map((b, i) => (
+                 <div key={b.player} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-5 flex items-center justify-between transition-all hover:border-white/20">
+                    <div className="flex items-center gap-6">
+                       <span className="text-[10px] font-black text-white/20 italic">{i + 1}</span>
+                       <PlayerNameCell name={b.player} to={`/bowling/${encodeURIComponent(b.player)}`} size={40} />
+                    </div>
+                    <div className="text-right">
+                       <p className="text-2xl font-black font-heading text-accent-magenta tracking-tighter">{b.wickets}</p>
+                       <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{b.innings} Innings &bull; {formatDecimal(b.economy, 1)} Econ</p>
+                    </div>
+                 </div>
+               ))}
+            </div>
+         </section>
+      </div>
+
+      {/* ── SEASON TIMELINE ──────────────────────────────────── */}
+      <section className="space-y-8">
+        <div className="flex items-center justify-between">
+           <div className="flex items-center gap-3">
+              <div className="w-2 h-8 rounded-full bg-accent-cyan" />
+              <div>
+                 <h2 className="text-3xl font-black font-heading text-white tracking-tighter uppercase">Era DNA</h2>
+                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Historical Efficiency Matrix</p>
+              </div>
+           </div>
+        </div>
+
+        {seasonsLoading ? (
+          <Loading message="Decoding era intelligence..." />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {sortedSeasons.map((row, idx) => (
+              <SeasonMetricCard key={row.season} row={row} accent={color} index={idx} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── ANALYTICS HUB ────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+           <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter italic">Combat Record</h3>
+           <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-10">Outcome distribution across seasons</p>
+           <div className="h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={seasons}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: '#ffffff05' }} />
+                    <Bar dataKey="wins" stackId="a" fill={color} radius={[0, 0, 0, 0]} barSize={32} />
+                    <Bar dataKey="losses" stackId="a" fill="#FF2D78" opacity={0.4} radius={[8, 8, 0, 0]} barSize={32} />
+                 </BarChart>
+              </ResponsiveContainer>
+           </div>
+        </div>
+
+        <div className="bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+           <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter italic">Consistency Peak</h3>
+           <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-10">Win probability trend analysis</p>
+           <div className="h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                 <AreaChart data={seasons}>
+                    <defs>
+                       <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={color} stopOpacity={0} />
+                       </linearGradient>
+                    </defs>
+                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Area type="monotone" dataKey="win_pct" stroke={color} strokeWidth={4} fill="url(#areaGrad)" dot={{ r: 6, fill: color, stroke: '#0B0E16', strokeWidth: 3 }} />
+                 </AreaChart>
+              </ResponsiveContainer>
+           </div>
         </div>
       </div>
 
-      {/* Stats Row */}
-      {statsLoading ? (
-        <Loading message="Loading team stats..." />
-      ) : stats ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          <StatCard label="Matches" value={formatNumber(stats.matches)} color="cyan" />
-          <StatCard label="Wins" value={formatNumber(stats.wins)} color="lime" />
-          <StatCard label="Losses" value={formatNumber(stats.losses)} color="magenta" />
-          {stats.ties > 0 && <StatCard label="Super Overs" value={formatNumber(stats.ties)} color="amber" />}
-          {stats.no_results > 0 && <StatCard label="No Result" value={formatNumber(stats.no_results)} color="cyan" />}
-          <StatCard label="Win %" value={`${formatDecimal(stats.win_pct, 1)}%`} color="cyan" />
-          <StatCard label="Titles" value={stats.titles ?? '-'} color="amber" />
-          <StatCard label="Avg Score" value={formatDecimal(stats.avg_score, 1)} color="lime" />
-        </div>
-      ) : null}
-
-      {/* Season Record */}
-      <section>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-1 h-6 rounded-full" style={{ backgroundColor: color }} />
-          <h2 className="text-xl font-heading font-bold text-text-primary">Season Record</h2>
+      {/* ── RIVALRY MATRIX ───────────────────────────────────── */}
+      <section className="space-y-8">
+        <div className="flex items-center gap-3">
+           <div className="w-2 h-8 rounded-full bg-accent-magenta" />
+           <div>
+              <h2 className="text-3xl font-black font-heading text-white tracking-tighter uppercase">Rivalry Ops</h2>
+              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Head-to-Head Tactical Matrix</p>
+           </div>
         </div>
 
-        {!seasonsLoading && seasonRingData.length > 0 && (
-          <div className="card mb-6">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-heading font-semibold text-text-secondary">Season-wise Win/Loss Rings</h3>
-              <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-[10px] font-semibold text-accent-cyan">
-                Circular performance lens
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {seasonRingData.map((row, idx) => (
-                <SeasonWinRing key={row.season} row={row} accent={color} index={idx} />
-              ))}
-            </div>
+        {h2hLoading ? <Loading /> : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(h2h || []).sort((a,b) => b.played - a.played).map((rival, idx) => {
+              const winPct = (rival.won / rival.played) * 100
+              return (
+                <Link 
+                  key={rival.opponent} 
+                  to={`/h2h?team1=${encodeURIComponent(decoded)}&team2=${encodeURIComponent(rival.opponent)}`}
+                  className="group relative overflow-hidden rounded-3xl border border-white/5 bg-[#0B0E16] p-6 flex flex-col justify-between transition-all hover:border-white/20 hover:-translate-y-1"
+                >
+                  <div className="flex items-center justify-between mb-8">
+                    <TeamLogo team={rival.opponent} size={56} className="grayscale group-hover:grayscale-0 transition-all duration-700 drop-shadow-lg group-hover:scale-110" />
+                    <div className="text-right">
+                       <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">{rival.played} Ops</p>
+                       <p className="text-xl font-black font-heading text-white tracking-tighter mt-1">{rival.won}-{rival.lost}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-accent-cyan transition-all duration-1000 shadow-[0_0_10px_rgba(0,229,255,0.5)]" style={{ width: `${winPct}%` }} />
+                     </div>
+                     <div className="flex justify-between items-center">
+                        <span className="text-[8px] font-black uppercase text-accent-cyan">Win Ratio</span>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white">{Math.round(winPct)}%</p>
+                     </div>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
-        )}
-
-        {/* Season Win/Loss Chart */}
-        {!seasonsLoading && (seasons || []).length > 0 && (
-          <div className="card mb-6">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-heading font-semibold text-text-secondary">Wins &amp; Losses by Season</h3>
-              <button
-                type="button"
-                onClick={() => setShowcaseConfig({
-                  title: `${decoded} seasonal wins`,
-                  subtitle: 'Fullscreen replay of the best winning seasons, with reverse order and the full summary board at the end.',
-                  items: seasonShowcaseData,
-                  metricLabel: 'Wins',
-                  accent: color,
-                  detailFields: [
-                    { key: 'losses', label: 'Losses', formatter: (value) => formatNumber(value) },
-                    { key: 'matches', label: 'Matches', formatter: (value) => formatNumber(value) },
-                    { key: 'win_pct', label: 'Win %', formatter: (value) => `${formatDecimal(value, 1)}%` },
-                  ],
-                })}
-                className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
-              >
-                Enter animation mode
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={seasons} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
-                <XAxis
-                  dataKey="season"
-                  tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }}
-                  axisLine={{ stroke: '#1E1E2A' }}
-                  tickLine={{ stroke: '#1E1E2A' }}
-                />
-                <YAxis
-                  tick={{ fill: '#8888A0', fontSize: 12, fontFamily: 'JetBrains Mono' }}
-                  axisLine={{ stroke: '#1E1E2A' }}
-                  tickLine={{ stroke: '#1E1E2A' }}
-                  allowDecimals={false}
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="wins" stackId="wl" fill="#22C55E" name="Wins" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="losses" stackId="wl" fill="#EF4444" name="Losses" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="ties" stackId="wl" fill="#FFB800" name="Ties (SO)" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="no_results" stackId="wl" fill="#6B7280" name="No Result" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Win % Trend Line */}
-        {!seasonsLoading && (seasons || []).length > 1 && (
-          <div className="card mb-6">
-            <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3">Win % Trend</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={seasons} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="winPctGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
-                <XAxis dataKey="season" tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
-                <YAxis domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={{ stroke: '#1E1E2A' }} tickLine={{ stroke: '#1E1E2A' }} />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: color, strokeDasharray: '3 3' }} />
-                <Area type="monotone" dataKey="win_pct" stroke={color} strokeWidth={2} fill="url(#winPctGrad)" name="Win %" dot={{ fill: color, r: 3 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {seasonsLoading ? (
-          <Loading message="Loading season records..." />
-        ) : (
-          <DataTable columns={seasonColumns} data={seasons || []} />
         )}
       </section>
 
-      {/* Head-to-Head Matrix */}
-      <section>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-1 h-6 rounded-full" style={{ backgroundColor: color }} />
-          <h2 className="text-xl font-heading font-bold text-text-primary">Head-to-Head Record</h2>
-        </div>
-
-        {/* H2H Horizontal Bar Chart */}
-        {!h2hLoading && h2hData.length > 0 && (
-          <div className="card mb-6">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-heading font-semibold text-text-secondary">Wins vs Each Opponent</h3>
-              <button
-                type="button"
-                onClick={() => setShowcaseConfig({
-                  title: `${decoded} head-to-head wins`,
-                  subtitle: 'Fullscreen replay of the strongest matchups, with reverse order and the complete opponent board at the finish.',
-                  items: h2hShowcaseData,
-                  metricLabel: 'Wins',
-                  accent: color,
-                  detailFields: [
-                    { key: 'played', label: 'Played', formatter: (value) => formatNumber(value) },
-                    { key: 'lost', label: 'Lost', formatter: (value) => formatNumber(value) },
-                    { key: 'win_pct', label: 'Win %', formatter: (value) => `${formatDecimal(value, 1)}%` },
-                  ],
-                })}
-                className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
-              >
-                Enter animation mode
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={Math.max(250, h2hData.length * 32)}>
-              <BarChart
-                data={h2hData.map((h) => ({ name: getTeamAbbr(h.opponent), won: h.won, lost: h.lost, opponent: h.opponent })).reverse()}
-                layout="vertical"
-                margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fill: '#8888A0', fontSize: 12, fontFamily: 'JetBrains Mono' }}
-                  axisLine={{ stroke: '#1E1E2A' }}
-                  tickLine={{ stroke: '#1E1E2A' }}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={55}
-                  tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }}
-                  axisLine={{ stroke: '#1E1E2A' }}
-                  tickLine={{ stroke: '#1E1E2A' }}
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="won" stackId="h2h" fill="#22C55E" name="Won" radius={[0, 0, 0, 0]} barSize={16} />
-                <Bar dataKey="lost" stackId="h2h" fill="#EF4444" name="Lost" radius={[0, 4, 4, 0]} barSize={16} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {h2hLoading ? (
-          <Loading message="Loading head-to-head records..." />
-        ) : (
-          <DataTable columns={h2hColumns} data={h2hData} />
-        )}
-      </section>
-
-      {/* Compare CTA */}
       <LeaderboardShowcaseModal
         open={Boolean(showcaseConfig)}
         onClose={() => setShowcaseConfig(null)}
-        title={showcaseConfig?.title || 'Animation mode'}
-        subtitle={showcaseConfig?.subtitle || 'Fullscreen presentation mode'}
-        items={showcaseConfig?.items || []}
-        metricLabel={showcaseConfig?.metricLabel || 'Value'}
-        accent={showcaseConfig?.accent || color}
-        detailFields={showcaseConfig?.detailFields || []}
+        {...showcaseConfig}
       />
-
-      {otherTeams.length > 0 && (
-        <div className="card border-accent-cyan/20">
-          <p className="text-text-secondary text-sm mb-3">
-            Compare {decoded} with another team
-          </p>
-          <Link
-            to={`/h2h?team1=${encodeURIComponent(decoded)}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20 rounded-md text-sm font-medium hover:bg-accent-cyan/20 transition-colors"
-          >
-            Head to Head Comparison &rarr;
-          </Link>
-        </div>
-      )}
     </div>
   )
 }

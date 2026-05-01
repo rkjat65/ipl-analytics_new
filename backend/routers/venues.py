@@ -73,12 +73,46 @@ def venue_stats(venue_name: str):
         ORDER BY m.season
     """, variants)
 
+    # Team-wise performance at this venue
+    team_stats = query(f"""
+        WITH team_matches AS (
+            SELECT team, COUNT(*) AS matches,
+                   SUM(CASE WHEN winner = team THEN 1 ELSE 0 END) AS wins
+            FROM (
+                SELECT team1 AS team, winner, venue FROM matches
+                UNION ALL
+                SELECT team2 AS team, winner, venue FROM matches
+            ) combined
+            WHERE venue IN ({ph})
+            GROUP BY team
+        )
+        SELECT team, matches, wins,
+               ROUND(wins * 100.0 / matches, 2) AS win_pct
+        FROM team_matches
+        ORDER BY matches DESC
+    """, variants)
+
+    # Scoring Patterns (Buckets)
+    scoring_patterns = query(f"""
+        SELECT
+            SUM(CASE WHEN total_runs < 150 THEN 1 ELSE 0 END) AS low_scores,
+            SUM(CASE WHEN total_runs BETWEEN 150 AND 179 THEN 1 ELSE 0 END) AS medium_scores,
+            SUM(CASE WHEN total_runs BETWEEN 180 AND 199 THEN 1 ELSE 0 END) AS high_scores,
+            SUM(CASE WHEN total_runs >= 200 THEN 1 ELSE 0 END) AS massive_scores
+        FROM innings
+        WHERE match_id IN (SELECT match_id FROM matches WHERE venue IN ({ph}))
+          AND innings_number <= 2 AND is_super_over = false
+    """, variants)
+
     canonical = normalize_venue(venue_name)
     return {
         "venue": canonical,
         "stats": stats[0] if stats else {},
         "seasons": season_stats,
+        "team_performance": team_stats,
+        "scoring_patterns": scoring_patterns[0] if scoring_patterns else {},
     }
+
 
 
 @router.get("/{venue_name}/top-performers")
@@ -120,3 +154,29 @@ def top_performers(venue_name: str):
     """, variants)
 
     return {"top_batters": top_batters, "top_bowlers": top_bowlers}
+
+
+@router.get("/{venue_name}/image")
+def venue_image(venue_name: str):
+    """Serve venue image if available, else 404."""
+    import os
+    from fastapi.responses import FileResponse
+    from fastapi import HTTPException
+    from ..database import normalize_venue
+
+    canonical = normalize_venue(venue_name)
+    # Try exact match, then simplified match (no city)
+    images_dir = os.path.join(os.path.dirname(__file__), "..", "venue_images")
+
+    # Clean name for filesystem
+    clean_name = canonical.replace(", ", "_").replace(" ", "_")
+    simple_name = canonical.split(",")[0].replace(" ", "_")
+
+    for name in [clean_name, simple_name, canonical]:
+        for ext in [".jpg", ".jpeg", ".png", ".webp"]:
+            path = os.path.join(images_dir, f"{name}{ext}")
+            if os.path.isfile(path):
+                media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+                return FileResponse(path, media_type=media.get(ext.lstrip("."), "image/jpeg"))
+
+    raise HTTPException(status_code=404, detail="No image available")

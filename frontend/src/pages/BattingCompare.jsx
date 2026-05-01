@@ -1,31 +1,29 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { searchPlayers, getPlayerBatting } from '../lib/api'
-import StatCard from '../components/ui/StatCard'
 import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal } from '../utils/format'
+import SEO from '../components/SEO'
 import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts'
 
 const PLAYER_COLORS = ['#00E5FF', '#FF2D78', '#B8FF00', '#FFB800', '#8B5CF6']
 
-const darkTooltipStyle = {
-  contentStyle: { backgroundColor: '#111118', border: '1px solid #1E1E2A', borderRadius: 8, color: '#E8E8ED' },
-  itemStyle: { color: '#E8E8ED' },
-  labelStyle: { color: '#8888A0' },
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          {entry.name}: <span className="font-mono">{entry.value}</span>
+        </p>
+      ))}
+    </div>
+  )
 }
 
 export default function BattingCompare() {
@@ -48,10 +46,6 @@ export default function BattingCompare() {
       setSearching(false)
     }
   }, [query])
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSearch()
-  }
 
   const addPlayer = useCallback(async (name) => {
     if (selectedPlayers.includes(name) || selectedPlayers.length >= 5) return
@@ -78,34 +72,31 @@ export default function BattingCompare() {
     })
   }, [])
 
-  // Build radar data for comparison
   const playersWithData = selectedPlayers.filter((p) => playerData[p]?.career)
 
-  const radarData = (() => {
+  const radarData = useMemo(() => {
     if (playersWithData.length === 0) return []
-
-    // Normalize metrics across players for radar
-    const metrics = ['Average', 'Strike Rate', 'Boundary %', 'Dot %', 'Consistency']
+    const metrics = ['Average', 'Strike Rate', 'Boundary %', '50s/100s Index', 'Experience']
+    
     const rawValues = playersWithData.map((name) => {
       const c = playerData[name].career
-      const totalBalls = c.innings > 0 ? (c.runs / (c.sr / 100)) : 0
-      const boundaryPct = totalBalls > 0 ? ((c.fours * 4 + c.sixes * 6) / c.runs) * 100 : 0
-      const consistency = c.innings > 0 ? ((c.fifties + c.hundreds) / c.innings) * 100 : 0
+      const boundaryPct = c.runs > 0 ? ((c.fours * 4 + c.sixes * 6) / c.runs) * 100 : 0
+      const legacy = c.innings > 0 ? ((c.fifties + c.hundreds) / c.innings) * 100 : 0
       return {
         average: c.avg || 0,
         sr: c.sr || 0,
-        boundaryPct: isFinite(boundaryPct) ? boundaryPct : 0,
-        dotPct: 0, // Not directly available from career stats
-        consistency: isFinite(consistency) ? consistency : 0,
+        boundaryPct: boundaryPct,
+        legacy: legacy,
+        matches: c.matches || 0
       }
     })
 
-    // Find max for each metric for normalization
     const maxes = {
-      average: Math.max(...rawValues.map((v) => v.average), 1),
-      sr: Math.max(...rawValues.map((v) => v.sr), 1),
-      boundaryPct: Math.max(...rawValues.map((v) => v.boundaryPct), 1),
-      consistency: Math.max(...rawValues.map((v) => v.consistency), 1),
+      average: Math.max(...rawValues.map(v => v.average), 1),
+      sr: Math.max(...rawValues.map(v => v.sr), 1),
+      boundaryPct: Math.max(...rawValues.map(v => v.boundaryPct), 1),
+      legacy: Math.max(...rawValues.map(v => v.legacy), 1),
+      matches: Math.max(...rawValues.map(v => v.matches), 1)
     }
 
     return metrics.map((metric, mi) => {
@@ -116,16 +107,15 @@ export default function BattingCompare() {
         if (mi === 0) val = (raw.average / maxes.average) * 100
         else if (mi === 1) val = (raw.sr / maxes.sr) * 100
         else if (mi === 2) val = (raw.boundaryPct / maxes.boundaryPct) * 100
-        else if (mi === 3) val = 50 // Placeholder since dot% isn't in career stats
-        else val = (raw.consistency / maxes.consistency) * 100
+        else if (mi === 3) val = (raw.legacy / maxes.legacy) * 100
+        else val = (raw.matches / maxes.matches) * 100
         entry[name] = Math.round(val)
       })
       return entry
     })
-  })()
+  }, [playersWithData, playerData])
 
-  // Phase comparison data
-  const phaseCompareData = (() => {
+  const phaseCompareData = useMemo(() => {
     if (playersWithData.length === 0) return []
     const phases = ['Powerplay', 'Middle', 'Death']
     return phases.map((phase) => {
@@ -137,205 +127,132 @@ export default function BattingCompare() {
       })
       return entry
     })
-  })()
+  }, [playersWithData, playerData])
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Compare Batsmen</h1>
-        <p className="text-text-secondary text-sm mt-1">Select 2-5 players to compare their batting statistics</p>
-      </div>
+    <div className="space-y-12 pb-24">
+      <SEO title="Batter's Arena - Combat Simulation" />
 
-      {/* Player Selector */}
-      <div className="card space-y-4">
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search for a player..."
-            className="flex-1 bg-bg-elevated border border-border-subtle rounded-md px-4 py-2 text-sm text-text-primary placeholder:text-text-muted font-body focus:outline-none focus:border-accent-cyan transition-colors"
-          />
-          <button
-            onClick={handleSearch}
-            disabled={searching || !query.trim()}
-            className="px-4 py-2 bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20 rounded-md text-sm font-medium hover:bg-accent-cyan/20 transition-colors disabled:opacity-50"
-          >
-            {searching ? 'Searching...' : 'Search'}
-          </button>
-        </div>
-
-        {/* Search Results */}
-        {searchResults.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {searchResults.slice(0, 20).map((name) => (
-              <button
-                key={name}
-                onClick={() => addPlayer(name)}
-                disabled={selectedPlayers.includes(name) || selectedPlayers.length >= 5}
-                className="px-3 py-1.5 bg-bg-elevated border border-border-subtle rounded-full text-xs text-text-primary hover:border-accent-cyan hover:text-accent-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                + {name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Selected Players */}
-        {selectedPlayers.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {selectedPlayers.map((name, i) => (
-              <span
-                key={name}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border"
-                style={{
-                  backgroundColor: `${PLAYER_COLORS[i]}15`,
-                  borderColor: `${PLAYER_COLORS[i]}40`,
-                  color: PLAYER_COLORS[i],
-                }}
-              >
-                {name}
-                <button
-                  onClick={() => removePlayer(name)}
-                  className="hover:opacity-70 transition-opacity"
-                >
-                  x
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {loadingPlayer && (
-          <p className="text-text-muted text-xs">Loading {loadingPlayer}...</p>
-        )}
-      </div>
-
-      {/* Comparison Content */}
-      {playersWithData.length >= 2 && (
-        <>
-          {/* Side-by-side Stats */}
-          <section>
-            <SectionHeader title="Career Comparison" color="lime" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {playersWithData.map((name, i) => {
-                const c = playerData[name].career
-                return (
-                  <div key={name} className="card space-y-3" style={{ borderTop: `2px solid ${PLAYER_COLORS[i]}` }}>
-                    <p className="font-heading font-bold text-sm text-text-primary truncate">{name}</p>
-                    <div className="space-y-2 text-xs">
-                      <StatRow label="Matches" value={c.matches} />
-                      <StatRow label="Runs" value={formatNumber(c.runs)} highlight />
-                      <StatRow label="Average" value={formatDecimal(c.avg)} />
-                      <StatRow label="SR" value={formatDecimal(c.sr)} />
-                      <StatRow label="Highest" value={c.highest || '-'} />
-                      <StatRow label="50s / 100s" value={`${c.fifties ?? 0} / ${c.hundreds ?? 0}`} />
-                      <StatRow label="4s / 6s" value={`${c.fours ?? 0} / ${c.sixes ?? 0}`} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-
-          {/* Radar Chart */}
-          <section>
-            <SectionHeader title="Skill Comparison" color="cyan" />
-            <div className="card">
-              <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                  <PolarGrid stroke="#1E1E2A" />
-                  <PolarAngleAxis dataKey="metric" tick={{ fill: '#8888A0', fontSize: 12 }} />
-                  <PolarRadiusAxis tick={{ fill: '#555566', fontSize: 10 }} domain={[0, 100]} />
-                  {playersWithData.map((name, i) => (
-                    <Radar
-                      key={name}
-                      name={name}
-                      dataKey={name}
-                      stroke={PLAYER_COLORS[i]}
-                      fill={PLAYER_COLORS[i]}
-                      fillOpacity={0.15}
-                      strokeWidth={2}
-                    />
-                  ))}
-                  <Tooltip {...darkTooltipStyle} />
-                  <Legend
-                    wrapperStyle={{ color: '#8888A0', fontSize: 12 }}
-                    formatter={(value) => <span className="text-text-secondary text-xs">{value}</span>}
+      {/* ── CINEMATIC HEADER ──────────────────────────────────── */}
+      <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(184,255,0,0.05),transparent_40%)]" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-12">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-lime/25 bg-accent-lime/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-accent-lime mb-6">
+              Combatant Comparison Module
+            </span>
+            <h1 className="text-5xl md:text-8xl font-black font-heading text-text-primary tracking-tighter leading-none mb-8">
+              BATTER'S <br /> ARENA
+            </h1>
+            <div className="relative group w-full lg:w-96">
+               <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus-within:border-accent-lime transition-all">
+                  <input 
+                    type="text" 
+                    placeholder="Enlist Combatant..." 
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="bg-transparent border-none focus:ring-0 text-sm font-bold text-white placeholder:text-white/20 w-full"
                   />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          {/* Phase Comparison */}
-          {phaseCompareData.length > 0 && (
-            <section>
-              <SectionHeader title="Phase-wise Strike Rate" color="magenta" />
-              <div className="card">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={phaseCompareData} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" />
-                    <XAxis dataKey="phase" tick={{ fill: '#8888A0', fontSize: 12 }} axisLine={{ stroke: '#1E1E2A' }} />
-                    <YAxis tick={{ fill: '#8888A0', fontSize: 12 }} axisLine={{ stroke: '#1E1E2A' }} />
-                    <Tooltip {...darkTooltipStyle} />
-                    <Legend
-                      wrapperStyle={{ color: '#8888A0', fontSize: 12 }}
-                      formatter={(value) => <span className="text-text-secondary text-xs">{value}</span>}
-                    />
-                    {playersWithData.map((name, i) => (
-                      <Bar key={name} dataKey={name} fill={PLAYER_COLORS[i]} radius={[4, 4, 0, 0]} />
+                  <button onClick={handleSearch} className="text-accent-lime font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors">Search</button>
+               </div>
+               
+               {searchResults.length > 0 && (
+                 <div className="absolute top-full left-0 w-full mt-2 bg-[#111118] border border-white/10 rounded-2xl p-4 z-50 shadow-2xl max-h-64 overflow-y-auto">
+                    {searchResults.map(name => (
+                      <button 
+                        key={name} 
+                        onClick={() => addPlayer(name)}
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/5 text-xs font-black text-white/60 hover:text-accent-lime transition-all"
+                      >
+                        + {name}
+                      </button>
                     ))}
-                  </BarChart>
-                </ResponsiveContainer>
+                 </div>
+               )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+             {selectedPlayers.map((name, i) => (
+               <div key={name} className="flex items-center gap-3 px-4 py-2 rounded-full border bg-white/5" style={{ borderColor: `${PLAYER_COLORS[i]}40`, color: PLAYER_COLORS[i] }}>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{name}</span>
+                  <button onClick={() => removePlayer(name)} className="hover:text-white transition-colors">×</button>
+               </div>
+             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ANALYSIS CENTER ──────────────────────────────────── */}
+      {playersWithData.length >= 2 ? (
+        <div className="space-y-12 animate-in">
+           {/* Radar and Comparison Stats */}
+           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="xl:col-span-2 bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+                 <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Skill DNA</h3>
+                 <div className="h-[450px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                       <RadarChart data={radarData}>
+                          <PolarGrid stroke="#ffffff05" />
+                          <PolarAngleAxis dataKey="metric" tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                          <PolarRadiusAxis axisLine={false} tick={false} />
+                          {playersWithData.map((name, i) => (
+                            <Radar key={name} name={name} dataKey={name} stroke={PLAYER_COLORS[i]} fill={PLAYER_COLORS[i]} fillOpacity={0.1} strokeWidth={3} />
+                          ))}
+                          <Tooltip content={<ChartTooltip />} />
+                          <Legend />
+                       </RadarChart>
+                    </ResponsiveContainer>
+                 </div>
               </div>
-            </section>
-          )}
-        </>
-      )}
 
-      {/* Empty state */}
-      {playersWithData.length < 2 && selectedPlayers.length > 0 && !loadingPlayer && (
-        <div className="text-center py-12">
-          <p className="text-text-muted text-sm">
-            {selectedPlayers.length === 1
-              ? 'Add at least one more player to start comparing'
-              : 'Loading player data...'}
-          </p>
+              <div className="bg-[#0B0E16] rounded-[40px] border border-white/5 p-10 overflow-x-auto">
+                 <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Combat Stats</h3>
+                 <div className="space-y-8">
+                    {playersWithData.map((name, i) => {
+                       const c = playerData[name].career
+                       return (
+                         <div key={name} className="space-y-4">
+                            <div className="flex items-center gap-3">
+                               <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: PLAYER_COLORS[i] }} />
+                               <span className="text-xs font-black text-white uppercase tracking-widest truncate">{name}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-4 px-4">
+                               <div><p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Avg</p><p className="text-xl font-black font-heading text-white">{c.avg}</p></div>
+                               <div><p className="text-[9px] font-black text-text-muted uppercase tracking-widest">SR</p><p className="text-xl font-black font-heading text-white">{c.sr}</p></div>
+                               <div><p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Runs</p><p className="text-xl font-black font-heading text-white">{c.runs}</p></div>
+                               <div><p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Matches</p><p className="text-xl font-black font-heading text-white">{c.matches}</p></div>
+                            </div>
+                         </div>
+                       )
+                    })}
+                 </div>
+              </div>
+           </div>
+
+           {/* Phase Strike Rates */}
+           <div className="bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+              <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Phase Lethality</h3>
+              <div className="h-72">
+                 <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={phaseCompareData}>
+                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                       <XAxis dataKey="phase" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                       <Tooltip content={<ChartTooltip />} />
+                       {playersWithData.map((name, i) => (
+                         <Bar key={name} dataKey={name} fill={PLAYER_COLORS[i]} radius={[8, 8, 0, 0]} barSize={24} />
+                       ))}
+                    </BarChart>
+                 </ResponsiveContainer>
+              </div>
+           </div>
+        </div>
+      ) : (
+        <div className="text-center py-32 bg-[#0B0E16] rounded-[40px] border border-white/5">
+           <p className="text-text-muted font-black uppercase tracking-widest italic opacity-40">Awaiting multi-combatant enlistment...</p>
         </div>
       )}
-
-      {selectedPlayers.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-text-muted text-sm">Search and select players above to begin comparison</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function StatRow({ label, value, highlight }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-text-muted">{label}</span>
-      <span className={`font-mono ${highlight ? 'font-semibold text-accent-lime' : 'text-text-primary'}`}>{value}</span>
-    </div>
-  )
-}
-
-function SectionHeader({ title, color = 'cyan' }) {
-  const colorMap = {
-    cyan: 'bg-accent-cyan',
-    magenta: 'bg-accent-magenta',
-    lime: 'bg-accent-lime',
-    amber: 'bg-accent-amber',
-  }
-  return (
-    <div className="flex items-center gap-3 mb-4">
-      <div className={`w-1 h-6 ${colorMap[color] || colorMap.cyan} rounded-full`} />
-      <h2 className="text-xl font-heading font-bold text-text-primary">{title}</h2>
     </div>
   )
 }

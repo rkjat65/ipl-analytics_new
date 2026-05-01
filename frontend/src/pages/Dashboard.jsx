@@ -160,10 +160,10 @@ function ZoomControls({ zoom, setZoom }) {
 
 const DISMISS_COLORS = ['#FF2D78', '#00E5FF', '#B8FF00', '#FFB800', '#8B5CF6', '#22D3EE', '#F472B6', '#34D399']
 const INSIGHT_TABS = [
+  { key: 'matrix', label: 'Player matrices', accent: 'magenta' },
   { key: 'dna', label: 'Innings DNA', accent: 'cyan' },
   { key: 'sixes', label: 'Six evolution', accent: 'amber' },
   { key: 'phase', label: 'Phase dominance', accent: 'lime' },
-  { key: 'matrix', label: 'Player matrices', accent: 'magenta' },
   { key: 'dismissal', label: 'Dismissal mix', accent: 'magenta' },
 ]
 
@@ -288,7 +288,7 @@ export default function Dashboard() {
   const [motmRole, setMotmRole] = useState('all')
   const [motmPlayerQuery, setMotmPlayerQuery] = useState('')
   const [motmPlayerResults, setMotmPlayerResults] = useState([])
-  const [insightView, setInsightView] = useState('dna')
+  const [insightView, setInsightView] = useState('matrix')
   const [showBatTable, setShowBatTable] = useState(false)
   const [showBowlTable, setShowBowlTable] = useState(false)
   const [batMatrixZoom, setBatMatrixZoom] = useState(1)

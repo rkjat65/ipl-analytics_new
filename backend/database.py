@@ -38,6 +38,7 @@ VENUE_NAME_MAP = {
     "Feroz Shah Kotla": "Arun Jaitley Stadium, Delhi",
     "Arun Jaitley Stadium": "Arun Jaitley Stadium, Delhi",
     "Arun Jaitley Stadium, Delhi": "Arun Jaitley Stadium, Delhi",
+    "Feroz Shah Kotla Ground": "Arun Jaitley Stadium, Delhi",
     # M. Chinnaswamy Stadium, Bengaluru
     "M Chinnaswamy Stadium": "M Chinnaswamy Stadium, Bengaluru",
     "M.Chinnaswamy Stadium": "M Chinnaswamy Stadium, Bengaluru",
@@ -45,23 +46,29 @@ VENUE_NAME_MAP = {
     # Narendra Modi Stadium (formerly Sardar Patel Stadium), Ahmedabad
     "Sardar Patel Stadium, Motera": "Narendra Modi Stadium, Ahmedabad",
     "Narendra Modi Stadium, Ahmedabad": "Narendra Modi Stadium, Ahmedabad",
+    "Sardar Patel Stadium": "Narendra Modi Stadium, Ahmedabad",
     # Maharashtra Cricket Association Stadium, Pune
     "Subrata Roy Sahara Stadium": "Maharashtra Cricket Association Stadium, Pune",
     "Maharashtra Cricket Association Stadium": "Maharashtra Cricket Association Stadium, Pune",
     "Maharashtra Cricket Association Stadium, Pune": "Maharashtra Cricket Association Stadium, Pune",
+    "MCA Stadium, Pune": "Maharashtra Cricket Association Stadium, Pune",
     # MA Chidambaram Stadium, Chepauk, Chennai
     "MA Chidambaram Stadium": "MA Chidambaram Stadium, Chennai",
     "MA Chidambaram Stadium, Chepauk": "MA Chidambaram Stadium, Chennai",
     "MA Chidambaram Stadium, Chepauk, Chennai": "MA Chidambaram Stadium, Chennai",
+    "M. A. Chidambaram Stadium": "MA Chidambaram Stadium, Chennai",
+    "MA Chidambaram Stadium, Chennai": "MA Chidambaram Stadium, Chennai",
     # Punjab Cricket Association IS Bindra Stadium, Mohali
     "Punjab Cricket Association IS Bindra Stadium": "IS Bindra Stadium, Mohali",
     "Punjab Cricket Association IS Bindra Stadium, Mohali": "IS Bindra Stadium, Mohali",
     "Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh": "IS Bindra Stadium, Mohali",
     "Punjab Cricket Association Stadium, Mohali": "IS Bindra Stadium, Mohali",
+    "IS Bindra Stadium, Mohali": "IS Bindra Stadium, Mohali",
     # Rajiv Gandhi International Stadium, Hyderabad
     "Rajiv Gandhi International Stadium": "Rajiv Gandhi International Stadium, Hyderabad",
     "Rajiv Gandhi International Stadium, Uppal": "Rajiv Gandhi International Stadium, Hyderabad",
     "Rajiv Gandhi International Stadium, Uppal, Hyderabad": "Rajiv Gandhi International Stadium, Hyderabad",
+    "Rajiv Gandhi Intl. Cricket Stadium": "Rajiv Gandhi International Stadium, Hyderabad",
     # Wankhede Stadium, Mumbai
     "Wankhede Stadium": "Wankhede Stadium, Mumbai",
     "Wankhede Stadium, Mumbai": "Wankhede Stadium, Mumbai",
@@ -79,6 +86,7 @@ VENUE_NAME_MAP = {
     "Brabourne Stadium, Mumbai": "Brabourne Stadium, Mumbai",
     # Dubai International Cricket Stadium
     "Dubai International Cricket Stadium": "Dubai International Cricket Stadium",
+    "Dubai International Stadium": "Dubai International Cricket Stadium",
     # Sheikh Zayed Stadium, Abu Dhabi
     "Sheikh Zayed Stadium": "Sheikh Zayed Stadium, Abu Dhabi",
     "Zayed Cricket Stadium, Abu Dhabi": "Sheikh Zayed Stadium, Abu Dhabi",
@@ -90,9 +98,16 @@ VENUE_NAME_MAP = {
     "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium, Visakhapatnam": "ACA-VDCA Stadium, Visakhapatnam",
     # Ekana Stadium, Lucknow
     "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow": "Ekana Cricket Stadium, Lucknow",
+    "Ekana Cricket Stadium": "Ekana Cricket Stadium, Lucknow",
+    "Ekana Cricket Stadium, Lucknow": "Ekana Cricket Stadium, Lucknow",
     # Mullanpur (keep separate from Mohali)
     "Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur": "MYSI Cricket Stadium, Mullanpur",
     "Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh": "MYSI Cricket Stadium, Mullanpur",
+    "Maharaja Yadavindra Singh International Cricket Stadium": "MYSI Cricket Stadium, Mullanpur",
+    # JSCA Ranchi
+    "JSCA International Stadium Complex": "JSCA International Stadium Complex, Ranchi",
+    "JSCA International Stadium Complex, Ranchi": "JSCA International Stadium Complex, Ranchi",
+
 }
 
 

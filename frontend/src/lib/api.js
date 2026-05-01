@@ -156,8 +156,7 @@ export const getTitleWinners = () => fetchAPI('/analytics/title-winners')
 export const getManOfTheMatch = (params) => fetchAPI('/analytics/man-of-the-match', params)
 export const getCapWinners = () => fetchAPI('/analytics/cap-winners')
 export const getIPLPointsTable = (season = '2026') => fetchAPI('/analytics/points-table', { season })
-/** Captain W/L after Sportmonks enrich (see admin enrich-duckdb-captains-sportmonks). */
-export const getCaptainStatsDuckdb = (season) => fetchAPI('/analytics/captain-stats-duckdb', { season })
+
 
 // Pulse — Social Growth Engine
 export const getPulseFeed = (params) => fetchAPI('/pulse/feed', params)
@@ -215,121 +214,6 @@ export const verifyPayment = (data, token) => {
     return res.json()
   })
 }
-
-// Live Scores
-export const getLiveStatus = () => fetchAPI('/live/status')
-export const getLiveMatches = () => fetchAPI('/live/matches')
-export const getLiveScorecard = (id) => fetchAPI(`/live/scorecard/${encodeURIComponent(id)}`)
-export const getLiveMatchInfo = (id) => fetchAPI(`/live/info/${encodeURIComponent(id)}`)
-export const getIPLSchedule = () => fetchAPI('/live/schedule')
-/** IPL 2026 captains from cached live scorecards (Sportmonks lineups). */
-export const getIPL2026Captains = () => fetchAPI('/live/ipl-captains')
-/** Captain win/loss/NR from cached scorecards (lineup + match winner). */
-export const getIPL2026CaptainStats = (season_year = 2026, all_years = false) =>
-  fetchAPI('/live/ipl-captain-stats', all_years ? { all_years: true } : { season_year })
-
-// Live Analytics
-export const getLiveMatchup = (batter, bowler, matchId) =>
-  fetchAPI('/live/analytics/matchup', {
-    batter,
-    bowler,
-    ...(matchId ? { match_id: matchId } : {}),
-  })
-export const getLiveProjectedScore = (params) => fetchAPI('/live/analytics/projected-score', params)
-export const getLiveVenueInsights = (venue) => fetchAPI(`/live/analytics/venue-insights`, { venue })
-export const getLivePlayerForm = (player, role, matchId) =>
-  fetchAPI('/live/analytics/player-form', {
-    player,
-    role,
-    ...(matchId ? { match_id: matchId } : {}),
-  })
-export const getLivePhaseAnalysis = (team, current_over) => fetchAPI('/live/analytics/phase-analysis', { team, current_over })
-export const getLiveTeamH2H = (team1, team2) => fetchAPI('/live/analytics/team-h2h-context', { team1, team2 })
-
-// Live Scores Admin
-export const getLivePollerConfig = (token) => {
-  return fetch(`${window.location.origin}/api/live/admin/config`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
-    return res.json()
-  })
-}
-export const startLivePoller = (token) => {
-  return fetch(`${window.location.origin}/api/live/admin/start`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
-    return res.json()
-  })
-}
-export const stopLivePoller = (token) => {
-  return fetch(`${window.location.origin}/api/live/admin/stop`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
-    return res.json()
-  })
-}
-export const setLivePollerInterval = (token, intervalMs) => {
-  return fetch(`${window.location.origin}/api/live/admin/interval`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ interval_ms: intervalMs }),
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
-    return res.json()
-  })
-}
-export const refreshLiveMatches = (token) => {
-  return fetch(`${window.location.origin}/api/live/admin/refresh-matches`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
-    return res.json()
-  })
-}
-export const getAdminLiveMatches = (token) => {
-  return fetch(`${window.location.origin}/api/live/admin/matches`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
-    return res.json()
-  })
-}
-export const setMatchTracking = (token, matchId, tracked) => {
-  return fetch(`${window.location.origin}/api/live/admin/matches/track`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ match_id: matchId, tracked }),
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Failed') })
-    return res.json()
-  })
-}
-export const deleteBalls = (token, matchId) => {
-  return fetch(`${window.location.origin}/api/live/admin/balls/${encodeURIComponent(matchId)}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Delete balls failed') })
-    return res.json()
-  })
-}
-export const syncBalls = (token, matchId) => {
-  return fetch(`${window.location.origin}/api/live/admin/sync-balls`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ match_id: matchId }),
-  }).then(res => {
-    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Ball sync failed') })
-    return res.json()
-  })
-}
-export const getLiveBalls = (matchId) => fetchAPI(`/live/balls/${encodeURIComponent(matchId)}`)
 
 // Admin
 export const getAdminUsers = (token) => {

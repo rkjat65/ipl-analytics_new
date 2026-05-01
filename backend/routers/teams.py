@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import FileResponse
-from ..database import query, normalize_team, team_variants, SUPER_OVER_WINNER_CTE
+from ..database import query, normalize_team, team_variants, SUPER_OVER_WINNER_CTE, VENUE_NORM_SQL
 
 TEAM_IMAGES_DIR = Path(__file__).parent.parent / "team_images"
 
@@ -223,15 +223,82 @@ def compare_teams(team1: str = Query(...), team2: str = Query(...)):
     """, v1 + v2 + h2h_params)
     avg_h2h = avg_h2h_row[0] if avg_h2h_row else {"team1_avg": None, "team2_avg": None}
 
+    # Top Batters in this H2H
+    top_batters = query(f"""
+        SELECT d.batter AS player,
+               COUNT(DISTINCT d.match_id) AS matches,
+               SUM(d.runs_batter) AS runs,
+               ROUND(SUM(d.runs_batter) * 100.0 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS sr
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE ({h2h_where}) AND d.is_super_over = false
+        GROUP BY d.batter
+        ORDER BY runs DESC
+        LIMIT 5
+    """, h2h_params)
+
+    # Top Bowlers in this H2H
+    top_bowlers = query(f"""
+        SELECT d.bowler AS player,
+               COUNT(DISTINCT d.match_id) AS matches,
+               SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out', 'retired hurt', 'retired out', 'obstructing the field') THEN 1 ELSE 0 END) AS wickets,
+               ROUND(SUM(d.runs_batter + d.runs_extras) * 6.0 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS economy
+        FROM deliveries d
+        JOIN matches m ON d.match_id = m.match_id
+        WHERE ({h2h_where}) AND d.is_super_over = false
+        GROUP BY d.bowler
+        ORDER BY wickets DESC
+        LIMIT 5
+    """, h2h_params)
+
+    # Venue Breakdown in this H2H
+    venue_stats = query(f"""
+        SELECT ({VENUE_NORM_SQL}) AS venue,
+               COUNT(*) AS played,
+               SUM(CASE WHEN winner IN ({ph1}) THEN 1 ELSE 0 END) AS team1_wins,
+               SUM(CASE WHEN winner IN ({ph2}) THEN 1 ELSE 0 END) AS team2_wins
+        FROM matches
+        WHERE ({h2h_where}) AND winner IS NOT NULL
+        GROUP BY ({VENUE_NORM_SQL})
+        ORDER BY played DESC
+    """, v1 + v2 + h2h_params)
+
+    # Phase Dominance in this H2H
+    def _phase_stats(team_v, team_ph):
+        return query(f"""
+            SELECT
+                CASE
+                    WHEN d.over_number <= 5 THEN 'powerplay'
+                    WHEN d.over_number <= 14 THEN 'middle'
+                    ELSE 'death'
+                END AS phase,
+                ROUND(SUM(d.runs_total) * 6.0 / NULLIF(COUNT(CASE WHEN d.extras_wides = 0 AND d.extras_noballs = 0 THEN 1 END), 0), 2) AS rr
+            FROM deliveries d
+            JOIN matches m ON d.match_id = m.match_id
+            JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
+            WHERE i.batting_team IN ({team_ph})
+              AND ({h2h_where})
+              AND d.is_super_over = false
+            GROUP BY phase
+        """, team_v + h2h_params)
+
+    p1 = _phase_stats(v1, ph1)
+    p2 = _phase_stats(v2, ph2)
+
     return {
-        "team1": {"name": canonical1, **s1, **b1},
-        "team2": {"name": canonical2, **s2, **b2},
+        "team1": {"name": canonical1, **s1, **b1, "phases": {p["phase"]: p["rr"] for p in p1}},
+        "team2": {"name": canonical2, **s2, **b2, "phases": {p["phase"]: p["rr"] for p in p2}},
         "head_to_head": h2h[0] if h2h else {},
         "season_wise_h2h": season_wise_h2h,
         "recent_matches": recent_matches,
         "toss_stats": toss_stats,
         "avg_h2h_scores": avg_h2h,
+        "top_batters": top_batters,
+        "top_bowlers": top_bowlers,
+        "venue_stats": venue_stats,
     }
+
+
 
 
 @router.get("/{name}/stats")

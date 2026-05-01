@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
 import SEO from '../components/SEO'
 import { useFetch } from '../hooks/useFetch'
 import { getTeams, compareTeams } from '../lib/api'
@@ -7,83 +7,51 @@ import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal, formatDate } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell,
-  AreaChart, Area,
+  PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from 'recharts'
 
-/* ── Neon Tooltip ─────────────────────────────────────────── */
-function NeonTooltip({ children }) {
+/* ── Custom Tooltip ───────────────────────────────────────── */
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg text-xs">
-      {children}
+    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
+        </p>
+      ))}
     </div>
   )
 }
 
-/* ── Section Header ───────────────────────────────────────── */
-function SectionHeader({ title, accentColor = 'bg-accent-cyan' }) {
-  return (
-    <div className="flex items-center gap-3 mb-4">
-      <div className={`w-1 h-6 ${accentColor} rounded-full`} />
-      <h2 className="text-xl font-heading font-bold text-text-primary">{title}</h2>
-    </div>
-  )
-}
-
-/* ── Visual Stat Row ──────────────────────────────────────── */
-function VisualStatRow({ label, val1, val2, color1, color2, higherIsBetter = true, isDecimal = false }) {
+function MetricRow({ label, val1, val2, color1, color2, isDecimal = false }) {
   const n1 = parseFloat(val1) || 0
   const n2 = parseFloat(val2) || 0
   const maxVal = Math.max(n1, n2, 1)
-  const pct1 = (n1 / maxVal) * 100
-  const pct2 = (n2 / maxVal) * 100
-  const better1 = higherIsBetter ? n1 > n2 : n1 < n2
-  const better2 = higherIsBetter ? n2 > n1 : n2 < n1
-  const display1 = isDecimal ? formatDecimal(n1, 1) : formatNumber(n1)
-  const display2 = isDecimal ? formatDecimal(n2, 1) : formatNumber(n2)
-
+  
   return (
-    <div className="py-3 border-b border-[#1E1E2A] last:border-b-0">
-      <p className="text-center text-xs text-text-muted uppercase tracking-wider mb-2">{label}</p>
-      <div className="grid grid-cols-2 gap-3">
-        {/* Team 1 bar (right-aligned, grows left) */}
-        <div className="flex items-center gap-2">
-          <span className={`font-mono text-sm font-bold min-w-[50px] text-right ${better1 ? 'text-accent-lime' : 'text-text-primary'}`}>
-            {display1}
-          </span>
-          <div className="flex-1 h-3 rounded-full bg-[#1A1A24] overflow-hidden flex justify-end">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${pct1}%`, backgroundColor: color1, opacity: better1 ? 1 : 0.5 }}
-            />
-          </div>
+    <div className="py-5 border-b border-white/5 last:border-b-0">
+      <p className="text-center text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-4">{label}</p>
+      <div className="flex items-center gap-6">
+        <div className="flex-1 flex flex-col items-end gap-2">
+           <span className="font-mono text-xl font-black" style={{ color: n1 >= n2 ? color1 : '#ffffff40' }}>{isDecimal ? formatDecimal(n1, 1) : n1}</span>
+           <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden flex justify-end">
+              <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${(n1/maxVal)*100}%`, backgroundColor: color1 }} />
+           </div>
         </div>
-        {/* Team 2 bar (left-aligned, grows right) */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-3 rounded-full bg-[#1A1A24] overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${pct2}%`, backgroundColor: color2, opacity: better2 ? 1 : 0.5 }}
-            />
-          </div>
-          <span className={`font-mono text-sm font-bold min-w-[50px] text-left ${better2 ? 'text-accent-lime' : 'text-text-primary'}`}>
-            {display2}
-          </span>
+        <div className="flex-1 flex flex-col items-start gap-2">
+           <span className="font-mono text-xl font-black" style={{ color: n2 >= n1 ? color2 : '#ffffff40' }}>{isDecimal ? formatDecimal(n2, 1) : n2}</span>
+           <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${(n2/maxVal)*100}%`, backgroundColor: color2 }} />
+           </div>
         </div>
       </div>
     </div>
-  )
-}
-
-/* ── Custom label for last data point on area chart ──────── */
-function CumulativeEndLabel({ viewBox, value, fill }) {
-  if (!viewBox) return null
-  return (
-    <text x={viewBox.x} y={viewBox.y - 10} fill={fill} fontSize={13} fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-      {value}
-    </text>
   )
 }
 
@@ -91,9 +59,9 @@ export default function HeadToHead() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [team1, setTeam1] = useState(searchParams.get('team1') || '')
   const [team2, setTeam2] = useState(searchParams.get('team2') || '')
+  const rivalryRef = useRef(null)
 
   const { data: teams } = useFetch(() => getTeams(), [])
-
   const bothSelected = team1 && team2 && team1 !== team2
 
   const { data: comparison, loading: compLoading, error: compError } = useFetch(
@@ -108,849 +76,264 @@ export default function HeadToHead() {
     setSearchParams(params, { replace: true })
   }, [team1, team2])
 
-  const teamOptions = (teams || []).map((t) => ({ value: t, label: t }))
   const color1 = getTeamColor(team1)
   const color2 = getTeamColor(team2)
   const abbr1 = getTeamAbbr(team1)
   const abbr2 = getTeamAbbr(team2)
 
-  const selectClass =
-    'bg-[#111118] border border-[#1E1E2A] rounded-lg px-4 py-3 text-sm text-text-primary font-body focus:outline-none focus:border-accent-cyan transition-colors appearance-none cursor-pointer pr-8 w-full'
-  const selectStyle = {
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888A0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-  }
-
-  const h2h = comparison?.head_to_head
-  const t1Stats = comparison?.team1
-  const t2Stats = comparison?.team2
-  const seasonH2H = comparison?.season_wise_h2h
-  const recentMatches = comparison?.recent_matches
-  const tossStats = comparison?.toss_stats
-  const avgH2HScores = comparison?.avg_h2h_scores
-
-  // H2H wins
-  const t1Wins = h2h?.team1_wins ?? 0
-  const t2Wins = h2h?.team2_wins ?? 0
-  const totalH2H = t1Wins + t2Wins || 1
-  const t1WinPct = ((t1Wins / totalH2H) * 100).toFixed(1)
-  const t2WinPct = ((t2Wins / totalH2H) * 100).toFixed(1)
-
-  /* ── Win Streak Analysis data ──────────────────────────── */
-  const streakData = useMemo(() => {
-    if (!recentMatches || recentMatches.length === 0) return { dots: [], streak: null }
-    // Take last 10 matches (recentMatches is typically most-recent-first)
-    const last10 = recentMatches.slice(0, 10)
-    const dots = last10.map((m) => {
-      const year = m.date ? new Date(m.date).getFullYear() : (m.season || '?')
-      let dotColor = '#555568' // gray for no result
-      if (m.winner === team1) dotColor = color1
-      else if (m.winner === team2) dotColor = color2
-      return { winner: m.winner, color: dotColor, year: String(year) }
-    })
-
-    // Current streak: count consecutive wins by the same team from most recent
-    let streakTeam = null
-    let streakCount = 0
-    for (const m of last10) {
-      if (!m.winner || (m.winner !== team1 && m.winner !== team2)) break
-      if (streakTeam === null) {
-        streakTeam = m.winner
-        streakCount = 1
-      } else if (m.winner === streakTeam) {
-        streakCount++
-      } else {
-        break
-      }
-    }
-
-    return {
-      dots,
-      streak: streakTeam && streakCount > 1
-        ? { team: streakTeam, count: streakCount, color: streakTeam === team1 ? color1 : color2, abbr: streakTeam === team1 ? abbr1 : abbr2 }
-        : null,
-    }
-  }, [recentMatches, team1, team2, color1, color2, abbr1, abbr2])
-
-  /* ── Cumulative H2H chart data ─────────────────────────── */
   const cumulativeData = useMemo(() => {
-    if (!seasonH2H) return []
+    if (!comparison?.season_wise_h2h) return []
     let cum1 = 0, cum2 = 0
-    return seasonH2H.map(s => {
+    return comparison.season_wise_h2h.map(s => {
       cum1 += s.team1_wins || 0
       cum2 += s.team2_wins || 0
       return { season: String(s.season), [abbr1]: cum1, [abbr2]: cum2 }
     })
-  }, [seasonH2H, abbr1, abbr2])
+  }, [comparison, abbr1, abbr2])
 
-  /* ── Toss donut data ─────────────────────────────────────── */
-  const tossDonutData = useMemo(() => {
-    if (!tossStats) return []
-    return [
-      { name: abbr1 + ' Toss', value: tossStats.team1_toss_wins || 0, color: color1 },
-      { name: abbr2 + ' Toss', value: tossStats.team2_toss_wins || 0, color: color2 },
-    ].filter((d) => d.value > 0)
-  }, [tossStats, abbr1, abbr2, color1, color2])
-
-  const tossDecisionData = useMemo(() => {
-    if (!tossStats) return []
-    return [
-      { name: 'Bat First Wins', value: tossStats.bat_first_wins || 0, color: '#FFB800' },
-      { name: 'Chase Wins', value: tossStats.chase_wins || 0, color: '#00F0FF' },
-    ].filter((d) => d.value > 0)
-  }, [tossStats])
-
-  /* ── Swap handler ────────────────────────────────────────── */
-  const handleSwap = () => {
-    setTeam1(team2)
-    setTeam2(team1)
-  }
+  const phaseData = useMemo(() => {
+    if (!comparison) return []
+    const phases = ['powerplay', 'middle', 'death']
+    return phases.map(p => ({
+      phase: p.toUpperCase(),
+      [abbr1]: comparison.team1.phases[p] || 0,
+      [abbr2]: comparison.team2.phases[p] || 0
+    }))
+  }, [comparison, abbr1, abbr2])
 
   return (
-    <div className="space-y-8">
-      <SEO
-        title="Head to Head Comparison"
-        description="Compare IPL teams head to head. Win records, venue stats, recent form, and historical matchup data between any two IPL franchises."
-      />
-      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(0,229,255,0.16),transparent_0%,transparent_36%),radial-gradient(circle_at_bottom_right,rgba(255,45,120,0.12),transparent_0%,transparent_34%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] animate-in">
-        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/25 bg-accent-cyan/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-accent-cyan">
-              <span className="h-2 w-2 rounded-full bg-accent-cyan animate-pulse" />
-              Rivalry lab
+    <div className="space-y-12 pb-24">
+      <SEO title="Rivalry Lab - Combat Intelligence" />
+
+      {/* ── CINEMATIC HEADER ──────────────────────────────────── */}
+      <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,229,255,0.08),transparent_40%)]" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-12">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/25 bg-accent-cyan/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-accent-cyan mb-6">
+              Combat Simulation Unit
             </span>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">Head to Head</h1>
-              <p className="mt-2 text-sm text-text-secondary max-w-2xl leading-relaxed">
-                Compare two franchises with a richer rivalry view: lead margin, trend lines, toss impact, and team-vs-team pulse.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
-              {bothSelected ? (
-                <>
-                  <span className="rounded-full border px-3 py-1" style={{ borderColor: `${color1}33`, color: color1, backgroundColor: `${color1}12` }}>{abbr1}</span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-text-secondary">vs</span>
-                  <span className="rounded-full border px-3 py-1" style={{ borderColor: `${color2}33`, color: color2, backgroundColor: `${color2}12` }}>{abbr2}</span>
-                </>
-              ) : (
-                <span className="rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1 text-accent-cyan">Select two teams to start</span>
-              )}
+            <h1 className="text-5xl md:text-8xl font-black font-heading text-text-primary tracking-tighter leading-none mb-8">
+              RIVALRY <br /> LAB
+            </h1>
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+               <div className="w-full md:w-64 space-y-2">
+                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest px-2">Unit A</label>
+                  <select 
+                    value={team1} 
+                    onChange={(e) => setTeam1(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-black text-xs uppercase tracking-widest outline-none focus:border-accent-cyan transition-all appearance-none"
+                  >
+                     <option value="">Select Team</option>
+                     {teams?.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+               </div>
+               <div className="text-white/20 font-black italic">VS</div>
+               <div className="w-full md:w-64 space-y-2">
+                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest px-2">Unit B</label>
+                  <select 
+                    value={team2} 
+                    onChange={(e) => setTeam2(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-black text-xs uppercase tracking-widest outline-none focus:border-accent-magenta transition-all appearance-none"
+                  >
+                     <option value="">Select Team</option>
+                     {teams?.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+               </div>
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
-            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Rivalry matches</p>
-              <p className="mt-1 text-lg font-heading font-bold text-accent-cyan stat-glow-cyan">{bothSelected ? (h2h?.played ?? totalH2H) : '—'}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Lead margin</p>
-              <p className="mt-1 text-lg font-heading font-bold text-accent-lime stat-glow-lime">{bothSelected ? Math.abs(t1Wins - t2Wins) : '—'}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Edge</p>
-              <p className="mt-1 text-lg font-heading font-bold text-accent-amber stat-glow-amber">{bothSelected ? (t1Wins === t2Wins ? 'Level' : t1Wins > t2Wins ? abbr1 : abbr2) : '—'}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-4 w-full lg:w-80">
+             <div className="bg-[#0B0E16] border border-white/5 rounded-3xl p-6">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted mb-2">Total Battles</p>
+                <p className="text-3xl font-black font-heading text-accent-cyan">{comparison?.head_to_head?.played || '—'}</p>
+             </div>
+             <div className="bg-[#0B0E16] border border-white/5 rounded-3xl p-6">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted mb-2">Lead Margin</p>
+                <p className="text-3xl font-black font-heading text-accent-lime">
+                   {comparison?.head_to_head ? Math.abs(comparison.head_to_head.team1_wins - comparison.head_to_head.team2_wins) : '—'}
+                </p>
+             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          TEAM SELECTORS
-          ═══════════════════════════════════════════════════════ */}
-      <div className="card grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
-        <div>
-          <label className="text-text-secondary text-sm font-body block mb-2">Team 1</label>
-          <div className="relative">
-            {team1 && (
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
-                <TeamLogo team={team1} size={20} />
-              </div>
-            )}
-            <select
-              value={team1}
-              onChange={(e) => setTeam1(e.target.value)}
-              className={selectClass}
-              style={{ ...selectStyle, paddingLeft: team1 ? '2.25rem' : '1rem' }}
-            >
-              <option value="">Select Team</option>
-              {teamOptions
-                .filter((t) => t.value !== team2)
-                .map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Swap Button */}
-        <button
-          onClick={handleSwap}
-          disabled={!bothSelected}
-          className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-[#111118] border border-[#1E1E2A] text-text-muted hover:text-accent-cyan hover:border-accent-cyan transition-colors disabled:opacity-30 disabled:cursor-not-allowed mb-0.5"
-          title="Swap teams"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-          </svg>
-        </button>
-
-        <div>
-          <label className="text-text-secondary text-sm font-body block mb-2">Team 2</label>
-          <div className="relative">
-            {team2 && (
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
-                <TeamLogo team={team2} size={20} />
-              </div>
-            )}
-            <select
-              value={team2}
-              onChange={(e) => setTeam2(e.target.value)}
-              className={selectClass}
-              style={{ ...selectStyle, paddingLeft: team2 ? '2.25rem' : '1rem' }}
-            >
-              <option value="">Select Team</option>
-              {teamOptions
-                .filter((t) => t.value !== team1)
-                .map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile swap button */}
-      {bothSelected && (
-        <div className="flex md:hidden justify-center -mt-4">
-          <button
-            onClick={handleSwap}
-            className="flex items-center gap-2 text-xs text-text-muted hover:text-accent-cyan transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-            </svg>
-            Swap teams
-          </button>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!bothSelected && (
-        <div className="card flex flex-col items-center justify-center py-16 gap-3">
-          <div className="w-16 h-16 rounded-full bg-[#111118] border border-[#1E1E2A] flex items-center justify-center mb-2">
-            <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
-            </svg>
-          </div>
-          <p className="text-text-muted text-sm">Select two different teams to compare their stats</p>
-        </div>
-      )}
-
-      {bothSelected && compLoading && <Loading message="Analyzing head-to-head records..." />}
-
+      {/* ── ERROR / LOADING ──────────────────────────────────── */}
+      {bothSelected && compLoading && <Loading message="Synthesizing historical matchup DNA..." />}
       {bothSelected && compError && (
-        <div className="flex flex-col items-center justify-center py-12 gap-4">
-          <p className="text-danger font-heading text-lg">Failed to load comparison</p>
-          <p className="text-text-secondary text-sm">{compError}</p>
+        <div className="text-center py-12">
+           <h2 className="text-2xl font-black font-heading text-danger uppercase tracking-tighter">Simulation Failure</h2>
+           <p className="text-text-secondary mt-2">{compError}</p>
         </div>
       )}
 
+      {/* ── COMBAT ANALYTICS ─────────────────────────────────── */}
       {bothSelected && comparison && !compLoading && (
-        <>
-          {/* ═══════════════════════════════════════════════════
-              1. H2H RECORD HERO
-              ═══════════════════════════════════════════════════ */}
-          {h2h && (
-            <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-6 md:p-8">
-              {/* Team names + abbreviations */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex flex-col items-start">
-                  <div className="flex items-center gap-3">
-                    <TeamLogo team={team1} size={40} />
-                    <span
-                      className="text-4xl md:text-5xl font-heading font-black tracking-tight"
-                      style={{ color: color1 }}
-                    >
-                      {abbr1}
-                    </span>
-                  </div>
-                  <span className="text-text-muted text-xs mt-1 max-w-[140px] truncate">{team1}</span>
-                </div>
-
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-text-muted text-xs uppercase tracking-widest">Head to Head</span>
-                  <span className="font-mono text-text-secondary text-sm">
-                    {h2h.played ?? totalH2H} matches
-                  </span>
-                </div>
-
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="text-4xl md:text-5xl font-heading font-black tracking-tight"
-                      style={{ color: color2 }}
-                    >
-                      {abbr2}
-                    </span>
-                    <TeamLogo team={team2} size={40} />
-                  </div>
-                  <span className="text-text-muted text-xs mt-1 max-w-[140px] truncate text-right">{team2}</span>
-                </div>
+        <div ref={rivalryRef} className="space-y-12 animate-in">
+           
+           {/* 1. DOMINANCE OVERLAY */}
+           <div className="bg-[#0B0E16] rounded-[40px] border border-white/10 p-8 md:p-12">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-12 mb-12">
+                 <div className="flex flex-col items-center md:items-start gap-4">
+                    <TeamLogo team={team1} size={100} />
+                    <h2 className="text-4xl font-black font-heading tracking-tighter" style={{ color: color1 }}>{abbr1}</h2>
+                 </div>
+                 <div className="text-center">
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] mb-2">Battle Pulse</p>
+                    <div className="flex items-center gap-6">
+                       <span className="text-7xl font-black font-heading text-white">{comparison.head_to_head.team1_wins}</span>
+                       <span className="text-2xl font-black text-white/10 italic">vs</span>
+                       <span className="text-7xl font-black font-heading text-white">{comparison.head_to_head.team2_wins}</span>
+                    </div>
+                 </div>
+                 <div className="flex flex-col items-center md:items-end gap-4">
+                    <TeamLogo team={team2} size={100} />
+                    <h2 className="text-4xl font-black font-heading tracking-tighter" style={{ color: color2 }}>{abbr2}</h2>
+                 </div>
               </div>
 
-              {/* Win counts */}
-              <div className="flex items-end justify-between mb-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-3xl md:text-4xl font-black" style={{ color: color1 }}>
-                    {t1Wins}
-                  </span>
-                  <span className="text-text-muted text-xs">wins</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-text-muted text-xs">wins</span>
-                  <span className="font-mono text-3xl md:text-4xl font-black" style={{ color: color2 }}>
-                    {t2Wins}
-                  </span>
-                </div>
+              <div className="relative h-4 w-full bg-white/5 rounded-full overflow-hidden flex">
+                 <div className="h-full transition-all duration-1000" style={{ width: `${(comparison.head_to_head.team1_wins/comparison.head_to_head.played)*100}%`, backgroundColor: color1, boxShadow: `0 0 40px ${color1}` }} />
+                 <div className="h-full transition-all duration-1000" style={{ width: `${(comparison.head_to_head.team2_wins/comparison.head_to_head.played)*100}%`, backgroundColor: color2, boxShadow: `0 0 40px ${color2}` }} />
+              </div>
+           </div>
+
+           {/* 2. CORE METRICS & PHASE DOMINANCE */}
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1 bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+                 <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Combat Metrics</h3>
+                 <div className="space-y-4">
+                    <MetricRow label="Avg H2H Score" val1={comparison.avg_h2h_scores.team1_avg} val2={comparison.avg_h2h_scores.team2_avg} color1={color1} color2={color2} isDecimal />
+                    <MetricRow label="Highest Total" val1={comparison.team1.highest_total} val2={comparison.team2.highest_total} color1={color1} color2={color2} />
+                    <MetricRow label="Toss Advantage" val1={comparison.toss_stats.team1_toss_wins} val2={comparison.toss_stats.team2_toss_wins} color1={color1} color2={color2} />
+                    <MetricRow label="Chase Dominance" val1={comparison.toss_stats.chase_wins} val2={comparison.head_to_head.played - comparison.toss_stats.chase_wins} color1="#00E5FF" color2="#FF2D78" />
+                 </div>
               </div>
 
-              {/* Split bar */}
-              <div className="relative">
-                <div className="flex h-5 rounded-full overflow-hidden gap-[2px]">
-                  <div
-                    className="rounded-l-full transition-all duration-700 ease-out"
-                    style={{
-                      width: `${(t1Wins / totalH2H) * 100}%`,
-                      backgroundColor: color1,
-                      boxShadow: `0 0 20px ${color1}40`,
-                    }}
-                  />
-                  <div
-                    className="rounded-r-full transition-all duration-700 ease-out"
-                    style={{
-                      width: `${(t2Wins / totalH2H) * 100}%`,
-                      backgroundColor: color2,
-                      boxShadow: `0 0 20px ${color2}40`,
-                    }}
-                  />
-                </div>
-                {/* Percentage labels below bar */}
-                <div className="flex justify-between mt-2">
-                  <span className="font-mono text-sm font-bold" style={{ color: color1 }}>{t1WinPct}%</span>
-                  <span className="font-mono text-sm font-bold" style={{ color: color2 }}>{t2WinPct}%</span>
-                </div>
+              <div className="lg:col-span-1 bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+                 <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter italic">Phase DNA</h3>
+                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-10">Run Rate by Match Phase</p>
+                 <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                       <RadarChart cx="50%" cy="50%" outerRadius="80%" data={phaseData}>
+                          <PolarGrid stroke="#ffffff10" />
+                          <PolarAngleAxis dataKey="phase" tick={{fill: '#ffffff40', fontSize: 10, fontWeight: 900}} />
+                          <Radar name={abbr1} dataKey={abbr1} stroke={color1} fill={color1} fillOpacity={0.3} />
+                          <Radar name={abbr2} dataKey={abbr2} stroke={color2} fill={color2} fillOpacity={0.3} />
+                          <Tooltip content={<ChartTooltip />} />
+                       </RadarChart>
+                    </ResponsiveContainer>
+                 </div>
               </div>
 
-              {/* Quick verdict */}
-              {t1Wins !== t2Wins && (
-                <p className="text-center text-text-secondary text-sm mt-4">
-                  <span className="font-semibold" style={{ color: t1Wins > t2Wins ? color1 : color2 }}>
-                    {t1Wins > t2Wins ? team1 : team2}
-                  </span>
-                  {' '}leads the head-to-head by{' '}
-                  <span className="font-mono font-bold text-text-primary">
-                    {Math.abs(t1Wins - t2Wins)}
-                  </span>
-                  {' '}{Math.abs(t1Wins - t2Wins) === 1 ? 'win' : 'wins'}
-                </p>
-              )}
-              {t1Wins === t2Wins && t1Wins > 0 && (
-                <p className="text-center text-text-secondary text-sm mt-4">
-                  The rivalry is <span className="font-semibold text-accent-amber">perfectly balanced</span>
-                </p>
-              )}
-            </div>
-          )}
+              <div className="lg:col-span-1 bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
+                 <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter italic">Legacy Growth</h3>
+                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-10">Cumulative Win Trajectory</p>
+                 <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                       <AreaChart data={cumulativeData}>
+                          <defs>
+                             <linearGradient id="c1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color1} stopOpacity={0.3}/><stop offset="95%" stopColor={color1} stopOpacity={0}/></linearGradient>
+                             <linearGradient id="c2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color2} stopOpacity={0.3}/><stop offset="95%" stopColor={color2} stopOpacity={0}/></linearGradient>
+                          </defs>
+                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{fill: '#ffffff20', fontSize: 10, fontWeight: 900}} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Area type="monotone" dataKey={abbr1} stroke={color1} strokeWidth={4} fill="url(#c1)" />
+                          <Area type="monotone" dataKey={abbr2} stroke={color2} strokeWidth={4} fill="url(#c2)" />
+                       </AreaChart>
+                    </ResponsiveContainer>
+                 </div>
+              </div>
+           </div>
 
-          {/* ═══════════════════════════════════════════════════
-              2. WIN STREAK ANALYSIS + AVG H2H SCORES
-              ═══════════════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Win Streak Analysis */}
-            {streakData.dots.length > 0 && (
-              <section>
-                <SectionHeader title="Win Streak Analysis" accentColor="bg-accent-magenta" />
-                <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-6 flex flex-col justify-center h-[calc(100%-2.5rem)]">
-                  <p className="text-text-muted text-xs uppercase tracking-wider text-center mb-5">Last {streakData.dots.length} Encounters</p>
-
-                  {/* Dot row */}
-                  <div className="flex items-center justify-center gap-3 mb-2">
-                    {streakData.dots.map((dot, idx) => (
-                      <div key={idx} className="flex flex-col items-center gap-1.5">
-                        <div
-                          className="w-8 h-8 rounded-full border-2 transition-all duration-500 flex items-center justify-center"
-                          style={{
-                            backgroundColor: dot.color + '25',
-                            borderColor: dot.color,
-                            boxShadow: dot.color !== '#555568' ? `0 0 10px ${dot.color}30` : 'none',
-                          }}
-                        >
-                          <span className="text-[9px] font-bold font-mono" style={{ color: dot.color }}>
-                            {dot.winner === team1 ? abbr1 : dot.winner === team2 ? abbr2 : '-'}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-text-muted font-mono">{dot.year}</span>
-                      </div>
+           {/* 4. ELITE PERFORMERS IN H2H */}
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <section className="space-y-6">
+                 <div className="flex items-center gap-3 px-2">
+                    <div className="w-1.5 h-8 rounded-full bg-accent-lime" />
+                    <h2 className="text-2xl font-black font-heading text-white tracking-tighter uppercase">Rivalry Titans</h2>
+                 </div>
+                 <div className="space-y-3">
+                    {comparison.top_batters.map((b, i) => (
+                       <div key={b.player} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-5 flex items-center justify-between transition-all hover:border-white/20">
+                          <div className="flex items-center gap-6">
+                             <span className="text-[10px] font-black text-white/20 italic">{i + 1}</span>
+                             <PlayerNameCell name={b.player} size={40} />
+                          </div>
+                          <div className="text-right">
+                             <p className="text-2xl font-black font-heading text-accent-lime tracking-tighter">{b.runs}</p>
+                             <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{b.matches} Matches &bull; {formatDecimal(b.sr, 0)} SR</p>
+                          </div>
+                       </div>
                     ))}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex justify-center gap-5 mt-4 mb-4">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color1 }} />
-                      <span className="text-text-secondary">{abbr1} win</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color2 }} />
-                      <span className="text-text-secondary">{abbr2} win</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="w-3 h-3 rounded-full bg-[#555568]" />
-                      <span className="text-text-secondary">No result</span>
-                    </div>
-                  </div>
-
-                  {/* Current streak */}
-                  <div className="text-center pt-4 border-t border-[#1E1E2A]">
-                    {streakData.streak ? (
-                      <p className="text-sm">
-                        <span className="text-text-muted uppercase tracking-wider text-xs">Current Streak: </span>
-                        <span className="font-heading font-bold" style={{ color: streakData.streak.color }}>
-                          {streakData.streak.abbr}
-                        </span>
-                        <span className="font-mono font-bold text-accent-lime ml-1">
-                          {streakData.streak.count} wins in a row
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-text-muted text-sm">No active winning streak</p>
-                    )}
-                  </div>
-                </div>
+                 </div>
               </section>
-            )}
 
-            {/* Average H2H Scores */}
-            {avgH2HScores ? (
-              <section>
-                <SectionHeader title="Average H2H Scores" accentColor="bg-accent-amber" />
-                <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-6 flex flex-col justify-center h-[calc(100%-2.5rem)]">
-                  <div className="space-y-8">
-                    {/* Team 1 avg score */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-heading font-bold" style={{ color: color1 }}>{abbr1}</span>
-                        <span className="font-mono text-2xl font-black text-text-primary">
-                          {formatDecimal(avgH2HScores.team1_avg, 1)}
-                        </span>
-                      </div>
-                      <div className="h-4 rounded-full bg-[#1A1A24] overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            width: `${(avgH2HScores.team1_avg / Math.max(avgH2HScores.team1_avg, avgH2HScores.team2_avg, 1)) * 100}%`,
-                            backgroundColor: color1,
-                            boxShadow: `0 0 12px ${color1}40`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    {/* Team 2 avg score */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-heading font-bold" style={{ color: color2 }}>{abbr2}</span>
-                        <span className="font-mono text-2xl font-black text-text-primary">
-                          {formatDecimal(avgH2HScores.team2_avg, 1)}
-                        </span>
-                      </div>
-                      <div className="h-4 rounded-full bg-[#1A1A24] overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            width: `${(avgH2HScores.team2_avg / Math.max(avgH2HScores.team1_avg, avgH2HScores.team2_avg, 1)) * 100}%`,
-                            backgroundColor: color2,
-                            boxShadow: `0 0 12px ${color2}40`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Difference callout */}
-                    {avgH2HScores.team1_avg !== avgH2HScores.team2_avg && (
-                      <div className="text-center pt-4 border-t border-[#1E1E2A]">
-                        <span className="text-text-muted text-xs uppercase tracking-wider">Score Advantage</span>
-                        <p className="mt-1">
-                          <span className="font-heading font-bold" style={{
-                            color: avgH2HScores.team1_avg > avgH2HScores.team2_avg ? color1 : color2,
-                          }}>
-                            {avgH2HScores.team1_avg > avgH2HScores.team2_avg ? abbr1 : abbr2}
-                          </span>
-                          <span className="text-text-secondary text-sm"> by </span>
-                          <span className="font-mono font-bold text-accent-lime">
-                            {formatDecimal(Math.abs(avgH2HScores.team1_avg - avgH2HScores.team2_avg), 1)}
-                          </span>
-                          <span className="text-text-secondary text-sm"> runs on average</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <section className="space-y-6">
+                 <div className="flex items-center gap-3 px-2">
+                    <div className="w-1.5 h-8 rounded-full bg-accent-magenta" />
+                    <h2 className="text-2xl font-black font-heading text-white tracking-tighter uppercase">Strike Masters</h2>
+                 </div>
+                 <div className="space-y-3">
+                    {comparison.top_bowlers.map((b, i) => (
+                       <div key={b.player} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#0B0E16] p-5 flex items-center justify-between transition-all hover:border-white/20">
+                          <div className="flex items-center gap-6">
+                             <span className="text-[10px] font-black text-white/20 italic">{i + 1}</span>
+                             <PlayerNameCell name={b.player} size={40} />
+                          </div>
+                          <div className="text-right">
+                             <p className="text-2xl font-black font-heading text-accent-magenta tracking-tighter">{b.wickets}</p>
+                             <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{b.matches} Matches &bull; {formatDecimal(b.economy, 1)} Econ</p>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
               </section>
-            ) : (
-              /* Fallback: if no avg_h2h_scores, show the side-by-side stats here */
-              t1Stats && t2Stats && (
-                <section>
-                  <SectionHeader title="Team Overview" accentColor="bg-accent-amber" />
-                  <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-6 flex flex-col justify-center h-[calc(100%-2.5rem)]">
-                    <div className="grid grid-cols-2 gap-6">
-                      {[
-                        { label: 'Win %', v1: t1Stats.win_pct, v2: t2Stats.win_pct, dec: true },
-                        { label: 'Avg Score', v1: t1Stats.avg_score, v2: t2Stats.avg_score, dec: true },
-                        { label: 'Highest', v1: t1Stats.highest_total, v2: t2Stats.highest_total },
-                        { label: 'Matches', v1: t1Stats.matches, v2: t2Stats.matches },
-                      ].map((item) => (
-                        <div key={item.label} className="text-center">
-                          <p className="text-text-muted text-xs uppercase tracking-wider mb-2">{item.label}</p>
-                          <div className="flex justify-center gap-4">
-                            <span className="font-mono font-bold" style={{ color: color1 }}>
-                              {item.dec ? formatDecimal(item.v1, 1) : formatNumber(item.v1)}
-                            </span>
-                            <span className="text-text-muted">/</span>
-                            <span className="font-mono font-bold" style={{ color: color2 }}>
-                              {item.dec ? formatDecimal(item.v2, 1) : formatNumber(item.v2)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              )
-            )}
-          </div>
+           </div>
 
-          {/* ═══════════════════════════════════════════════════
-              3. CUMULATIVE H2H WINS OVER SEASONS
-              ═══════════════════════════════════════════════════ */}
-          {cumulativeData.length > 0 && (
-            <section>
-              <SectionHeader title="Cumulative H2H Wins Over Seasons" accentColor="bg-accent-cyan" />
-              <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-4">
-                <ResponsiveContainer width="100%" height={340}>
-                  <AreaChart data={cumulativeData} margin={{ top: 25, right: 30, left: 0, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color1} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={color1} stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color2} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={color2} stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="season"
-                      tick={{ fill: '#8888A0', fontSize: 11 }}
-                      axisLine={{ stroke: '#1E1E2A' }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{ fill: '#8888A0', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      label={{ value: 'Cumulative Wins', angle: -90, position: 'insideLeft', fill: '#8888A0', fontSize: 11, dx: -5 }}
-                    />
-                    <Tooltip
-                      content={({ active, payload, label }) => {
-                        if (!active || !payload?.length) return null
-                        return (
-                          <NeonTooltip>
-                            <p className="text-text-primary font-semibold mb-1">Season {label}</p>
-                            {payload.map((p, i) => (
-                              <p key={i} style={{ color: p.stroke }}>
-                                {p.name}: <span className="font-mono font-bold">{p.value} wins</span>
-                              </p>
-                            ))}
-                          </NeonTooltip>
-                        )
-                      }}
-                      cursor={{ stroke: '#2A2A3A' }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-                    <Area
-                      type="monotone"
-                      dataKey={abbr1}
-                      stroke={color1}
-                      strokeWidth={2.5}
-                      fill="url(#grad1)"
-                      fillOpacity={1}
-                      dot={false}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                      label={({ index, x, y, value }) => {
-                        if (index === cumulativeData.length - 1) {
-                          return (
-                            <text x={x} y={y - 12} fill={color1} fontSize={13} fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                              {value}
-                            </text>
-                          )
-                        }
-                        return null
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey={abbr2}
-                      stroke={color2}
-                      strokeWidth={2.5}
-                      fill="url(#grad2)"
-                      fillOpacity={1}
-                      dot={false}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                      label={({ index, x, y, value }) => {
-                        if (index === cumulativeData.length - 1) {
-                          return (
-                            <text x={x} y={y - 12} fill={color2} fontSize={13} fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                              {value}
-                            </text>
-                          )
-                        }
-                        return null
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+           {/* 5. RECENT CONFLICTS TABLE */}
+           <div className="bg-[#0B0E16] rounded-[40px] border border-white/10 overflow-hidden shadow-2xl">
+              <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                 <h3 className="text-2xl font-black font-heading text-white italic uppercase tracking-tighter">Combat Log</h3>
+                 <span className="px-3 py-1 rounded-full bg-white/5 text-[9px] font-black uppercase tracking-widest text-text-muted">Last 10 Tactical Encounters</span>
               </div>
-            </section>
-          )}
-
-          {/* ═══════════════════════════════════════════════════
-              4. TOSS IMPACT
-              ═══════════════════════════════════════════════════ */}
-          {tossStats && (tossDonutData.length > 0 || tossDecisionData.length > 0) && (
-            <section>
-              <SectionHeader title="Toss Impact" accentColor="bg-accent-lime" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Toss Wins Donut */}
-                {tossDonutData.length > 0 && (
-                  <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-4">
-                    <p className="text-center text-text-secondary text-sm mb-2">Toss Wins in H2H</p>
-                    <ResponsiveContainer width="100%" height={240}>
-                      <PieChart>
-                        <Pie
-                          data={tossDonutData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={90}
-                          paddingAngle={4}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {tossDonutData.map((entry, idx) => (
-                            <Cell key={idx} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null
-                            const d = payload[0].payload
-                            return (
-                              <NeonTooltip>
-                                <p style={{ color: d.color }} className="font-semibold">
-                                  {d.name}: <span className="font-mono font-bold">{d.value}</span>
-                                </p>
-                              </NeonTooltip>
-                            )
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex justify-center gap-6">
-                      {tossDonutData.map((d) => (
-                        <div key={d.name} className="flex items-center gap-2 text-sm">
-                          <span className="w-3 h-3 rounded-full" style={{ background: d.color }} />
-                          <span className="text-text-secondary">{d.name}</span>
-                          <span className="font-mono text-text-primary font-semibold">{d.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Bat First vs Chase Wins */}
-                {tossDecisionData.length > 0 && (
-                  <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-4">
-                    <p className="text-center text-text-secondary text-sm mb-2">Batting First vs Chasing Wins</p>
-                    <ResponsiveContainer width="100%" height={240}>
-                      <PieChart>
-                        <Pie
-                          data={tossDecisionData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={90}
-                          paddingAngle={4}
-                          dataKey="value"
-                          stroke="none"
-                          label={({ name, value, percent }) =>
-                            `${(percent * 100).toFixed(0)}%`
-                          }
-                        >
-                          {tossDecisionData.map((entry, idx) => (
-                            <Cell key={idx} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null
-                            const d = payload[0].payload
-                            return (
-                              <NeonTooltip>
-                                <p style={{ color: d.color }} className="font-semibold">
-                                  {d.name}: <span className="font-mono font-bold">{d.value}</span>
-                                </p>
-                              </NeonTooltip>
-                            )
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex justify-center gap-6">
-                      {tossDecisionData.map((d) => (
-                        <div key={d.name} className="flex items-center gap-2 text-sm">
-                          <span className="w-3 h-3 rounded-full" style={{ background: d.color }} />
-                          <span className="text-text-secondary">{d.name}</span>
-                          <span className="font-mono text-text-primary font-semibold">{d.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left border-collapse">
+                    <thead>
+                       <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Season</th>
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Victor</th>
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted text-center">{abbr1} Score</th>
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted text-center">{abbr2} Score</th>
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Margin</th>
+                       </tr>
+                    </thead>
+                    <tbody>
+                       {comparison.recent_matches.map((m, idx) => (
+                          <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition-all group">
+                             <td className="px-8 py-5">
+                                <p className="text-sm font-black text-white">{m.season}</p>
+                                <p className="text-[10px] font-bold text-text-muted uppercase tracking-tighter">{formatDate(m.date)}</p>
+                             </td>
+                             <td className="px-8 py-5">
+                                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border" style={{ 
+                                   color: m.winner === team1 ? color1 : (m.winner === team2 ? color2 : '#ffffff'),
+                                   borderColor: m.winner === team1 ? `${color1}40` : (m.winner === team2 ? `${color2}40` : '#ffffff20'),
+                                   backgroundColor: m.winner === team1 ? `${color1}10` : (m.winner === team2 ? `${color2}10` : '#ffffff05')
+                                }}>
+                                   {m.winner ? getTeamAbbr(m.winner) : 'Tied'}
+                                </span>
+                             </td>
+                             <td className="px-8 py-5 text-center font-mono text-xl font-black" style={{ color: m.winner === team1 ? color1 : '#ffffff40' }}>{m.team1_score}</td>
+                             <td className="px-8 py-5 text-center font-mono text-xl font-black" style={{ color: m.winner === team2 ? color2 : '#ffffff40' }}>{m.team2_score}</td>
+                             <td className="px-8 py-5 text-sm font-bold text-text-secondary">{m.margin}</td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
               </div>
-            </section>
-          )}
-
-          {/* ═══════════════════════════════════════════════════
-              5. SIDE-BY-SIDE STATS WITH VISUAL BARS
-              ═══════════════════════════════════════════════════ */}
-          {t1Stats && t2Stats && (
-            <section>
-              <SectionHeader title="Team Comparison" accentColor="bg-accent-cyan" />
-              <div className="bg-[#111118] border border-[#1E1E2A] rounded-2xl p-6">
-                {/* Column headers */}
-                <div className="grid grid-cols-2 gap-3 mb-2 pb-3 border-b border-[#1E1E2A]">
-                  <div className="flex items-center gap-2">
-                    <TeamLogo team={team1} size={24} />
-                    <span className="font-heading font-bold text-sm" style={{ color: color1 }}>{team1}</span>
-                  </div>
-                  <div className="flex items-center gap-2 justify-end">
-                    <span className="font-heading font-bold text-sm" style={{ color: color2 }}>{team2}</span>
-                    <TeamLogo team={team2} size={24} />
-                  </div>
-                </div>
-
-                <VisualStatRow label="Matches Played" val1={t1Stats.matches} val2={t2Stats.matches} color1={color1} color2={color2} />
-                <VisualStatRow label="Wins" val1={t1Stats.wins} val2={t2Stats.wins} color1={color1} color2={color2} />
-                {t1Stats.losses !== undefined && (
-                  <VisualStatRow label="Losses" val1={t1Stats.losses} val2={t2Stats.losses} color1={color1} color2={color2} higherIsBetter={false} />
-                )}
-                <VisualStatRow label="Win %" val1={t1Stats.win_pct} val2={t2Stats.win_pct} color1={color1} color2={color2} isDecimal />
-                <VisualStatRow label="Avg Score" val1={t1Stats.avg_score} val2={t2Stats.avg_score} color1={color1} color2={color2} isDecimal />
-                <VisualStatRow label="Highest Total" val1={t1Stats.highest_total} val2={t2Stats.highest_total} color1={color1} color2={color2} />
-                {t1Stats.lowest_total !== undefined && (
-                  <VisualStatRow label="Lowest Total" val1={t1Stats.lowest_total} val2={t2Stats.lowest_total} color1={color1} color2={color2} higherIsBetter={false} />
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* ═══════════════════════════════════════════════════
-              6. RECENT H2H MATCHES
-              ═══════════════════════════════════════════════════ */}
-          {recentMatches && recentMatches.length > 0 && (
-            <section>
-              <SectionHeader title="Recent Encounters" accentColor="bg-accent-magenta" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recentMatches.map((match, idx) => {
-                  const isT1Winner = match.winner === team1
-                  const isT2Winner = match.winner === team2
-                  const winnerColor = isT1Winner ? color1 : isT2Winner ? color2 : '#8888A0'
-
-                  return (
-                    <div
-                      key={idx}
-                      className="bg-[#111118] border rounded-2xl p-5 transition-all hover:border-[#2A2A3A]"
-                      style={{ borderColor: '#1E1E2A' }}
-                    >
-                      {/* Date + Season */}
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-text-muted text-xs font-mono">
-                          {formatDate(match.date)}
-                        </span>
-                        {match.season && (
-                          <span className="text-xs text-text-muted bg-[#1A1A24] px-2 py-0.5 rounded-full">
-                            {match.season}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Scores */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex flex-col items-start">
-                          <div className="flex items-center gap-1.5">
-                            <TeamLogo team={team1} size={20} />
-                            <span className="font-heading font-bold text-sm" style={{ color: color1 }}>{abbr1}</span>
-                          </div>
-                          <span className={`font-mono text-xl font-black ${isT1Winner ? 'text-text-primary' : 'text-text-muted'}`}>
-                            {match.team1_score ?? '-'}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col items-center">
-                          <span className="text-text-muted text-xs">vs</span>
-                        </div>
-
-                        <div className="flex flex-col items-end">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-heading font-bold text-sm" style={{ color: color2 }}>{abbr2}</span>
-                            <TeamLogo team={team2} size={20} />
-                          </div>
-                          <span className={`font-mono text-xl font-black ${isT2Winner ? 'text-text-primary' : 'text-text-muted'}`}>
-                            {match.team2_score ?? '-'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Winner + margin */}
-                      <div
-                        className="text-center text-xs font-semibold rounded-lg py-1.5 mb-2"
-                        style={{
-                          backgroundColor: winnerColor + '15',
-                          color: winnerColor,
-                          border: `1px solid ${winnerColor}30`,
-                        }}
-                      >
-                        {match.winner
-                          ? `${match.winner === team1 ? abbr1 : abbr2} won${match.margin ? ` by ${match.margin}` : ''}`
-                          : 'No result'}
-                      </div>
-
-                      {/* Venue */}
-                      {match.venue && (
-                        <p className="text-text-muted text-xs text-center truncate mt-1">
-                          {match.venue}
-                        </p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
-        </>
+           </div>
+        </div>
       )}
     </div>
   )
