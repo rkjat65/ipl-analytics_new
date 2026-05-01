@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 /**
  * Multi-season selector with individual picks, range selection, custom range, and "All" option.
@@ -18,12 +19,13 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
   const selected = value ? value.split(',').map(s => s.trim()) : []
   const isAll = selected.length === 0
 
-  // Sorted seasons ascending for range logic
   const sortedAsc = [...seasons].sort((a, b) => a.localeCompare(b))
 
   useEffect(() => {
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) {
+        // If dropdown is open, also check if click is inside the portal-rendered dropdown
+        if (dropdownRef.current && dropdownRef.current.contains(e.target)) return
         setOpen(false)
         setCustomMode(false)
       }
@@ -32,14 +34,13 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Position dropdown within the viewport using fixed coordinates so it never gets clipped by parent cards
   const positionDropdown = useCallback(() => {
     if (!ref.current || !dropdownRef.current) return
     const trigger = ref.current.getBoundingClientRect()
     const dd = dropdownRef.current
     const viewportW = window.innerWidth
     const viewportH = window.innerHeight
-    const margin = 8
+    const margin = 12
     const isMobile = viewportW < 640
 
     dd.style.maxHeight = 'none'
@@ -60,25 +61,25 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
         bottom: margin,
         top: 'auto',
         width: 'auto',
-        maxHeight: Math.min(Math.floor(viewportH * 0.6), ddNaturalH),
+        maxHeight: Math.floor(viewportH * 0.7),
       })
       return
     }
 
-    const preferredWidth = Math.max(trigger.width, 288)
+    const preferredWidth = Math.max(trigger.width, 300)
     let left = Math.min(trigger.left, viewportW - preferredWidth - margin)
     left = Math.max(margin, left)
 
-    const topBelow = trigger.bottom + 6
+    const topBelow = trigger.bottom + 8
     const availableBelow = viewportH - topBelow - margin
     const availableAbove = trigger.top - margin
 
     let top = topBelow
-    let maxHeight = Math.max(220, Math.min(ddNaturalH, availableBelow))
+    let maxHeight = Math.max(240, Math.min(ddNaturalH, availableBelow))
 
-    if (availableBelow < 220 && availableAbove > availableBelow) {
-      maxHeight = Math.max(220, Math.min(ddNaturalH, availableAbove))
-      top = Math.max(margin, trigger.top - maxHeight - 6)
+    if (availableBelow < 240 && availableAbove > availableBelow) {
+      maxHeight = Math.max(240, Math.min(ddNaturalH, availableAbove))
+      top = Math.max(margin, trigger.top - maxHeight - 8)
     }
 
     setDropdownStyle({
@@ -93,7 +94,6 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
 
   useEffect(() => {
     if (open) {
-      // Run after DOM paint
       requestAnimationFrame(positionDropdown)
       window.addEventListener('resize', positionDropdown)
       window.addEventListener('scroll', positionDropdown, true)
@@ -121,9 +121,7 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
     onChange(sortedAsc.slice(lo, hi + 1).join(','))
   }
 
-  function selectAll() {
-    onChange('')
-  }
+  function selectAll() { onChange('') }
 
   function applyCustomRange() {
     if (customFrom && customTo) {
@@ -132,7 +130,6 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
     }
   }
 
-  // Display label
   let displayLabel = 'All Seasons'
   if (selected.length === 1) {
     displayLabel = selected[0]
@@ -147,150 +144,139 @@ export default function MultiSeasonSelect({ seasons = [], value = '', onChange }
     }
   }
 
-  // Quick range buttons (based on descending order — most recent first)
   const sortedDesc = [...seasons].sort((a, b) => b.localeCompare(a))
   const quickRanges = []
-  if (sortedDesc.length >= 3) {
-    quickRanges.push({ label: 'Last 3', from: sortedDesc[2], to: sortedDesc[0] })
-  }
-  if (sortedDesc.length >= 5) {
-    quickRanges.push({ label: 'Last 5', from: sortedDesc[4], to: sortedDesc[0] })
-  }
-  if (sortedDesc.length >= 10) {
-    quickRanges.push({ label: 'Last 10', from: sortedDesc[9], to: sortedDesc[0] })
-  }
+  if (sortedDesc.length >= 3) quickRanges.push({ label: 'Last 3', from: sortedDesc[2], to: sortedDesc[0] })
+  if (sortedDesc.length >= 5) quickRanges.push({ label: 'Last 5', from: sortedDesc[4], to: sortedDesc[0] })
+  if (sortedDesc.length >= 10) quickRanges.push({ label: 'Last 10', from: sortedDesc[9], to: sortedDesc[0] })
+
+  const dropdownContent = open && (
+    <div
+      ref={dropdownRef}
+      className="fixed z-[9999] bg-bg-elevated border border-border-active rounded-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] animate-pop overflow-hidden flex flex-col"
+      style={{
+        left: dropdownStyle.left ?? 8,
+        top: dropdownStyle.top ?? 'auto',
+        bottom: dropdownStyle.bottom ?? 'auto',
+        maxHeight: dropdownStyle.maxHeight ?? '70vh',
+        width: dropdownStyle.width ?? '20rem',
+      }}
+    >
+      <div className="flex flex-wrap gap-1.5 p-3 border-b border-border-subtle bg-bg-card/20">
+        <button
+          onClick={selectAll}
+          className={`px-3 py-1.5 text-[11px] font-black uppercase tracking-widest rounded-lg border transition-all ${
+            isAll ? 'bg-accent-cyan/20 border-accent-cyan/40 text-accent-cyan shadow-glow-cyan' : 'border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted'
+          }`}
+        >
+          All
+        </button>
+        {quickRanges.map(r => (
+          <button
+            key={r.label}
+            onClick={() => selectRange(r.from, r.to)}
+            className="px-3 py-1.5 text-[11px] font-black uppercase tracking-widest rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-cyan/40 transition-all"
+          >
+            {r.label}
+          </button>
+        ))}
+        <button
+          onClick={() => setCustomMode(!customMode)}
+          className={`px-3 py-1.5 text-[11px] font-black uppercase tracking-widest rounded-lg border transition-all ${
+            customMode ? 'bg-accent-magenta/20 border-accent-magenta/40 text-accent-magenta shadow-glow-magenta' : 'border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-magenta/40'
+          }`}
+        >
+          Custom
+        </button>
+      </div>
+
+      {customMode && (
+        <div className="p-4 border-b border-border-subtle bg-bg-card/40 space-y-3">
+          <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-black">Select Epoch Range</p>
+          <div className="flex items-center gap-3">
+            <select
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="flex-1 min-w-0"
+            >
+              <option value="">Start</option>
+              {sortedAsc.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <div className="w-4 h-px bg-border-subtle" />
+            <select
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="flex-1 min-w-0"
+            >
+              <option value="">End</option>
+              {sortedAsc.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={applyCustomRange}
+            disabled={!customFrom || !customTo}
+            className="w-full py-2 rounded-xl bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan text-[11px] font-black uppercase tracking-widest hover:bg-accent-cyan/20 transition-all disabled:opacity-20"
+          >
+            Engage Filter
+          </button>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto grid grid-cols-4 gap-1 p-3">
+        {sortedDesc.map(s => {
+          const isSelected = selected.includes(s)
+          return (
+            <button
+              key={s}
+              onClick={(e) => {
+                if (e.shiftKey && selected.length > 0) {
+                  const lastSelected = selected[selected.length - 1]
+                  selectRange(lastSelected, s)
+                } else {
+                  toggleSeason(s)
+                }
+              }}
+              className={`py-2 text-[11px] font-black font-mono rounded-lg transition-all ${
+                isSelected
+                  ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30'
+                  : 'text-text-muted hover:text-text-primary hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              {s}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="p-3 border-t border-border-subtle bg-bg-card/20 flex items-center justify-between">
+        <p className="text-[9px] text-text-muted font-bold uppercase tracking-widest italic">Pick Multiple &bull; Shift+Range</p>
+        {selected.length > 0 && (
+          <button
+            onClick={selectAll}
+            className="text-[9px] font-black uppercase tracking-widest text-accent-magenta hover:underline"
+          >
+            Reset ({selected.length})
+          </button>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => { setOpen(!open); setCustomMode(false) }}
-        className="bg-bg-card border border-border-subtle rounded-md px-3 py-2 text-sm text-text-primary font-body focus:outline-none focus:border-accent-cyan transition-colors cursor-pointer pr-8 text-left min-w-[140px]"
+        className="w-full bg-bg-card border border-border-subtle rounded-xl px-4 py-2.5 text-sm text-text-primary font-bold focus:outline-none focus:border-accent-cyan transition-all cursor-pointer pr-10 text-left"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888A0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238888A0' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'right 10px center',
+          backgroundPosition: 'right 14px center',
         }}
       >
         {displayLabel}
       </button>
 
-      {open && (
-        <div
-          ref={dropdownRef}
-          className="fixed z-50 bg-bg-elevated border border-border-subtle rounded-lg shadow-xl animate-pop overflow-y-auto"
-          style={{
-            left: dropdownStyle.left != null ? dropdownStyle.left : 8,
-            right: dropdownStyle.right != null ? dropdownStyle.right : 'auto',
-            top: dropdownStyle.top != null ? dropdownStyle.top : 'auto',
-            bottom: dropdownStyle.bottom != null ? dropdownStyle.bottom : 'auto',
-            maxHeight: dropdownStyle.maxHeight != null ? dropdownStyle.maxHeight : '70vh',
-            width: dropdownStyle.width != null ? dropdownStyle.width : '18rem',
-          }}
-        >
-          {/* Quick actions row */}
-          <div className="flex flex-wrap gap-1.5 p-2.5 border-b border-border-subtle">
-            <button
-              onClick={selectAll}
-              className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                isAll ? 'bg-accent-cyan/20 border-accent-cyan/40 text-accent-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              All
-            </button>
-            {quickRanges.map(r => (
-              <button
-                key={r.label}
-                onClick={() => selectRange(r.from, r.to)}
-                className="px-2.5 py-1 text-xs rounded-md border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-cyan/30 transition-colors"
-              >
-                {r.label}
-              </button>
-            ))}
-            <button
-              onClick={() => setCustomMode(!customMode)}
-              className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                customMode ? 'bg-accent-magenta/20 border-accent-magenta/40 text-accent-magenta' : 'border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-magenta/30'
-              }`}
-            >
-              Custom
-            </button>
-          </div>
-
-          {/* Custom range picker */}
-          {customMode && (
-            <div className="px-2.5 py-2 border-b border-border-subtle bg-bg-card/50">
-              <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5 font-medium">Custom Range</p>
-              <div className="flex items-center gap-2">
-                <select
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className="flex-1 bg-bg-card border border-border-subtle rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent-cyan"
-                >
-                  <option value="">From</option>
-                  {sortedAsc.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <span className="text-text-muted text-xs">to</span>
-                <select
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className="flex-1 bg-bg-card border border-border-subtle rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent-cyan"
-                >
-                  <option value="">To</option>
-                  {sortedAsc.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <button
-                  onClick={applyCustomRange}
-                  disabled={!customFrom || !customTo}
-                  className="px-2.5 py-1 text-xs rounded-md bg-accent-cyan/20 border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Season grid */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 p-2.5 max-h-56 overflow-y-auto">
-            {sortedDesc.map(s => {
-              const isSelected = selected.includes(s)
-              return (
-                <button
-                  key={s}
-                  onClick={(e) => {
-                    if (e.shiftKey && selected.length > 0) {
-                      // Shift-click: select range from last selected to this
-                      const lastSelected = selected[selected.length - 1]
-                      selectRange(lastSelected, s)
-                    } else {
-                      toggleSeason(s)
-                    }
-                  }}
-                  className={`px-1 py-1.5 text-xs font-mono rounded transition-colors ${
-                    isSelected
-                      ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-card border border-transparent'
-                  }`}
-                >
-                  {s}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Selected count + hint */}
-          <div className="px-2.5 py-1.5 border-t border-border-subtle flex items-center justify-between">
-            <p className="text-[10px] text-text-muted">Click to pick. Shift+click for range.</p>
-            {selected.length > 0 && (
-              <button
-                onClick={selectAll}
-                className="text-[10px] text-accent-cyan hover:underline"
-              >
-                Clear ({selected.length})
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {open && createPortal(dropdownContent, document.body)}
     </div>
   )
 }

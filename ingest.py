@@ -538,8 +538,13 @@ def _load_to_duckdb(
          for pid, name in extractor.players.items()]
     )
 
-    # Use INSERT OR REPLACE so reruns are idempotent
+    # Use DELETE + INSERT so reruns are idempotent even if delivery IDs change
     if not matches_df.empty:
+        match_ids = matches_df["match_id"].tolist()
+        ph = ", ".join(["?"] * len(match_ids))
+        con.execute(f"DELETE FROM deliveries WHERE match_id IN ({ph})", match_ids)
+        con.execute(f"DELETE FROM innings WHERE match_id IN ({ph})", match_ids)
+        
         con.execute("""
             INSERT OR REPLACE INTO matches
             SELECT * FROM matches_df

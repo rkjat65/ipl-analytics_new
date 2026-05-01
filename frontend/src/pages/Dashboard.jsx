@@ -683,10 +683,10 @@ export default function Dashboard() {
             </span>
 
             <div>
-              <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">
+              <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text-primary">
                 IPL Dashboard
               </h1>
-              <p className="mt-2 max-w-2xl text-sm sm:text-base text-text-secondary leading-relaxed">
+              <p className="mt-1 max-w-xl text-xs sm:text-sm text-text-secondary leading-relaxed">
                 A richer command center for leaderboards, recent results, team dominance, and season-wide scoring patterns.
               </p>
             </div>
@@ -727,17 +727,17 @@ export default function Dashboard() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-text-muted">Season lens</p>
-                  <h2 className="mt-1 text-lg font-heading font-bold text-text-primary">
-                    {season ? 'Focused comparison mode' : 'All-time snapshot'}
+                  <h2 className="mt-1 text-base font-heading font-bold text-text-primary">
+                    {season ? 'Focused comparison' : 'All-time snapshot'}
                   </h2>
-                  <p className="mt-1 text-sm text-text-secondary leading-relaxed">
+                  <p className="mt-1 text-[11px] text-text-secondary leading-relaxed line-clamp-2">
                     {season
-                      ? `Currently comparing ${seasonSummary.toLowerCase()} across every chart and leaderboard.`
-                      : 'Use the multi-season filter to compare eras, rival peaks, or one specific campaign.'}
+                      ? `Comparing ${seasonSummary.toLowerCase()}.`
+                      : 'Compare eras, rival peaks, or specific campaigns.'}
                   </p>
                 </div>
-                <div className="min-w-[220px]">
-                  <label className="mb-2 block text-xs font-medium text-text-muted">Season filter</label>
+                <div className="min-w-[180px] sm:min-w-[200px]">
+                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-text-muted">Season filter</label>
                   <MultiSeasonSelect seasons={seasons || []} value={season} onChange={setSeason} />
                 </div>
               </div>
