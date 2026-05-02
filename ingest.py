@@ -503,7 +503,7 @@ def _load_to_duckdb_rowwise(
         cols = list(rows[0].keys())
         colnames = ", ".join(cols)
         placeholders = ", ".join(["?" for _ in cols])
-        sql = f"INSERT OR REPLACE INTO {table} ({colnames}) VALUES ({placeholders})"
+        sql = f"INSERT INTO {table} ({colnames}) VALUES ({placeholders})"
         for row in rows:
             con.execute(sql, [row.get(c) for c in cols])
 
@@ -544,24 +544,16 @@ def _load_to_duckdb(
         ph = ", ".join(["?"] * len(match_ids))
         con.execute(f"DELETE FROM deliveries WHERE match_id IN ({ph})", match_ids)
         con.execute(f"DELETE FROM innings WHERE match_id IN ({ph})", match_ids)
+        con.execute(f"DELETE FROM matches WHERE match_id IN ({ph})", match_ids)
         
-        con.execute("""
-            INSERT OR REPLACE INTO matches
-            SELECT * FROM matches_df
-        """)
+        con.execute("INSERT INTO matches SELECT * FROM matches_df")
 
     if not innings_df.empty:
-        con.execute("""
-            INSERT OR REPLACE INTO innings
-            SELECT * FROM innings_df
-        """)
+        con.execute("INSERT INTO innings SELECT * FROM innings_df")
 
     if not deliveries_df.empty:
         # delivery_id is globally unique across the extractor lifetime
-        con.execute("""
-            INSERT OR REPLACE INTO deliveries
-            SELECT * FROM deliveries_df
-        """)
+        con.execute("INSERT INTO deliveries SELECT * FROM deliveries_df")
 
     if not players_df.empty:
         # Use explicit conflict target on primary key; update name on conflict
@@ -587,6 +579,10 @@ def main() -> None:
     parser.add_argument(
         "--batch", type=int, default=200,
         help="Flush to DB every N files (reduces memory usage)"
+    )
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Re-ingest files even if they already exist in the database"
     )
     parser.add_argument(
         "--only",
@@ -633,6 +629,28 @@ def main() -> None:
 
     # Create schema
     ensure_schema(con)
+
+    # Incremental logic: find existing match IDs
+    existing_matches = set()
+    if not args.reset and not args.only:
+        try:
+            res = con.execute("SELECT match_id FROM matches").fetchall()
+            existing_matches = {r[0] for r in res}
+        except Exception:
+            # Table might not exist yet
+            pass
+
+    if not args.force and not args.only and not args.reset:
+        total_before = len(json_files)
+        json_files = [p for p in json_files if p.stem not in existing_matches]
+        skipped = total_before - len(json_files)
+        if skipped > 0:
+            log.info("Skipping %d files already in database (use --force to re-ingest)", skipped)
+        
+        if not json_files:
+            log.info("No new files to ingest. Everything is up to date.")
+            con.close()
+            return
 
     if args.only:
         last_id = con.execute(
