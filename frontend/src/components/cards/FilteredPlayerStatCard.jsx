@@ -76,7 +76,6 @@ export default function FilteredPlayerStatCard({ playerName, stats = {}, type = 
           <div style={{ display: 'flex', alignItems: 'center', gap: isPortrait ? '28px' : '28px', flexDirection: isPortrait ? 'column' : 'row', textAlign: isPortrait ? 'center' : 'left' }}>
             <PlayerAvatar
               name={playerName || 'Player Name'}
-              imageUrl={null}
               teamColor={teamColor}
               size={isPortrait ? scaledSize(200, dimensions) : scaledSize(140, dimensions)}
               inline

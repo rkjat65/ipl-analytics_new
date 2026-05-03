@@ -25,6 +25,20 @@
 }
 
 @layer components {
+  /* Premium analytics chart panels */
+  .chart-surface .recharts-cartesian-grid-horizontal line,
+  .chart-surface .recharts-cartesian-grid-vertical line {
+    stroke: #1e1e2a;
+  }
+  .chart-surface .recharts-tooltip-wrapper {
+    outline: none;
+  }
+  .chart-surface .recharts-legend-item-text {
+    color: #8888a0 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+
   .stat-glow-cyan {
     text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
   }

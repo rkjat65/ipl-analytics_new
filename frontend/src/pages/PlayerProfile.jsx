@@ -17,20 +17,27 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, AreaChart, Area
 } from 'recharts'
+import {
+  AnalyticsChartShell,
+  GlassTooltipSurface,
+  CHART_ANIMATION,
+  cartesianGridProps,
+  axisTickPrimary,
+  useChartGradientIds,
+} from '../components/charts'
 
 /* ── Custom Components ────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
-      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+    <GlassTooltipSurface eyebrow="Series" title={label}>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
           {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -58,6 +65,7 @@ export default function PlayerProfile() {
   const location = useLocation()
   const fromBowling = location.pathname.startsWith('/bowling/')
   const decodedName = decodeURIComponent(playerName)
+  const cg = useChartGradientIds('profile')
 
   const [activeTab, setActiveTab] = useState(fromBowling ? 'bowling' : 'batting')
 
@@ -147,39 +155,49 @@ export default function PlayerProfile() {
 
            {/* Trend Charts */}
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8">
-                 <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter">Season Evolution</h3>
-                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-8">Run production trend across eras</p>
-                 <div className="h-64">
+              <AnalyticsChartShell
+                title="Season evolution"
+                subtitle="Run production trend across eras"
+                insight="Season-to-season slope shows form arcs — compare peaks to identify prime IPL windows."
+                accent="lime"
+                badge="Batting trajectory"
+                chartClassName="h-64"
+              >
                     <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={batting.seasons}>
+                       <AreaChart data={batting.seasons} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                           <defs>
-                             <linearGradient id="limeGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#B8FF00" stopOpacity={0.3} />
+                             <linearGradient id={cg.area} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#B8FF00" stopOpacity={0.35} />
                                 <stop offset="95%" stopColor="#B8FF00" stopOpacity={0} />
                              </linearGradient>
                           </defs>
-                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                          <CartesianGrid {...cartesianGridProps} />
+                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={axisTickPrimary} />
+                          <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={36} />
                           <Tooltip content={<ChartTooltip />} />
-                          <Area type="monotone" dataKey="runs" stroke="#B8FF00" strokeWidth={3} fill="url(#limeGradient)" dot={{ r: 4, fill: '#B8FF00', stroke: '#0B0E16', strokeWidth: 2 }} />
+                          <Area type="monotone" dataKey="runs" stroke="#B8FF00" strokeWidth={3} fill={`url(#${cg.area})`} dot={{ r: 5, fill: '#B8FF00', stroke: '#0B0E16', strokeWidth: 2 }} activeDot={{ r: 7, strokeWidth: 0 }} {...CHART_ANIMATION} />
                        </AreaChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
 
-              <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8">
-                 <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter">Phase Dominance</h3>
-                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-8">Strike Rate distribution per match phase</p>
-                 <div className="h-64">
+              <AnalyticsChartShell
+                title="Phase dominance"
+                subtitle="Strike rate by match phase"
+                insight="Middle-overs lift separates anchors from pure powerplay hitters — death overs show finish tempo."
+                accent="cyan"
+                badge="Phase tempo"
+                chartClassName="h-64"
+              >
                     <ResponsiveContainer width="100%" height="100%">
-                       <BarChart data={batting.phase_stats}>
-                          <XAxis dataKey="phase" axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Bar dataKey="sr" radius={[8, 8, 0, 0]} fill="#00E5FF" barSize={40} />
+                       <BarChart data={batting.phase_stats} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+                          <CartesianGrid {...cartesianGridProps} />
+                          <XAxis dataKey="phase" axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={32} />
+                          <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(0,229,255,0.06)' }} />
+                          <Bar dataKey="sr" radius={[10, 10, 0, 0]} fill="#00E5FF" barSize={44} {...CHART_ANIMATION} />
                        </BarChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
            </div>
 
            {/* Data Tables */}
@@ -230,47 +248,59 @@ export default function PlayerProfile() {
 
            {/* Trend Charts */}
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8">
-                 <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter">Wicket Evolution</h3>
-                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-8">Career strike trend across eras</p>
-                 <div className="h-64">
+              <AnalyticsChartShell
+                title="Wicket evolution"
+                subtitle="Seasonal wicket-taking rhythm"
+                insight="Sustained wicket bands signal bowling IQ across phases — compare troughs with workload spikes."
+                accent="magenta"
+                badge="Bowling trajectory"
+                chartClassName="h-64"
+              >
                     <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={bowling.seasons}>
+                       <AreaChart data={bowling.seasons} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                           <defs>
-                             <linearGradient id="magentaGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#FF2D78" stopOpacity={0.3} />
+                             <linearGradient id={cg.areaAlt} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#FF2D78" stopOpacity={0.35} />
                                 <stop offset="95%" stopColor="#FF2D78" stopOpacity={0} />
                              </linearGradient>
                           </defs>
-                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                          <CartesianGrid {...cartesianGridProps} />
+                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={axisTickPrimary} />
+                          <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={32} allowDecimals={false} />
                           <Tooltip content={<ChartTooltip />} />
-                          <Area type="monotone" dataKey="wickets" stroke="#FF2D78" strokeWidth={3} fill="url(#magentaGradient)" dot={{ r: 4, fill: '#FF2D78', stroke: '#0B0E16', strokeWidth: 2 }} />
+                          <Area type="monotone" dataKey="wickets" stroke="#FF2D78" strokeWidth={3} fill={`url(#${cg.areaAlt})`} dot={{ r: 5, fill: '#FF2D78', stroke: '#0B0E16', strokeWidth: 2 }} activeDot={{ r: 7, strokeWidth: 0 }} {...CHART_ANIMATION} />
                        </AreaChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
 
-              <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8">
-                 <h3 className="text-2xl font-black font-heading text-white mb-2 uppercase tracking-tighter">Dismissal DNA</h3>
-                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-8">Method of capture distribution</p>
-                 <div className="h-64">
+              <AnalyticsChartShell
+                title="Dismissal DNA"
+                subtitle="How wickets are manufactured"
+                insight="Caught-heavy profiles reward intelligent fields; LBW/Bowled mixes imply deception and seam skill."
+                accent="amber"
+                badge="Mix breakdown"
+                chartClassName="h-64"
+              >
                     <ResponsiveContainer width="100%" height="100%">
                        <PieChart>
                           <Pie
                             data={bowling.dismissal_types}
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={5}
+                            innerRadius={56}
+                            outerRadius={92}
+                            paddingAngle={4}
                             dataKey="count"
                             nameKey="dismissal_kind"
+                            stroke="#0A0A0F"
+                            strokeWidth={2}
+                            {...CHART_ANIMATION}
                           >
                              {bowling.dismissal_types.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                           </Pie>
                           <Tooltip content={<ChartTooltip />} />
+                          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: 16 }} formatter={(value) => <span className="text-[11px] font-semibold text-text-secondary">{value}</span>} />
                        </PieChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
            </div>
 
            {/* Data Tables */}

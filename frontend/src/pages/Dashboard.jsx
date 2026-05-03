@@ -37,32 +37,8 @@ import Loading from '../components/ui/Loading'
 import PlayerNameCell from '../components/ui/PlayerNameCell'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
 import { formatNumber, formatDecimal, formatDate, getMatchResult } from '../utils/format'
-
-/* ── Custom Recharts Tooltip ────────────────────────────── */
-function NeonTooltip({ active, payload, label, valueLabel }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-lg px-3 py-2 text-xs shadow-xl border"
-      style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
-      <p className="text-text-primary font-semibold mb-0.5">{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color || p.fill }}>
-          {valueLabel || p.name}: <span className="font-mono font-bold">{formatNumber(p.value)}</span>
-        </p>
-      ))}
-    </div>
-  )
-}
-
-const AVATAR_BASE = 'https://ui-avatars.com/api/'
-function playerAvatarUrl(name, size = 28) {
-  const initials = (name || '??').split(' ').map((word) => word[0]).join('').slice(0, 2)
-  return `${AVATAR_BASE}?name=${encodeURIComponent(initials)}&size=${size}&background=16161F&color=00E5FF&bold=true&font-size=0.45`
-}
-
-function realPlayerImageUrl(name) {
-  return `/api/players/${encodeURIComponent(name)}/image`
-}
+import { getPlayerFallbackAvatarUrl, getPlayerImageUrl } from '../utils/playerImage'
+import { cartesianGridProps, CHART_ANIMATION } from '../components/charts'
 
 function usePlayerReveal(totalPlayers) {
   const [revealCount, setRevealCount] = useState(totalPlayers)
@@ -1096,6 +1072,7 @@ export default function Dashboard() {
                   layout="vertical"
                   margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
                 >
+                  <CartesianGrid {...cartesianGridProps} />
                   <XAxis
                     type="number"
                     tick={{ fill: '#8888A0', fontSize: 11 }}
@@ -1140,6 +1117,7 @@ export default function Dashboard() {
                     dataKey="wins"
                     radius={[0, 4, 4, 0]}
                     barSize={22}
+                    {...CHART_ANIMATION}
                     label={{
                       position: 'right',
                       fill: '#E8E8F0',
@@ -1418,7 +1396,7 @@ export default function Dashboard() {
                       if (!active || !payload?.length) return null
                       const d = payload[0]?.payload
                       return (
-                        <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
+                        <div className="rounded-xl border border-white/[0.12] bg-[#12121A]/95 px-3.5 py-2.5 text-xs shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-md">
                           <p className="text-text-primary font-semibold mb-1">Over {label}</p>
                           <p style={{ color: '#00E5FF' }}>Avg Runs: <span className="font-mono font-bold">{d?.avg_runs}</span></p>
                           <p style={{ color: '#FFB800' }}>Sixes/over: <span className="font-mono font-bold">{d?.sixes_per_over}</span></p>
@@ -1426,8 +1404,9 @@ export default function Dashboard() {
                         </div>
                       )
                     }} />
-                    <Area type="monotone" dataKey="avg_runs" stroke="#00E5FF" strokeWidth={2.5} fill="url(#dashboardDnaGradient)" />
-                    <Line type="monotone" dataKey="sixes_per_over" stroke="#FFB800" strokeWidth={1.5} dot={false} />
+                    <Legend wrapperStyle={{ color: '#8888A0', fontSize: 11, paddingTop: 8 }} />
+                    <Area type="monotone" dataKey="avg_runs" name="Avg runs / over" stroke="#00E5FF" strokeWidth={2.5} fill="url(#dashboardDnaGradient)" {...CHART_ANIMATION} />
+                    <Line type="monotone" dataKey="sixes_per_over" name="Sixes / over" stroke="#FFB800" strokeWidth={1.5} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1459,7 +1438,7 @@ export default function Dashboard() {
                       if (!active || !payload?.length) return null
                       const d = payload[0]?.payload
                       return (
-                        <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
+                        <div className="rounded-xl border border-white/[0.12] bg-[#12121A]/95 px-3.5 py-2.5 text-xs shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-md">
                           <p className="text-text-primary font-semibold mb-1">IPL {d?.season}</p>
                           <p style={{ color: '#FFB800' }}>Sixes/match: <span className="font-mono font-bold">{d?.sixes_per_match}</span></p>
                           <p style={{ color: '#B8FF00' }}>Fours/match: <span className="font-mono font-bold">{d?.fours_per_match}</span></p>
@@ -1467,8 +1446,9 @@ export default function Dashboard() {
                         </div>
                       )
                     }} />
-                    <Area type="monotone" dataKey="sixes_per_match" stroke="#FFB800" strokeWidth={2.5} fill="url(#dashboardSixEvolutionGradient)" />
-                    <Line type="monotone" dataKey="fours_per_match" stroke="#B8FF00" strokeWidth={1.5} dot={false} />
+                    <Legend wrapperStyle={{ color: '#8888A0', fontSize: 11, paddingTop: 8 }} />
+                    <Area type="monotone" dataKey="sixes_per_match" name="Sixes / match" stroke="#FFB800" strokeWidth={2.5} fill="url(#dashboardSixEvolutionGradient)" {...CHART_ANIMATION} />
+                    <Line type="monotone" dataKey="fours_per_match" name="Fours / match" stroke="#B8FF00" strokeWidth={1.5} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1517,9 +1497,9 @@ export default function Dashboard() {
                       )
                     }} />
                     <Legend wrapperStyle={{ color: '#8888A0', fontSize: 11 }} />
-                    <Bar dataKey="powerplay" name="Powerplay" fill="#00E5FF" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="middle" name="Middle" fill="#B8FF00" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="death" name="Death" fill="#FF2D78" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="powerplay" name="Powerplay" fill="#00E5FF" radius={[0, 4, 4, 0]} {...CHART_ANIMATION} />
+                    <Bar dataKey="middle" name="Middle" fill="#B8FF00" radius={[0, 4, 4, 0]} {...CHART_ANIMATION} />
+                    <Bar dataKey="death" name="Death" fill="#FF2D78" radius={[0, 4, 4, 0]} {...CHART_ANIMATION} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1607,10 +1587,10 @@ export default function Dashboard() {
                                     <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
                                       <div className="flex items-center gap-2 mb-1">
                                         <img
-                                          src={realPlayerImageUrl(player?.player)}
+                                          src={getPlayerImageUrl(player?.player)}
                                           alt={player?.player ? `${player.player} — player photo` : 'Player photo'}
                                           className="w-6 h-6 rounded-full border border-border-subtle object-cover"
-                                          onError={(event) => { event.target.src = playerAvatarUrl(player?.player, 24) }}
+                                          onError={(event) => { event.target.src = getPlayerFallbackAvatarUrl(player?.player, 24) }}
                                         />
                                         <p className="text-text-primary font-semibold">{player?.player}</p>
                                       </div>
@@ -1650,7 +1630,7 @@ export default function Dashboard() {
                                         </clipPath>
                                       </defs>
                                       <image
-                                        href={realPlayerImageUrl(payload.player)}
+                                        href={getPlayerImageUrl(payload.player)}
                                         x={cx - radius}
                                         y={cy - radius}
                                         width={radius * 2}
@@ -1658,7 +1638,7 @@ export default function Dashboard() {
                                         clipPath={`url(#${clipId})`}
                                         preserveAspectRatio="xMidYMid slice"
                                         aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
-                                        onError={(event) => { event.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(radius * 3))) }}
+                                        onError={(event) => { event.target.setAttribute('href', getPlayerFallbackAvatarUrl(payload.player, Math.round(radius * 3))) }}
                                       >
                                         <title>{payload.player || 'Player'}</title>
                                       </image>
@@ -1757,10 +1737,10 @@ export default function Dashboard() {
                                     <div className="rounded-lg px-3 py-2 text-xs shadow-xl border" style={{ background: '#16161F', borderColor: '#2A2A3A' }}>
                                       <div className="flex items-center gap-2 mb-1">
                                         <img
-                                          src={realPlayerImageUrl(player?.player)}
+                                          src={getPlayerImageUrl(player?.player)}
                                           alt={player?.player ? `${player.player} — player photo` : 'Player photo'}
                                           className="w-6 h-6 rounded-full border border-border-subtle object-cover"
-                                          onError={(event) => { event.target.src = playerAvatarUrl(player?.player, 24) }}
+                                          onError={(event) => { event.target.src = getPlayerFallbackAvatarUrl(player?.player, 24) }}
                                         />
                                         <p className="text-text-primary font-semibold">{player?.player}</p>
                                       </div>
@@ -1800,7 +1780,7 @@ export default function Dashboard() {
                                         </clipPath>
                                       </defs>
                                       <image
-                                        href={realPlayerImageUrl(payload.player)}
+                                        href={getPlayerImageUrl(payload.player)}
                                         x={cx - radius}
                                         y={cy - radius}
                                         width={radius * 2}
@@ -1808,7 +1788,7 @@ export default function Dashboard() {
                                         clipPath={`url(#${clipId})`}
                                         preserveAspectRatio="xMidYMid slice"
                                         aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
-                                        onError={(event) => { event.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(radius * 3))) }}
+                                        onError={(event) => { event.target.setAttribute('href', getPlayerFallbackAvatarUrl(payload.player, Math.round(radius * 3))) }}
                                       >
                                         <title>{payload.player || 'Player'}</title>
                                       </image>
@@ -1970,6 +1950,7 @@ export default function Dashboard() {
                     layout="vertical"
                     margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
                   >
+                    <CartesianGrid {...cartesianGridProps} />
                     <XAxis
                       type="number"
                       tick={{ fill: '#8888A0', fontSize: 11 }}
@@ -2009,6 +1990,7 @@ export default function Dashboard() {
                       dataKey="value"
                       radius={[0, 6, 6, 0]}
                       barSize={24}
+                      {...CHART_ANIMATION}
                       label={{
                         position: 'right',
                         fill: '#E8E8F0',
@@ -2114,6 +2096,7 @@ export default function Dashboard() {
                     layout="vertical"
                     margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
                   >
+                    <CartesianGrid {...cartesianGridProps} />
                     <XAxis
                       type="number"
                       tick={{ fill: '#8888A0', fontSize: 11 }}
@@ -2153,6 +2136,7 @@ export default function Dashboard() {
                       dataKey="value"
                       radius={[0, 6, 6, 0]}
                       barSize={24}
+                      {...CHART_ANIMATION}
                       label={{
                         position: 'right',
                         fill: '#E8E8F0',

@@ -8,35 +8,15 @@ import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
 import { formatNumber, formatDecimal } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
-import {
-  BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend
-} from 'recharts'
-
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
-      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
-      {payload.map((entry, i) => (
-        <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-          {entry.name}: <span className="font-mono">{entry.value}</span>
-        </p>
-      ))}
-    </div>
-  )
-}
-
 export default function Seasons() {
   const { year } = useParams()
   const navigate = useNavigate()
   const [showcaseConfig, setShowcaseConfig] = useState(null)
 
-  const { data: seasons } = useFetch(() => getSeasons(), [])
+  const { data: seasons, loading: seasonsLoading } = useFetch(() => getSeasons(), [])
   const selectedYear = year || (seasons && seasons.length > 0 ? String(seasons[seasons.length - 1]) : '')
 
-  const { data: summary, loading: summaryLoading } = useFetch(
+  const { data: summary, loading: summaryLoading, error: summaryError } = useFetch(
     () => (selectedYear ? getSeasonSummary(selectedYear) : Promise.resolve(null)),
     [selectedYear]
   )
@@ -52,6 +32,27 @@ export default function Seasons() {
   )
 
   const ptData = useMemo(() => (pointsTable || []).map((row, i) => ({ ...row, pos: i + 1 })), [pointsTable])
+
+  if (seasonsLoading) {
+    return (
+      <div className="pb-24">
+        <SEO title="IPL Seasons" />
+        <Loading message="Loading seasons..." />
+      </div>
+    )
+  }
+
+  if (!seasons?.length) {
+    return (
+      <div className="space-y-12 pb-24">
+        <SEO title="IPL Seasons" />
+        <section className="rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">
+          <h1 className="text-3xl font-black font-heading text-white">Seasons</h1>
+          <p className="mt-4 text-text-muted font-mono text-sm">No season data was found in the database.</p>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-12 pb-24">
@@ -80,7 +81,7 @@ export default function Seasons() {
             </div>
           </div>
 
-          {!summaryLoading && summary && (
+          {!summaryLoading && summary ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full lg:w-auto">
                <div className="bg-[#0B0E16] border border-white/5 rounded-3xl p-6">
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted mb-2">Champion</p>
@@ -91,12 +92,20 @@ export default function Seasons() {
                   <p className="text-2xl font-black font-heading text-white">{summary.total_matches}</p>
                </div>
             </div>
-          )}
+          ) : !summaryLoading && summaryError ? (
+            <div className="rounded-2xl border border-accent-magenta/30 bg-accent-magenta/5 px-6 py-4 text-sm font-mono text-accent-magenta max-w-lg">
+              {summaryError}
+            </div>
+          ) : null}
         </div>
       </section>
 
       {/* ── SEASON ANALYTICS ─────────────────────────────────── */}
-      {summaryLoading ? <Loading message="Synthesizing season historical data..." /> : (
+      {summaryLoading ? <Loading message="Synthesizing season historical data..." /> : !summary ? (
+        <div className="rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 text-text-muted font-mono text-sm">
+          {summaryError || 'Could not load this season. Try another year from the selector above.'}
+        </div>
+      ) : (
         <div className="space-y-12 animate-in">
            
            {/* 1. STANDINGS HUB */}

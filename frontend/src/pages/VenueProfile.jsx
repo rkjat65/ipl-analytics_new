@@ -9,22 +9,28 @@ import TeamLogo from '../components/ui/TeamLogo'
 import { formatDecimal, formatNumber } from '../utils/format'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  LineChart, Line, AreaChart, Area
+  AreaChart, Area
 } from 'recharts'
 import SEO from '../components/SEO'
+import {
+  GlassTooltipSurface,
+  CHART_ANIMATION,
+  cartesianGridProps,
+  axisTickPrimary,
+  useChartGradientIds,
+} from '../components/charts'
 
 /* ── Custom Tooltip ───────────────────────────────────────── */
 function DashboardTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
-      <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">{label}</p>
+    <GlassTooltipSurface eyebrow={label}>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color }}>
           {entry.name}: <span className="font-mono">{entry.value}</span>
         </p>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -46,6 +52,7 @@ export default function VenueProfile() {
   const { venueName } = useParams()
   const decoded = decodeURIComponent(venueName)
   const [showcaseConfig, setShowcaseConfig] = useState(null)
+  const cg = useChartGradientIds('venue')
 
   const { data: stats, loading: statsLoading, error: statsError } = useFetch(() => getVenueStats(decoded), [decoded])
   const { data: performers, loading: perfLoading } = useFetch(() => getVenueTopPerformers(decoded), [decoded])
@@ -170,16 +177,18 @@ export default function VenueProfile() {
            </div>
            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                 <AreaChart data={stats?.seasons}>
+                 <AreaChart data={stats?.seasons} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                     <defs>
-                       <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.2} />
+                       <linearGradient id={cg.area} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.3} />
                           <stop offset="95%" stopColor="#00E5FF" stopOpacity={0} />
                        </linearGradient>
                     </defs>
-                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={axisTickPrimary} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={36} />
                     <Tooltip content={<DashboardTooltip />} />
-                    <Area type="monotone" dataKey="avg_score" stroke="#00E5FF" strokeWidth={3} fill="url(#scoreGrad)" dot={{ r: 4, fill: '#00E5FF' }} />
+                    <Area type="monotone" dataKey="avg_score" name="Avg score" stroke="#00E5FF" strokeWidth={3} fill={`url(#${cg.area})`} dot={{ r: 4, fill: '#00E5FF' }} activeDot={{ r: 6 }} {...CHART_ANIMATION} />
                  </AreaChart>
               </ResponsiveContainer>
            </div>
@@ -198,12 +207,12 @@ export default function VenueProfile() {
            </div>
            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={scoringData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                 <BarChart data={scoringData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={32} />
                     <Tooltip content={<DashboardTooltip />} />
-                    <Bar dataKey="count" radius={[8, 8, 0, 0]} name="Occurrences">
+                    <Bar dataKey="count" radius={[10, 10, 0, 0]} name="Occurrences" {...CHART_ANIMATION}>
                        {scoringData.map((entry, index) => (
                          <Cell key={`cell-${index}`} fill={entry.fill} />
                        ))}

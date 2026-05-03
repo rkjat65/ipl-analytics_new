@@ -5,8 +5,16 @@ import { getTeams, getTeamStats } from '../lib/api'
 import SEO from '../components/SEO'
 import Loading from '../components/ui/Loading'
 import { formatDecimal } from '../utils/format'
-import { getTeamColor } from '../constants/teams'
+import { getTeamAbbr, getTeamColor } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
+import {
+  AnalyticsChartShell,
+  GlassTooltipSurface,
+  cartesianGridProps,
+  CHART_ANIMATION,
+  axisTickPrimary,
+} from '../components/charts'
 
 /* ── Cinematic Team Card ────────────────────────────── */
 function TeamHeroCard({ team, stats, index }) {
@@ -89,6 +97,20 @@ export default function Teams() {
     return { topWinRate, topTitles, bestAttack }
   }, [teamStatsList])
 
+  const winIndexChart = useMemo(() => {
+    const list = Array.isArray(teamStatsList) ? teamStatsList : []
+    return [...list]
+      .filter((t) => t && t.team && typeof t.win_pct === 'number')
+      .sort((a, b) => (b.win_pct || 0) - (a.win_pct || 0))
+      .map((t) => ({
+        abbr: getTeamAbbr(t.team),
+        fullTeam: t.team,
+        win_pct: Number(t.win_pct),
+        matches: t.matches,
+        fill: getTeamColor(t.team),
+      }))
+  }, [teamStatsList])
+
   if (error) return (
     <div className="py-20 text-center">
        <p className="text-danger font-black font-heading text-2xl uppercase tracking-tighter">System Error</p>
@@ -130,6 +152,60 @@ export default function Teams() {
           </div>
         </div>
       </section>
+
+      {/* ── LEAGUE WIN INDEX (ALL FRANCHISES) ───────────────── */}
+      {!loading && !statsLoading && winIndexChart.length > 0 && (
+        <AnalyticsChartShell
+          title="Franchise win index"
+          subtitle="Career win rate • ordered best → rest"
+          insight="Quick scan of long-run efficiency — compare bar length before drilling into a team's HQ page."
+          accent="cyan"
+          badge="League snapshot"
+          chartClassName="h-[min(520px,70vh)] min-h-[320px]"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={winIndexChart} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
+              <CartesianGrid {...cartesianGridProps} />
+              <XAxis
+                type="number"
+                domain={[0, 'auto']}
+                tick={axisTickPrimary}
+                axisLine={{ stroke: '#2A2A3A' }}
+                tickLine={false}
+                tickFormatter={(v) => `${v}%`}
+              />
+              <YAxis
+                type="category"
+                dataKey="abbr"
+                width={52}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(0,229,255,0.06)' }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const d = payload[0]?.payload
+                  return (
+                    <GlassTooltipSurface title={d?.fullTeam} eyebrow="Win index">
+                      <p className="text-sm font-semibold" style={{ color: d?.fill }}>
+                        Win rate: <span className="font-mono">{formatDecimal(d?.win_pct, 2)}%</span>
+                      </p>
+                      <p className="mt-1 text-[11px] text-text-muted">Matches logged: {d?.matches ?? '—'}</p>
+                    </GlassTooltipSurface>
+                  )
+                }}
+              />
+              <Bar dataKey="win_pct" radius={[0, 10, 10, 0]} barSize={18} {...CHART_ANIMATION}>
+                {winIndexChart.map((entry, i) => (
+                  <Cell key={entry.fullTeam} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </AnalyticsChartShell>
+      )}
 
       {/* ── FRANCHISE GRID ───────────────────────────────────── */}
       {loading || statsLoading ? (

@@ -1,28 +1,34 @@
 import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
-  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine, Cell,
-  PieChart, Pie
+  ResponsiveContainer, Cell,
 } from 'recharts'
+import {
+  GlassTooltipSurface,
+  CHART_ANIMATION,
+  cartesianGridProps,
+  axisTickPrimary,
+  useChartGradientIds,
+} from '../components/charts'
 import { useFetch } from '../hooks/useFetch'
-import { getMatch, getWinProbability } from '../lib/api'
+import { getMatch } from '../lib/api'
 import Loading from '../components/ui/Loading'
 import { formatDate, formatDecimal, formatNumber } from '../utils/format'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
+import PlayerNameCell from '../components/ui/PlayerNameCell'
 import TeamLogo from '../components/ui/TeamLogo'
 import SEO from '../components/SEO'
 
-const TABS = ['Match Summary', 'Full Scorecard', 'Performance Analytics', 'Partnerships', 'Win Probability']
+const TABS = ['Match Summary', 'Full Scorecard', 'Performance Analytics', 'Partnerships']
 
 /* ── Custom Tooltips ─────────────────────────────────── */
 function ChartTooltip({ active, payload, label, extra }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-xl px-4 py-3 shadow-2xl backdrop-blur-xl">
-      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-2">{extra || `Over ${label}`}</p>
+    <GlassTooltipSurface eyebrow={extra || `Over ${label}`}>
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center justify-between gap-8 mb-1 last:mb-0">
           <div className="flex items-center gap-2">
@@ -34,7 +40,7 @@ function ChartTooltip({ active, payload, label, extra }) {
           </span>
         </div>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -65,14 +71,10 @@ function MetricCard({ label, value, sub, color = 'cyan', trend }) {
 export default function MatchDetail() {
   const { matchId } = useParams()
   const [activeTab, setActiveTab] = useState('Match Summary')
+  const cg = useChartGradientIds('match')
 
   const { data: matchData, loading, error } = useFetch(
     () => getMatch(matchId),
-    [matchId]
-  )
-
-  const { data: winProbData } = useFetch(
-    () => (matchId ? getWinProbability(matchId).catch(() => null) : Promise.resolve(null)),
     [matchId]
   )
 
@@ -253,17 +255,18 @@ export default function MatchDetail() {
                       <h3 className="text-xl font-black text-text-primary uppercase tracking-tight mb-8">Match Progression</h3>
                       <div className="h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={wormData}>
+                          <AreaChart data={wormData} margin={{ top: 12, right: 16, left: 4, bottom: 8 }}>
                             <defs>
-                              <linearGradient id="t1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={team1Color} stopOpacity={0.3}/><stop offset="95%" stopColor={team1Color} stopOpacity={0}/></linearGradient>
-                              <linearGradient id="t2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={team2Color} stopOpacity={0.3}/><stop offset="95%" stopColor={team2Color} stopOpacity={0}/></linearGradient>
+                              <linearGradient id={cg.area} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={team1Color} stopOpacity={0.38}/><stop offset="95%" stopColor={team1Color} stopOpacity={0}/></linearGradient>
+                              <linearGradient id={cg.areaAlt} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={team2Color} stopOpacity={0.38}/><stop offset="95%" stopColor={team2Color} stopOpacity={0}/></linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                            <XAxis dataKey="over" axisLine={false} tickLine={false} tick={{ fill: '#555566', fontSize: 10, fontWeight: 900 }} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#555566', fontSize: 10, fontWeight: 900 }} />
+                            <CartesianGrid {...cartesianGridProps} />
+                            <XAxis dataKey="over" axisLine={false} tickLine={false} tick={axisTickPrimary} />
+                            <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={36} />
                             <Tooltip content={<ChartTooltip />} />
-                            <Area type="monotone" dataKey="cumulative_1" name={getTeamAbbr(match.team1)} stroke={team1Color} strokeWidth={4} fill="url(#t1)" />
-                            <Area type="monotone" dataKey="cumulative_2" name={getTeamAbbr(match.team2)} stroke={team2Color} strokeWidth={4} fill="url(#t2)" />
+                            <Legend wrapperStyle={{ color: '#8888A0', fontSize: 11 }} />
+                            <Area type="monotone" dataKey="cumulative_1" name={getTeamAbbr(match.team1)} stroke={team1Color} strokeWidth={3} fill={`url(#${cg.area})`} dot={false} activeDot={{ r: 5 }} {...CHART_ANIMATION} />
+                            <Area type="monotone" dataKey="cumulative_2" name={getTeamAbbr(match.team2)} stroke={team2Color} strokeWidth={3} fill={`url(#${cg.areaAlt})`} dot={false} activeDot={{ r: 5 }} {...CHART_ANIMATION} />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -273,11 +276,14 @@ export default function MatchDetail() {
                       <h3 className="text-xl font-black text-text-primary uppercase tracking-tight mb-8">Phase Dominance</h3>
                       <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={phaseData} barGap={12}>
-                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#555566', fontSize: 10, fontWeight: 900 }} />
+                          <BarChart data={phaseData} barGap={12} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
+                             <CartesianGrid {...cartesianGridProps} />
+                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                             <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={32} />
                              <Tooltip content={<ChartTooltip extra="Phase Total" />} />
-                             <Bar dataKey={getTeamAbbr(match.team1)} fill={team1Color} radius={[4, 4, 0, 0]} />
-                             <Bar dataKey={getTeamAbbr(match.team2)} fill={team2Color} radius={[4, 4, 0, 0]} />
+                             <Legend />
+                             <Bar dataKey={getTeamAbbr(match.team1)} name={getTeamAbbr(match.team1)} fill={team1Color} radius={[6, 6, 0, 0]} {...CHART_ANIMATION} />
+                             <Bar dataKey={getTeamAbbr(match.team2)} name={getTeamAbbr(match.team2)} fill={team2Color} radius={[6, 6, 0, 0]} {...CHART_ANIMATION} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -290,23 +296,23 @@ export default function MatchDetail() {
                       <div className="space-y-6">
                          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-border-subtle pb-2">Best Batting</p>
                          {scorecards.flatMap(sc => sc.batting).sort((a,b) => b.runs - a.runs).slice(0, 3).map((b, i) => (
-                            <div key={i} className="flex items-center justify-between">
-                               <div className="flex items-center gap-3">
-                                  <span className="text-xs font-black text-text-muted">#{i+1}</span>
-                                  <p className="text-sm font-bold text-text-primary">{b.batter}</p>
+                            <div key={i} className="flex items-center justify-between gap-3">
+                               <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-xs font-black text-text-muted shrink-0">#{i+1}</span>
+                                  <PlayerNameCell name={b.batter} to={`/batting/${encodeURIComponent(b.batter)}`} size={36} className="min-w-0" />
                                </div>
-                               <p className="text-lg font-black text-accent-cyan">{b.runs} <span className="text-[10px] text-text-muted font-mono">({b.balls})</span></p>
+                               <p className="text-lg font-black text-accent-cyan shrink-0">{b.runs} <span className="text-[10px] text-text-muted font-mono">({b.balls})</span></p>
                             </div>
                          ))}
 
                          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-border-subtle pb-2 mt-8">Best Bowling</p>
                          {scorecards.flatMap(sc => sc.bowling).sort((a,b) => b.wickets - a.wickets || a.economy - b.economy).slice(0, 3).map((b, i) => (
-                            <div key={i} className="flex items-center justify-between">
-                               <div className="flex items-center gap-3">
-                                  <span className="text-xs font-black text-text-muted">#{i+1}</span>
-                                  <p className="text-sm font-bold text-text-primary">{b.bowler}</p>
+                            <div key={i} className="flex items-center justify-between gap-3">
+                               <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-xs font-black text-text-muted shrink-0">#{i+1}</span>
+                                  <PlayerNameCell name={b.bowler} to={`/bowling/${encodeURIComponent(b.bowler)}`} size={36} className="min-w-0" />
                                </div>
-                               <p className="text-lg font-black text-accent-magenta">{b.wickets} <span className="text-[10px] text-text-muted font-mono">({b.overs})</span></p>
+                               <p className="text-lg font-black text-accent-magenta shrink-0">{b.wickets} <span className="text-[10px] text-text-muted font-mono">({b.overs})</span></p>
                             </div>
                          ))}
                       </div>
@@ -357,9 +363,11 @@ export default function MatchDetail() {
                             <tbody className="text-sm">
                               {inn.batting.map((b, i) => (
                                 <tr key={i} className="border-b border-border-subtle hover:bg-bg-card-hover transition-colors">
-                                  <td className="px-6 py-4">
-                                     <p className="font-bold text-text-primary">{b.batter}</p>
-                                     <p className="text-[10px] text-text-muted italic line-clamp-1">{b.dismissal ? `${b.dismissal} b ${b.dismissed_by}` : 'Not Out'}</p>
+                                  <td className="px-4 py-3">
+                                     <div className="flex items-start gap-3">
+                                       <PlayerNameCell name={b.batter} to={`/batting/${encodeURIComponent(b.batter)}`} size={40} className="min-w-0 flex-1" />
+                                     </div>
+                                     <p className="text-[10px] text-text-muted italic line-clamp-2 mt-2 pl-[52px]">{b.dismissal ? `${b.dismissal} b ${b.dismissed_by}` : 'Not Out'}</p>
                                   </td>
                                   <td className="px-6 py-4 text-right font-black text-text-primary">{b.runs}</td>
                                   <td className="px-6 py-4 text-right font-mono text-text-secondary">{b.balls}</td>
@@ -384,7 +392,9 @@ export default function MatchDetail() {
                             <tbody className="text-sm">
                               {inn.bowling.map((b, i) => (
                                 <tr key={i} className="border-b border-border-subtle hover:bg-bg-card-hover transition-colors">
-                                  <td className="px-6 py-4 font-bold text-text-primary">{b.bowler}</td>
+                                  <td className="px-4 py-3">
+                                    <PlayerNameCell name={b.bowler} to={`/bowling/${encodeURIComponent(b.bowler)}`} size={36} />
+                                  </td>
                                   <td className="px-6 py-4 text-right font-mono text-text-secondary">{b.overs}</td>
                                   <td className="px-6 py-4 text-right font-mono text-text-secondary">{b.runs_conceded}</td>
                                   <td className="px-6 py-4 text-right font-black text-accent-magenta">{b.wickets}</td>
@@ -407,11 +417,11 @@ export default function MatchDetail() {
                    <div className="h-[400px]">
                       <ResponsiveContainer width="100%" height="100%">
                          <BarChart data={oversData.filter(o => o.innings_number === 1)} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                            <XAxis dataKey="over_number" axisLine={false} tickLine={false} tick={{ fill: '#555566', fontSize: 10, fontWeight: 900 }} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#555566', fontSize: 10, fontWeight: 900 }} />
+                            <CartesianGrid {...cartesianGridProps} />
+                            <XAxis dataKey="over_number" axisLine={false} tickLine={false} tick={axisTickPrimary} />
+                            <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} />
                             <Tooltip content={<ChartTooltip extra="Over Runs" />} />
-                            <Bar dataKey="runs" fill={team1Color} radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="runs" name="Runs" fill={team1Color} radius={[6, 6, 0, 0]} {...CHART_ANIMATION} />
                          </BarChart>
                       </ResponsiveContainer>
                    </div>
@@ -422,9 +432,9 @@ export default function MatchDetail() {
                    <div className="space-y-6">
                       {scorecards.flatMap(sc => sc.batting).sort((a,b) => b.runs - a.runs).slice(0, 6).map((b, i) => (
                          <div key={i} className="space-y-2">
-                            <div className="flex justify-between items-center text-xs font-bold">
-                               <span className="text-text-primary">{b.batter}</span>
-                               <span className="text-accent-cyan">{formatDecimal(b.strike_rate, 1)} <span className="text-text-muted text-[10px]">SR</span></span>
+                            <div className="flex justify-between items-center text-xs font-bold gap-2">
+                               <PlayerNameCell name={b.batter} to={`/batting/${encodeURIComponent(b.batter)}`} size={28} className="min-w-0 flex-1" />
+                               <span className="text-accent-cyan shrink-0">{formatDecimal(b.strike_rate, 1)} <span className="text-text-muted text-[10px]">SR</span></span>
                             </div>
                             <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                                <div className="h-full bg-accent-cyan rounded-full transition-all duration-1000" style={{ width: `${Math.min((b.strike_rate / 250) * 100, 100)}%` }} />
@@ -466,39 +476,6 @@ export default function MatchDetail() {
              </div>
           )}
 
-          {activeTab === 'Win Probability' && (
-             <div className="bg-bg-card rounded-3xl border border-border-subtle p-12 shadow-xl animate-in-fast">
-                <div className="max-w-3xl mx-auto space-y-12">
-                   <div className="text-center space-y-4">
-                      <h3 className="text-2xl font-black text-text-primary uppercase tracking-tight italic">Win Probability Forecast</h3>
-                      <p className="text-xs text-text-muted font-medium">Real-time model grounded on historical chase patterns and venue dynamics.</p>
-                   </div>
-
-                   {winProbData?.probabilities?.length > 0 ? (
-                      <div className="space-y-16">
-                         <div className="relative h-4 w-full bg-white/5 rounded-full overflow-hidden flex shadow-inner">
-                            <div className="h-full transition-all duration-1000 shadow-glow-magenta" style={{ width: `${winProbData.probabilities.slice(-1)[0].win_probability * 100}%`, backgroundColor: team2Color }} />
-                            <div className="h-full transition-all duration-1000 shadow-glow-cyan" style={{ width: `${(1 - winProbData.probabilities.slice(-1)[0].win_probability) * 100}%`, backgroundColor: team1Color }} />
-                         </div>
-                         <div className="grid grid-cols-2 gap-12">
-                            <div className="text-center space-y-2">
-                               <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">{getTeamAbbr(match.team1)} Win %</p>
-                               <p className="text-5xl font-black font-heading text-text-primary">{Math.round((1 - winProbData.probabilities.slice(-1)[0].win_probability) * 100)}%</p>
-                            </div>
-                            <div className="text-center space-y-2">
-                               <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">{getTeamAbbr(match.team2)} Win %</p>
-                               <p className="text-5xl font-black font-heading text-text-primary">{Math.round(winProbData.probabilities.slice(-1)[0].win_probability * 100)}%</p>
-                            </div>
-                         </div>
-                      </div>
-                   ) : (
-                      <div className="py-20 text-center opacity-40">
-                         <p className="text-sm font-black uppercase tracking-widest">Analytics Engine Offline for this Record</p>
-                      </div>
-                   )}
-                </div>
-             </div>
-          )}
         </div>
       </section>
     </div>

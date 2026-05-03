@@ -21,27 +21,34 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis, ReferenceLine, ComposedChart, Line, Legend
 } from 'recharts'
+import {
+  AnalyticsChartShell,
+  GlassTooltipSurface,
+  cartesianGridProps,
+  cartesianGridFull,
+  CHART_ANIMATION,
+  axisTickPrimary,
+  cursorBand,
+} from '../components/charts'
 
 /* ── Custom Tooltips ─────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   const playerName = payload?.[0]?.payload?.fullName || payload?.[0]?.payload?.player || null
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+    <GlassTooltipSurface eyebrow={playerName ? 'Leaderboard row' : 'Metric'} title={!playerName ? label : undefined}>
       {playerName ? (
         <div className="mb-2">
           <PlayerNameCell name={playerName} to={`/batting/${encodeURIComponent(playerName)}`} size={28} />
         </div>
-      ) : (
-        <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
-      )}
+      ) : null}
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
           {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -49,7 +56,7 @@ function MatrixTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const player = payload[0]?.payload
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl max-w-[260px]">
+    <GlassTooltipSurface eyebrow="Impact profile" className="max-w-[280px]">
       <div className="mb-3">
         <PlayerNameCell name={player?.player} to={player?.player ? `/batting/${encodeURIComponent(player.player)}` : undefined} size={32} />
       </div>
@@ -59,7 +66,7 @@ function MatrixTooltip({ active, payload }) {
         <p className="text-xs font-black text-accent-amber uppercase flex justify-between">SR <span className="font-mono">{formatDecimal(player?.sr)}</span></p>
       </div>
       <p className="text-[10px] font-bold text-text-muted mt-3 uppercase tracking-widest">{player?.innings} innings &bull; {player?.sixes} sixes</p>
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -75,10 +82,6 @@ const SORT_OPTIONS = [
 ]
 
 const BAR_COLORS = ['#00E5FF', '#B8FF00', '#FFB800', '#FF2D78', '#8B5CF6', '#22D3EE', '#22C55E', '#FBBF24', '#EF4444', '#A78BFA']
-
-function realPlayerImageUrl(name) {
-  return `/api/players/${encodeURIComponent(name)}/image`
-}
 
 function HeroStat({ label, value, accent = 'cyan', meta = '' }) {
   const accentColor = {
@@ -186,6 +189,13 @@ export default function BattingRecords() {
   const dataWithRank = (Array.isArray(batters) ? batters : []).map((b, i) => ({ ...b, rank: i + 1 }))
   const leader = dataWithRank[0] || null
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy
+  const barInsight = useMemo(() => {
+    if (!leader) return null
+    const v = leader[sortBy]
+    const formatted =
+      typeof v === 'number' && ['avg', 'sr'].includes(sortBy) ? formatDecimal(v) : formatNumber(v)
+    return `${leader.player} leads this view on ${sortLabel} (${formatted}). Compare bar lengths for how quickly value drops through the top 15.`
+  }, [leader, sortBy])
 
   return (
     <div className="space-y-12 pb-20">
@@ -257,53 +267,64 @@ export default function BattingRecords() {
          {/* Top 15 Bar */}
          {!loading && dataWithRank.length > 0 && (
            <AnimatedPresentationSection deck={deck} index={0}>
-             <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 h-full">
-                <div className="flex justify-between items-start mb-8">
-                   <div>
-                      <h3 className="text-2xl font-black font-heading text-white">Top 15 Performance</h3>
-                      <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Sorted by {sortLabel}</p>
-                   </div>
-                   <button onClick={() => setShowcaseOpen(true)} className="px-4 py-2 rounded-xl bg-accent-lime/10 border border-accent-lime/20 text-accent-lime text-[10px] font-black uppercase tracking-widest hover:bg-accent-lime hover:text-black transition-all">Showcase</button>
-                </div>
-                <div className="h-96">
+             <AnalyticsChartShell
+               title="Top 15 performance"
+               subtitle={`Sorted by ${sortLabel}`}
+               insight={barInsight}
+               accent="lime"
+               badge="Leaderboard lens"
+               chartClassName="h-96"
+               actions={
+                 <button
+                   type="button"
+                   onClick={() => setShowcaseOpen(true)}
+                   className="rounded-xl border border-accent-lime/25 bg-accent-lime/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-accent-lime transition-all hover:bg-accent-lime hover:text-black"
+                 >
+                   Showcase
+                 </button>
+               }
+             >
                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dataWithRank.slice(0, 15).sort((a,b) => b[sortBy] - a[sortBy])} layout="vertical">
-                         <XAxis type="number" hide />
+                      <BarChart data={dataWithRank.slice(0, 15).sort((a,b) => b[sortBy] - a[sortBy])} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
+                         <CartesianGrid {...cartesianGridProps} />
+                         <XAxis type="number" tick={axisTickPrimary} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
                          <YAxis type="category" dataKey="player" width={100} axisLine={false} tickLine={false} tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 900 }} />
-                         <Tooltip content={<ChartTooltip />} cursor={{ fill: '#ffffff05' }} />
-                         <Bar dataKey={sortBy} radius={[0, 8, 8, 0]} barSize={20}>
+                         <Tooltip content={<ChartTooltip />} cursor={cursorBand('rgba(184,255,0,0.06)')} />
+                         <Bar dataKey={sortBy} radius={[0, 10, 10, 0]} barSize={22} {...CHART_ANIMATION}>
                             {dataWithRank.slice(0, 15).map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
                          </Bar>
                       </BarChart>
                    </ResponsiveContainer>
-                </div>
-             </div>
+             </AnalyticsChartShell>
            </AnimatedPresentationSection>
          )}
 
          {/* Matrix */}
          {!loading && (
            <AnimatedPresentationSection deck={deck} index={2}>
-              <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 h-full">
-                 <h3 className="text-2xl font-black font-heading text-white mb-2">Impact Matrix</h3>
-                 <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-8">Average vs Strike Rate Profile</p>
-                 <div className="h-80">
+              <AnalyticsChartShell
+                title="Impact matrix"
+                subtitle="Average × strike rate • bubble size ∝ runs"
+                insight="Upper-right is the premium quadrant — high average with destructive tempo. Dot scale reflects run volume in the sample."
+                accent="cyan"
+                badge="Scatter intelligence"
+                chartClassName="h-80"
+              >
                     <ResponsiveContainer width="100%" height="100%">
-                       <ScatterChart>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" />
-                          <XAxis type="number" dataKey="avg" name="Average" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10 }} />
-                          <YAxis type="number" dataKey="sr" name="Strike Rate" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10 }} />
-                          <ZAxis type="number" dataKey="runs" range={[50, 400]} />
-                          <Tooltip content={<MatrixTooltip />} />
-                          <Scatter data={(battingMatrix || []).slice(0, 20)} fill="#B8FF00">
+                       <ScatterChart margin={{ top: 12, right: 12, bottom: 12, left: 8 }}>
+                          <CartesianGrid {...cartesianGridFull} />
+                          <XAxis type="number" dataKey="avg" name="Average" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10 }} label={{ value: 'Average', position: 'bottom', fill: '#555566', fontSize: 10 }} />
+                          <YAxis type="number" dataKey="sr" name="Strike Rate" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10 }} label={{ value: 'SR', angle: -90, position: 'insideLeft', fill: '#555566', fontSize: 10 }} />
+                          <ZAxis type="number" dataKey="runs" range={[60, 420]} />
+                          <Tooltip content={<MatrixTooltip />} cursor={{ strokeDasharray: '4 4', stroke: '#00E5FF', strokeOpacity: 0.35 }} />
+                          <Scatter data={(battingMatrix || []).slice(0, 20)} fill="#B8FF00" isAnimationActive>
                              {(battingMatrix || []).slice(0, 20).map((entry, index) => (
                                <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                              ))}
                           </Scatter>
                        </ScatterChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
            </AnimatedPresentationSection>
          )}
       </div>

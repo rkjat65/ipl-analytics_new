@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PlayerAvatar from './PlayerAvatar'
 import { formatDecimal, formatNumber } from '../../utils/format'
 import { BarChart, Bar, Cell, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { GlassTooltipSurface, cartesianGridProps, CHART_ANIMATION } from '../charts'
 
 const SPEED_OPTIONS = [
   { value: 0.75, label: '0.75×' },
@@ -335,7 +336,7 @@ export default function LeaderboardShowcaseModal({
                       )
                     })}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(80,120,180,0.18)" horizontal={false} />
+                  <CartesianGrid {...cartesianGridProps} stroke="rgba(80,120,180,0.22)" horizontal={false} />
                   <XAxis
                     type="number"
                     tick={{ fill: '#B6C2D9', fontSize: 12, fontFamily: 'JetBrains Mono' }}
@@ -351,22 +352,23 @@ export default function LeaderboardShowcaseModal({
                     tickLine={false}
                   />
                   <Tooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null
                       const d = payload[0]?.payload
                       return (
-                        <div className="rounded-lg px-3 py-2 text-xs shadow-xl border backdrop-blur-md" style={{ background: 'rgba(22,22,31,0.88)', borderColor: '#2A2A3A' }}>
-                          <p className="text-text-primary font-semibold">{d?.__displayName}</p>
-                          <p style={{ color: d?.__baseColor || accent }}>{metricLabel}: <span className="font-mono font-bold">{valueFormatter(d?.value)}</span></p>
-                          <p className="text-text-muted">
+                        <GlassTooltipSurface title={d?.__displayName}>
+                          <p style={{ color: d?.__baseColor || accent }} className="text-sm font-semibold">
+                            {metricLabel}: <span className="font-mono font-bold">{valueFormatter(d?.value)}</span>
+                          </p>
+                          <p className="mt-1 text-[11px] text-text-muted">
                             {detailFields.slice(0, 2).map((field) => `${field.label}: ${formatFieldValue(d, field)}`).join(' • ')}
                           </p>
-                        </div>
+                        </GlassTooltipSurface>
                       )
                     }}
                   />
-                  <Bar dataKey="value" radius={[0, 12, 12, 0]} barSize={30} isAnimationActive animationDuration={Math.max(450, Math.round(950 / speed))}>
+                  <Bar dataKey="value" radius={[0, 12, 12, 0]} barSize={30} {...CHART_ANIMATION} animationDuration={Math.max(450, Math.round(950 / speed))}>
                     <LabelList
                       dataKey="value"
                       position="right"

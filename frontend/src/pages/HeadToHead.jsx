@@ -12,13 +12,19 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from 'recharts'
+import {
+  GlassTooltipSurface,
+  CHART_ANIMATION,
+  cartesianGridProps,
+  axisTickPrimary,
+  useChartGradientIds,
+} from '../components/charts'
 
 /* ── Custom Tooltip ───────────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-xl px-4 py-3 shadow-2xl backdrop-blur-md">
-      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-2">{label}</p>
+    <GlassTooltipSurface eyebrow={label}>
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center justify-between gap-6 mb-1 last:mb-0">
           <div className="flex items-center gap-2">
@@ -30,7 +36,7 @@ function ChartTooltip({ active, payload, label }) {
           </span>
         </div>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -65,6 +71,7 @@ export default function HeadToHead() {
   const [team1, setTeam1] = useState(searchParams.get('team1') || '')
   const [team2, setTeam2] = useState(searchParams.get('team2') || '')
   const rivalryRef = useRef(null)
+  const cg = useChartGradientIds('h2h')
 
   const { data: teams } = useFetch(() => getTeams(), [])
   const bothSelected = team1 && team2 && team1 !== team2
@@ -224,11 +231,12 @@ export default function HeadToHead() {
                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={phaseData}>
-                          <PolarGrid stroke="#ffffff05" />
-                          <PolarAngleAxis dataKey="phase" tick={{fill: '#555566', fontSize: 10, fontWeight: 900}} />
-                          <Radar name={abbr1} dataKey={abbr1} stroke={color1} fill={color1} fillOpacity={0.2} />
-                          <Radar name={abbr2} dataKey={abbr2} stroke={color2} fill={color2} fillOpacity={0.2} />
+                          <PolarGrid stroke="#2A2A3A" strokeDasharray="4 6" />
+                          <PolarAngleAxis dataKey="phase" tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                          <Radar name={abbr1} dataKey={abbr1} stroke={color1} fill={color1} fillOpacity={0.22} strokeWidth={2.5} {...CHART_ANIMATION} />
+                          <Radar name={abbr2} dataKey={abbr2} stroke={color2} fill={color2} fillOpacity={0.22} strokeWidth={2.5} {...CHART_ANIMATION} />
                           <Tooltip content={<ChartTooltip />} />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
                        </RadarChart>
                     </ResponsiveContainer>
                  </div>
@@ -239,16 +247,18 @@ export default function HeadToHead() {
                  <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-10">Cumulative Victory Points</p>
                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={cumulativeData}>
+                       <AreaChart data={cumulativeData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
                           <defs>
-                             <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color1} stopOpacity={0.2}/><stop offset="95%" stopColor={color1} stopOpacity={0}/></linearGradient>
-                             <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color2} stopOpacity={0.2}/><stop offset="95%" stopColor={color2} stopOpacity={0}/></linearGradient>
+                             <linearGradient id={cg.area} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color1} stopOpacity={0.28}/><stop offset="95%" stopColor={color1} stopOpacity={0}/></linearGradient>
+                             <linearGradient id={cg.areaAlt} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color2} stopOpacity={0.28}/><stop offset="95%" stopColor={color2} stopOpacity={0}/></linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{fill: '#555566', fontSize: 10, fontWeight: 900}} />
+                          <CartesianGrid {...cartesianGridProps} />
+                          <XAxis dataKey="season" axisLine={false} tickLine={false} tick={axisTickPrimary} />
+                          <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={36} />
                           <Tooltip content={<ChartTooltip />} />
-                          <Area type="monotone" dataKey={abbr1} stroke={color1} strokeWidth={3} fill="url(#g1)" />
-                          <Area type="monotone" dataKey={abbr2} stroke={color2} strokeWidth={3} fill="url(#g2)" />
+                          <Legend />
+                          <Area type="monotone" dataKey={abbr1} name={`${abbr1} wins`} stroke={color1} strokeWidth={3} fill={`url(#${cg.area})`} dot={false} activeDot={{ r: 5 }} {...CHART_ANIMATION} />
+                          <Area type="monotone" dataKey={abbr2} name={`${abbr2} wins`} stroke={color2} strokeWidth={3} fill={`url(#${cg.areaAlt})`} dot={false} activeDot={{ r: 5 }} {...CHART_ANIMATION} />
                        </AreaChart>
                     </ResponsiveContainer>
                  </div>

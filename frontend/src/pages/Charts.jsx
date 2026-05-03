@@ -31,16 +31,7 @@ import {
   usePresentationDeck,
 } from '../components/ui/ChartPresentation'
 import { formatNumber, formatDecimal } from '../utils/format'
-
-/* ── Player Avatar Helpers ─────────────────────────────── */
-const AVATAR_BASE = 'https://ui-avatars.com/api/'
-function playerAvatarUrl(name, size = 28) {
-  const initials = (name || '??').split(' ').map(w => w[0]).join('').slice(0, 2)
-  return `${AVATAR_BASE}?name=${encodeURIComponent(initials)}&size=${size}&background=16161F&color=00E5FF&bold=true&font-size=0.45`
-}
-function realPlayerImageUrl(name) {
-  return `/api/players/${encodeURIComponent(name)}/image`
-}
+import { getPlayerFallbackAvatarUrl, getPlayerImageUrl } from '../utils/playerImage'
 
 /* ── Draw Animation Hook (line grows slowly for recording) ── */
 function useDrawAnimation(defaultDuration = 3000) {
@@ -498,13 +489,13 @@ export default function Charts() {
                             </clipPath>
                           </defs>
                           <image
-                            href={realPlayerImageUrl(payload.player)}
+                            href={getPlayerImageUrl(payload.player)}
                             x={cx - r} y={cy - r}
                             width={r * 2} height={r * 2}
                             clipPath={`url(#${clipId})`}
                             preserveAspectRatio="xMidYMid slice"
                             aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
-                            onError={(e) => { e.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(r * 3))) }}
+                            onError={(e) => { e.target.setAttribute('href', getPlayerFallbackAvatarUrl(payload.player, Math.round(r * 3))) }}
                           >
                             <title>{payload.player || 'Player'}</title>
                           </image>
@@ -693,13 +684,13 @@ export default function Charts() {
                           </clipPath>
                         </defs>
                         <image
-                          href={realPlayerImageUrl(payload.player)}
+                          href={getPlayerImageUrl(payload.player)}
                           x={cx - r} y={cy - r}
                           width={r * 2} height={r * 2}
                           clipPath={`url(#${clipId})`}
                           preserveAspectRatio="xMidYMid slice"
                           aria-label={payload.player ? `${payload.player} — player photo` : 'Player photo'}
-                          onError={(e) => { e.target.setAttribute('href', playerAvatarUrl(payload.player, Math.round(r * 3))) }}
+                          onError={(e) => { e.target.setAttribute('href', getPlayerFallbackAvatarUrl(payload.player, Math.round(r * 3))) }}
                         >
                           <title>{payload.player || 'Player'}</title>
                         </image>

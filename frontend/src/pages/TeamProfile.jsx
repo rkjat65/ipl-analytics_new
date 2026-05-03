@@ -12,20 +12,26 @@ import PlayerNameCell from '../components/ui/PlayerNameCell'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area,
 } from 'recharts'
+import {
+  GlassTooltipSurface,
+  CHART_ANIMATION,
+  cartesianGridProps,
+  axisTickPrimary,
+  useChartGradientIds,
+} from '../components/charts'
 
 /* ── Custom Components ────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
-      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+    <GlassTooltipSurface eyebrow={label}>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
           {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -78,6 +84,7 @@ export default function TeamProfile() {
   const decoded = decodeURIComponent(teamName)
   const color = getTeamColor(decoded)
   const [showcaseConfig, setShowcaseConfig] = useState(null)
+  const cg = useChartGradientIds('team')
 
   const { data: stats, loading: statsLoading, error: statsError } = useFetch(() => getTeamStats(decoded), [decoded])
   const { data: seasons, loading: seasonsLoading } = useFetch(() => getTeamSeasons(decoded), [decoded])
@@ -250,12 +257,14 @@ export default function TeamProfile() {
            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-10">Outcome distribution across seasons</p>
            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={seasons}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: '#ffffff05' }} />
-                    <Bar dataKey="wins" stackId="a" fill={color} radius={[0, 0, 0, 0]} barSize={32} />
-                    <Bar dataKey="losses" stackId="a" fill="#FF2D78" opacity={0.4} radius={[8, 8, 0, 0]} barSize={32} />
+                 <BarChart data={seasons} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={28} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                    <Legend />
+                    <Bar dataKey="wins" stackId="a" name="Wins" fill={color} radius={[0, 0, 0, 0]} barSize={32} {...CHART_ANIMATION} />
+                    <Bar dataKey="losses" stackId="a" name="Losses" fill="#FF2D78" opacity={0.45} radius={[8, 8, 0, 0]} barSize={32} {...CHART_ANIMATION} />
                  </BarChart>
               </ResponsiveContainer>
            </div>
@@ -266,16 +275,18 @@ export default function TeamProfile() {
            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-10">Win probability trend analysis</p>
            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                 <AreaChart data={seasons}>
+                 <AreaChart data={seasons} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
                     <defs>
-                       <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                       <linearGradient id={cg.area} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={color} stopOpacity={0.35} />
                           <stop offset="95%" stopColor={color} stopOpacity={0} />
                        </linearGradient>
                     </defs>
-                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="season" axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={36} domain={[0, 'auto']} />
                     <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="win_pct" stroke={color} strokeWidth={4} fill="url(#areaGrad)" dot={{ r: 6, fill: color, stroke: '#0B0E16', strokeWidth: 3 }} />
+                    <Area type="monotone" dataKey="win_pct" name="Win %" stroke={color} strokeWidth={3} fill={`url(#${cg.area})`} dot={{ r: 5, fill: color, stroke: '#0B0E16', strokeWidth: 2 }} activeDot={{ r: 7 }} {...CHART_ANIMATION} />
                  </AreaChart>
               </ResponsiveContainer>
            </div>

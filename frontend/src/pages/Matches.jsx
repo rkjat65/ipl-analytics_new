@@ -65,7 +65,7 @@ function MatchCard({ match, index }) {
             {result}
           </p>
           {match.player_of_match && (
-             <PlayerAvatar name={match.player_of_match} size={24} ringColor="#FFB800" />
+             <PlayerAvatar name={match.player_of_match} size={24} />
           )}
         </div>
       </div>

@@ -5,8 +5,49 @@ from pathlib import Path
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import FileResponse
 from ..database import query, normalize_team, team_variants
+from ..player_resolve import resolve_player_name
 
 PLAYER_IMAGES_DIR = Path(__file__).parent.parent / "player_images"
+PLAYER_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
+PLAYER_IMAGE_MEDIA = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+
+
+def find_player_image_file(raw_name: str) -> Path | None:
+    """Locate a file in player_images/ for display name or canonical DB name."""
+    decoded = (raw_name or "").strip()
+    if not decoded or not PLAYER_IMAGES_DIR.is_dir():
+        return None
+
+    candidates = [decoded]
+    for role in ("bat", "bowl"):
+        try:
+            resolved = resolve_player_name(decoded, role)
+            if resolved and resolved not in candidates:
+                candidates.append(resolved)
+        except Exception:
+            continue
+
+    for name in candidates:
+        for ext in PLAYER_IMAGE_EXTS:
+            path = PLAYER_IMAGES_DIR / f"{name}{ext}"
+            if path.is_file():
+                return path
+
+    lower_index: dict[str, Path] = {}
+    for f in PLAYER_IMAGES_DIR.iterdir():
+        if f.suffix.lower() in PLAYER_IMAGE_EXTS and f.is_file():
+            lower_index[f.stem.lower()] = f
+    for name in candidates:
+        hit = lower_index.get(name.lower())
+        if hit:
+            return hit
+    return None
+
+
+def _player_image_response(path: Path):
+    ext = path.suffix.lower().lstrip(".")
+    media = PLAYER_IMAGE_MEDIA.get(ext, "image/png")
+    return FileResponse(path, media_type=media)
 
 router = APIRouter(prefix="/api/players", tags=["players"])
 
@@ -192,20 +233,21 @@ def available_images():
         return []
     names = set()
     for f in PLAYER_IMAGES_DIR.iterdir():
-        if f.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp') and f.is_file():
+        if f.suffix.lower() in PLAYER_IMAGE_EXTS and f.is_file():
             names.add(f.stem)
     return sorted(names)
 
 
 @router.get("/{player_name}/image")
 def player_image(player_name: str):
-    """Serve player image if uploaded, else 404."""
-    decoded = player_name.strip()
-    for ext in (".png", ".jpg", ".jpeg", ".webp"):
-        path = PLAYER_IMAGES_DIR / f"{decoded}{ext}"
-        if path.is_file():
-            media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
-            return FileResponse(path, media_type=media.get(ext.lstrip("."), "image/png"))
+    """Serve player image from backend/player_images if present.
+
+    Resolves display names via player_resolve (bat/bowl) and falls back to
+    case-insensitive filename match so scorecard names map to files on disk.
+    """
+    path = find_player_image_file(player_name)
+    if path:
+        return _player_image_response(path)
     raise HTTPException(status_code=404, detail="No image available")
 
 

@@ -8,21 +8,27 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts'
+import {
+  AnalyticsChartShell,
+  GlassTooltipSurface,
+  CHART_ANIMATION,
+  cartesianGridProps,
+  axisTickPrimary,
+} from '../components/charts'
 
 const PLAYER_COLORS = ['#00E5FF', '#FF2D78', '#B8FF00', '#FFB800', '#8B5CF6']
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
-      <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+    <GlassTooltipSurface eyebrow={label}>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
           {entry.name}: <span className="font-mono">{entry.value}</span>
         </p>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -189,23 +195,28 @@ export default function BattingCompare() {
         <div className="space-y-12 animate-in">
            {/* Radar and Comparison Stats */}
            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="xl:col-span-2 bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
-                 <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Skill DNA</h3>
-                 <div className="h-[450px]">
+              <AnalyticsChartShell
+                title="Skill DNA"
+                subtitle="Normalized radar • length = relative strength within this comparison set"
+                insight="Each spoke is scaled to the best value in the selected group — use it to spot stylistic trade-offs, not raw IPL ranks."
+                accent="lime"
+                badge="Radar profile"
+                className="xl:col-span-2"
+                chartClassName="h-[450px]"
+              >
                     <ResponsiveContainer width="100%" height="100%">
                        <RadarChart data={radarData}>
-                          <PolarGrid stroke="#ffffff05" />
-                          <PolarAngleAxis dataKey="metric" tick={{ fill: '#ffffff30', fontSize: 10, fontWeight: 900 }} />
+                          <PolarGrid stroke="#2A2A3A" strokeDasharray="4 6" />
+                          <PolarAngleAxis dataKey="metric" tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
                           <PolarRadiusAxis axisLine={false} tick={false} />
                           {playersWithData.map((name, i) => (
-                            <Radar key={name} name={name} dataKey={name} stroke={PLAYER_COLORS[i]} fill={PLAYER_COLORS[i]} fillOpacity={0.1} strokeWidth={3} />
+                            <Radar key={name} name={name} dataKey={name} stroke={PLAYER_COLORS[i]} fill={PLAYER_COLORS[i]} fillOpacity={0.12} strokeWidth={2.5} {...CHART_ANIMATION} />
                           ))}
                           <Tooltip content={<ChartTooltip />} />
-                          <Legend />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
                        </RadarChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
 
               <div className="bg-[#0B0E16] rounded-[40px] border border-white/5 p-10 overflow-x-auto">
                  <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Combat Stats</h3>
@@ -232,21 +243,27 @@ export default function BattingCompare() {
            </div>
 
            {/* Phase Strike Rates */}
-           <div className="bg-[#0B0E16] rounded-[40px] border border-white/5 p-10">
-              <h3 className="text-2xl font-black font-heading text-white mb-10 uppercase tracking-tighter italic">Phase Lethality</h3>
-              <div className="h-72">
+           <AnalyticsChartShell
+              title="Phase lethality"
+              subtitle="Strike rate by phase — same tempo scale across combatants"
+              insight="Powerplay vs death separation reveals role clarity: finishers spike late; openers often dominate the first segment."
+              accent="cyan"
+              badge="Phase bars"
+              chartClassName="h-72"
+           >
                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={phaseCompareData}>
-                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                       <XAxis dataKey="phase" axisLine={false} tickLine={false} tick={{ fill: '#ffffff20', fontSize: 10, fontWeight: 900 }} />
+                    <BarChart data={phaseCompareData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+                       <CartesianGrid {...cartesianGridProps} />
+                       <XAxis dataKey="phase" axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
+                       <YAxis axisLine={false} tickLine={false} tick={axisTickPrimary} width={36} />
                        <Tooltip content={<ChartTooltip />} />
+                       <Legend />
                        {playersWithData.map((name, i) => (
-                         <Bar key={name} dataKey={name} fill={PLAYER_COLORS[i]} radius={[8, 8, 0, 0]} barSize={24} />
+                         <Bar key={name} dataKey={name} name={name} fill={PLAYER_COLORS[i]} radius={[10, 10, 0, 0]} barSize={26} {...CHART_ANIMATION} />
                        ))}
                     </BarChart>
                  </ResponsiveContainer>
-              </div>
-           </div>
+           </AnalyticsChartShell>
         </div>
       ) : (
         <div className="text-center py-32 bg-[#0B0E16] rounded-[40px] border border-white/5">

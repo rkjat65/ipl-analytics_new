@@ -1,31 +1,18 @@
 import { useState, useMemo, useEffect } from 'react'
-
-// Singleton: fetched once, shared across all avatar instances
-let _availableImages = null // Set of player names with images
-let _fetchPromise = null
-
-function fetchAvailableImages() {
-  if (_availableImages) return Promise.resolve(_availableImages)
-  if (_fetchPromise) return _fetchPromise
-  _fetchPromise = fetch('/api/players/available-images')
-    .then(r => r.ok ? r.json() : [])
-    .then(names => { _availableImages = new Set(names); return _availableImages })
-    .catch(() => { _availableImages = new Set(); return _availableImages })
-  return _fetchPromise
-}
+import { getPlayerImageUrl } from '../../utils/playerImage'
 
 // Gradient pairs for avatar backgrounds based on player name hash
 const GRADIENT_PAIRS = [
-  ['#00E5FF', '#0066FF'],  // cyan → blue
-  ['#FF2D78', '#FF6B00'],  // magenta → orange
-  ['#B8FF00', '#00CC88'],  // lime → teal
-  ['#FFB800', '#FF4500'],  // amber → red-orange
-  ['#8B5CF6', '#EC4899'],  // purple → pink
-  ['#06B6D4', '#3B82F6'],  // sky → blue
-  ['#F59E0B', '#EF4444'],  // yellow → red
-  ['#10B981', '#6366F1'],  // emerald → indigo
-  ['#E879F9', '#6366F1'],  // fuchsia → indigo
-  ['#22D3EE', '#A78BFA'],  // cyan → violet
+  ['#00E5FF', '#0066FF'],
+  ['#FF2D78', '#FF6B00'],
+  ['#B8FF00', '#00CC88'],
+  ['#FFB800', '#FF4500'],
+  ['#8B5CF6', '#EC4899'],
+  ['#06B6D4', '#3B82F6'],
+  ['#F59E0B', '#EF4444'],
+  ['#10B981', '#6366F1'],
+  ['#E879F9', '#6366F1'],
+  ['#22D3EE', '#A78BFA'],
 ]
 
 function hashName(name) {
@@ -59,18 +46,20 @@ export default function PlayerAvatar({
   const [resolvedUrl, setResolvedUrl] = useState(imageUrl || null)
 
   useEffect(() => {
-    if (imageUrl) { setResolvedUrl(imageUrl); setImgError(false); setImgLoaded(false); return }
-    if (!name) return
-    // Fetch the available images list (single request, cached globally)
-    fetchAvailableImages().then(available => {
-      if (available.has(name)) {
-        setResolvedUrl(`/api/players/${encodeURIComponent(name)}/image`)
-        setImgError(false)
-        setImgLoaded(false)
-      } else {
-        setResolvedUrl(null)
-      }
-    })
+    if (imageUrl) {
+      setResolvedUrl(imageUrl)
+      setImgError(false)
+      setImgLoaded(false)
+      return
+    }
+    const trimmed = typeof name === 'string' ? name.trim() : ''
+    if (!trimmed) {
+      setResolvedUrl(null)
+      return
+    }
+    setResolvedUrl(getPlayerImageUrl(trimmed))
+    setImgError(false)
+    setImgLoaded(false)
   }, [name, imageUrl])
 
   const { initials, gradient, fontSize } = useMemo(() => {
@@ -87,7 +76,6 @@ export default function PlayerAvatar({
   const borderRadius = shape === 'circle' ? '50%' : `${Math.max(size * 0.15, 6)}px`
   const borderColor = teamColor || gradient[0]
 
-  // For inline card templates (uses style objects, no Tailwind)
   if (inline) {
     return (
       <div style={{
@@ -148,7 +136,6 @@ export default function PlayerAvatar({
     )
   }
 
-  // Tailwind version for regular pages
   return (
     <div
       className={`relative flex-shrink-0 ${className}`}

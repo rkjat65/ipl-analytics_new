@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import PlayerAvatar from './PlayerAvatar'
 import { formatDecimal, formatNumber } from '../../utils/format'
+import { GlassTooltipSurface, CHART_ANIMATION } from '../charts'
 
 export default function PlayerCompare({ players = [], onRemove, mode = 'batting' }) {
   if (!players || players.length === 0) return null
@@ -117,8 +118,8 @@ export default function PlayerCompare({ players = [], onRemove, mode = 'batting'
 
         <div className="w-full lg:w-80 h-80 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={normalizedData}>
-              <PolarGrid stroke="#1E1E2A" />
+              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={normalizedData}>
+              <PolarGrid stroke="#2A2A3A" strokeDasharray="4 6" />
               <PolarAngleAxis dataKey="subject" tick={{ fill: '#8888A0', fontSize: 10, fontWeight: 700 }} />
               <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
               {players.map((p, i) => (
@@ -128,13 +129,27 @@ export default function PlayerCompare({ players = [], onRemove, mode = 'batting'
                   dataKey={`p${i}`}
                   stroke={COLORS[i % COLORS.length]}
                   fill={COLORS[i % COLORS.length]}
-                  fillOpacity={0.3}
+                  fillOpacity={0.15}
+                  strokeWidth={2.5}
+                  {...CHART_ANIMATION}
                 />
               ))}
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#11141F', borderColor: '#1E1E2A', borderRadius: '8px', fontSize: '11px' }}
-                itemStyle={{ padding: '0px' }}
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null
+                  return (
+                    <GlassTooltipSurface eyebrow={label}>
+                      {payload.map((item, idx) => (
+                        <div key={idx} className="flex justify-between gap-6 text-[11px]">
+                          <span className="font-semibold text-text-secondary">{item.name}</span>
+                          <span className="font-mono font-bold text-text-primary">{formatDecimal(item.value, 1)}</span>
+                        </div>
+                      ))}
+                    </GlassTooltipSurface>
+                  )
+                }}
               />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
             </RadarChart>
           </ResponsiveContainer>
         </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getAdminUsers, getAdminStats, runAdminSqlQuery } from '../lib/api'
 import SEO from '../components/SEO'
+import AdminSqlNotebook from '../components/admin/AdminSqlNotebook'
 
 export default function Admin() {
   const { token } = useAuth()
@@ -20,6 +21,7 @@ export default function Admin() {
   const [sqlError, setSqlError] = useState(null)
   const [sqlExecuted, setSqlExecuted] = useState(false)
   const [sqlCopied, setSqlCopied] = useState(false)
+  const [sqlRunId, setSqlRunId] = useState(0)
 
   const loadData = () => {
     if (!token) { setError('Not authenticated'); setLoading(false); return }
@@ -46,6 +48,7 @@ export default function Admin() {
       setSqlResult(res.rows || [])
       setSqlColumns(res.columns || [])
       setSqlExecuted(true)
+      setSqlRunId((n) => n + 1)
     } catch (err) {
       setSqlError(err.message)
       setSqlResult([])
@@ -181,7 +184,7 @@ export default function Admin() {
           <div>
             <h2 className="font-heading font-bold text-text-primary text-sm">SQL Query Console</h2>
             <p className="text-[10px] text-text-muted font-mono">
-              Run read-only SQL queries against the historical DuckDB dataset. Results are shown below in table form and can be copied.
+              Read-only SQL on the DuckDB dataset. Table + notebook-style pandas export and chart preview from the result set.
             </p>
           </div>
           <span className="text-[10px] font-mono text-text-muted">Admin only</span>
@@ -263,6 +266,10 @@ export default function Admin() {
 
           {sqlResult.length > 100 && (
             <div className="text-[10px] font-mono text-text-muted">Showing first 100 rows. Use Copy Result to export the full set.</div>
+          )}
+
+          {sqlExecuted && sqlResult.length > 0 && sqlColumns.length > 0 && (
+            <AdminSqlNotebook key={sqlRunId} sqlColumns={sqlColumns} sqlResult={sqlResult} />
           )}
         </div>
       </div>

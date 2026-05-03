@@ -21,27 +21,34 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis, ReferenceLine, ComposedChart, Line, Legend
 } from 'recharts'
+import {
+  AnalyticsChartShell,
+  GlassTooltipSurface,
+  cartesianGridProps,
+  cartesianGridFull,
+  CHART_ANIMATION,
+  axisTickPrimary,
+  cursorBand,
+} from '../components/charts'
 
 /* ── Custom Tooltips ─────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   const playerName = payload?.[0]?.payload?.fullName || payload?.[0]?.payload?.player || null
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+    <GlassTooltipSurface eyebrow={playerName ? 'Leaderboard row' : 'Metric'} title={!playerName ? label : undefined}>
       {playerName ? (
         <div className="mb-2">
           <PlayerNameCell name={playerName} to={`/bowling/${encodeURIComponent(playerName)}`} size={28} />
         </div>
-      ) : (
-        <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
-      )}
+      ) : null}
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
           {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -49,7 +56,7 @@ function MatrixTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const player = payload[0]?.payload
   return (
-    <div className="bg-[#16161F] border border-white/10 rounded-xl px-4 py-3 shadow-2xl max-w-[260px]">
+    <GlassTooltipSurface eyebrow="Control profile" className="max-w-[280px]">
       <div className="mb-3">
         <PlayerNameCell name={player?.player} to={player?.player ? `/bowling/${encodeURIComponent(player.player)}` : undefined} size={32} />
       </div>
@@ -59,7 +66,7 @@ function MatrixTooltip({ active, payload }) {
         <p className="text-xs font-black text-accent-amber uppercase flex justify-between">Econ <span className="font-mono">{formatDecimal(player?.economy)}</span></p>
       </div>
       <p className="text-[10px] font-bold text-text-muted mt-3 uppercase tracking-widest">{player?.innings} innings &bull; {player?.matches} matches</p>
-    </div>
+    </GlassTooltipSurface>
   )
 }
 
@@ -74,10 +81,6 @@ const SORT_OPTIONS = [
 ]
 
 const BAR_COLORS = ['#FF2D78', '#8B5CF6', '#00E5FF', '#FFB800', '#B8FF00', '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399']
-
-function realPlayerImageUrl(name) {
-  return `/api/players/${encodeURIComponent(name)}/image`
-}
 
 function HeroStat({ label, value, accent = 'cyan', meta = '' }) {
   const accentColor = {
@@ -192,6 +195,14 @@ export default function BowlingRecords() {
     return entry?.[sortBy] ?? 0
   }
 
+  const barInsight = useMemo(() => {
+    if (!leader) return null
+    const v = getMetricValue(leader)
+    const formatted =
+      typeof v === 'number' && ['avg', 'economy', 'sr'].includes(sortBy) ? formatDecimal(v) : formatNumber(v)
+    return `${leader.player} is the benchmark on ${sortLabel} (${formatted}). Use the tail of the bars to judge squad depth.`
+  }, [leader, sortBy])
+
   return (
     <div className="space-y-12 pb-20">
       <SEO title="Bowling Elite - Territory Masters" />
@@ -263,53 +274,64 @@ export default function BowlingRecords() {
          {/* Top 15 Bar */}
          {!loading && dataWithRank.length > 0 && (
            <AnimatedPresentationSection deck={deck} index={0}>
-             <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 h-full">
-                <div className="flex justify-between items-start mb-8">
-                   <div>
-                      <h3 className="text-2xl font-black font-heading text-white">Top 15 Impact</h3>
-                      <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Sorted by {sortLabel}</p>
-                   </div>
-                   <button onClick={() => setShowcaseOpen(true)} className="px-4 py-2 rounded-xl bg-accent-magenta/10 border border-accent-magenta/20 text-accent-magenta text-[10px] font-black uppercase tracking-widest hover:bg-accent-magenta hover:text-white transition-all">Showcase</button>
-                </div>
-                <div className="h-96">
+             <AnalyticsChartShell
+               title="Top 15 impact"
+               subtitle={`Sorted by ${sortLabel}`}
+               insight={barInsight}
+               accent="magenta"
+               badge="Leaderboard lens"
+               chartClassName="h-96"
+               actions={
+                 <button
+                   type="button"
+                   onClick={() => setShowcaseOpen(true)}
+                   className="rounded-xl border border-accent-magenta/25 bg-accent-magenta/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-accent-magenta transition-all hover:bg-accent-magenta hover:text-white"
+                 >
+                   Showcase
+                 </button>
+               }
+             >
                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dataWithRank.slice(0, 15).sort((a,b) => getMetricValue(b) - getMetricValue(a))} layout="vertical">
-                         <XAxis type="number" hide />
+                      <BarChart data={dataWithRank.slice(0, 15).sort((a,b) => getMetricValue(b) - getMetricValue(a))} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
+                         <CartesianGrid {...cartesianGridProps} />
+                         <XAxis type="number" tick={axisTickPrimary} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
                          <YAxis type="category" dataKey="player" width={100} axisLine={false} tickLine={false} tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 900 }} />
-                         <Tooltip content={<ChartTooltip />} cursor={{ fill: '#ffffff05' }} />
-                         <Bar dataKey={sortBy} radius={[0, 8, 8, 0]} barSize={20}>
+                         <Tooltip content={<ChartTooltip />} cursor={cursorBand('rgba(255,45,120,0.07)')} />
+                         <Bar dataKey={sortBy} radius={[0, 10, 10, 0]} barSize={22} {...CHART_ANIMATION}>
                             {dataWithRank.slice(0, 15).map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
                          </Bar>
                       </BarChart>
                    </ResponsiveContainer>
-                </div>
-             </div>
+             </AnalyticsChartShell>
            </AnimatedPresentationSection>
          )}
 
          {/* Matrix */}
          {!loading && (
            <AnimatedPresentationSection deck={deck} index={2}>
-              <div className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-8 h-full">
-                 <h3 className="text-2xl font-black font-heading text-white mb-2">Control Matrix</h3>
-                 <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-8">Average vs Economy Profile</p>
-                 <div className="h-80">
+              <AnalyticsChartShell
+                title="Control matrix"
+                subtitle="Average × economy • bubble size ∝ wickets"
+                insight="Lower economy with respectable average reads as the elite control cluster — bubble size highlights wicket volume."
+                accent="cyan"
+                badge="Scatter intelligence"
+                chartClassName="h-80"
+              >
                     <ResponsiveContainer width="100%" height="100%">
-                       <ScatterChart>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" />
-                          <XAxis type="number" dataKey="avg" name="Average" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10 }} />
-                          <YAxis type="number" dataKey="economy" name="Economy" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#ffffff30', fontSize: 10 }} />
-                          <ZAxis type="number" dataKey="wickets" range={[50, 400]} />
-                          <Tooltip content={<MatrixTooltip />} />
-                          <Scatter data={(bowlingMatrix || []).slice(0, 20)} fill="#FF2D78">
+                       <ScatterChart margin={{ top: 12, right: 12, bottom: 12, left: 8 }}>
+                          <CartesianGrid {...cartesianGridFull} />
+                          <XAxis type="number" dataKey="avg" name="Average" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10 }} label={{ value: 'Avg conceded', position: 'bottom', fill: '#555566', fontSize: 10 }} />
+                          <YAxis type="number" dataKey="economy" name="Economy" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10 }} label={{ value: 'Economy', angle: -90, position: 'insideLeft', fill: '#555566', fontSize: 10 }} />
+                          <ZAxis type="number" dataKey="wickets" range={[60, 420]} />
+                          <Tooltip content={<MatrixTooltip />} cursor={{ strokeDasharray: '4 4', stroke: '#FF2D78', strokeOpacity: 0.35 }} />
+                          <Scatter data={(bowlingMatrix || []).slice(0, 20)} fill="#FF2D78" isAnimationActive>
                              {(bowlingMatrix || []).slice(0, 20).map((entry, index) => (
                                <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                              ))}
                           </Scatter>
                        </ScatterChart>
                     </ResponsiveContainer>
-                 </div>
-              </div>
+              </AnalyticsChartShell>
            </AnimatedPresentationSection>
          )}
       </div>
