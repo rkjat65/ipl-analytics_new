@@ -220,9 +220,18 @@
   animation: shakeX 0.5s ease-in-out;
 }
 @layer base {
+  html {
+    background: #07080d;
+  }
+
   body {
     @apply bg-bg-primary text-text-primary selection:bg-accent-cyan selection:text-black;
     font-family: 'Inter', sans-serif;
+    background:
+      linear-gradient(135deg, rgba(0, 229, 255, 0.06), transparent 18%),
+      linear-gradient(45deg, transparent 44%, rgba(255, 184, 0, 0.035) 45%, transparent 58%),
+      linear-gradient(160deg, rgba(255, 45, 120, 0.045), transparent 28%),
+      #07080d;
   }
 
   input, select, textarea {
@@ -242,5 +251,85 @@
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading tracking-tight;
+  }
+}
+
+@layer components {
+  .app-shell {
+    isolation: isolate;
+  }
+
+  .app-atmosphere {
+    background:
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(135deg, rgba(0,229,255,0.07), transparent 24%),
+      linear-gradient(45deg, transparent 35%, rgba(184,255,0,0.035) 52%, transparent 72%);
+    background-size: 56px 56px, 56px 56px, auto, auto;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 76%);
+  }
+
+  .chart-surface,
+  .card,
+  .data-table-shell > div {
+    backdrop-filter: blur(18px);
+  }
+
+  .team-logo-frame {
+    background:
+      linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.02)),
+      var(--team-tint, rgba(255,255,255,0.04));
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.16),
+      0 10px 24px var(--team-glow, rgba(0,0,0,0.25));
+  }
+
+  .player-avatar-frame {
+    background:
+      linear-gradient(145deg, rgba(255,255,255,0.18), transparent),
+      #10131b;
+  }
+
+  .player-avatar-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255,255,255,0.22), transparent 38%, rgba(0,0,0,0.18));
+    mix-blend-mode: screen;
+    opacity: 0.45;
+  }
+
+  .player-name-cell:hover span:last-child {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+
+  .data-table-shell table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .data-table-shell tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .data-table-shell td,
+  .data-table-shell th {
+    vertical-align: middle;
+  }
+
+  .recharts-wrapper text {
+    letter-spacing: 0;
+  }
+
+  @media (max-width: 640px) {
+    .chart-surface {
+      padding: 1rem;
+      border-radius: 18px;
+    }
   }
 }

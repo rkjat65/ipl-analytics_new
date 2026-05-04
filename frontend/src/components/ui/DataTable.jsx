@@ -79,18 +79,18 @@ export default function DataTable({
   }
 
   return (
-    <div>
-      <div className="overflow-x-auto rounded-lg border border-border-subtle">
+    <div className="data-table-shell">
+      <div className="overflow-x-auto rounded-[24px] border border-white/10 bg-black/20 shadow-[0_20px_45px_rgba(0,0,0,0.18)]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-bg-elevated border-b border-border-subtle sticky top-0 z-10">
+            <tr className="sticky top-0 z-10 border-b border-white/10 bg-[#10131b]/95 backdrop-blur-xl">
               {columns.map((col) => {
                 const isSortable = col.sortable !== false
                 const isActive = activeSortKey === col.key
                 return (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider whitespace-nowrap ${
+                    className={`px-4 py-4 font-black text-text-muted text-[10px] uppercase tracking-[0.18em] whitespace-nowrap ${
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                     } ${isSortable ? 'cursor-pointer select-none hover:text-text-primary transition-colors' : ''}`}
                     onClick={() => handleSort(col)}
@@ -131,14 +131,14 @@ export default function DataTable({
                 <tr
                   key={row.id ?? startIdx + i}
                   onClick={() => onRowClick?.(row)}
-                  className={`border-b border-border-subtle transition-colors ${
-                    i % 2 === 1 ? 'bg-bg-card/50' : ''
-                  } ${row._rowClass || ''} ${onRowClick ? 'cursor-pointer' : ''} hover:bg-bg-card-hover`}
+                  className={`border-b border-white/[0.06] transition-all duration-200 ${
+                    i % 2 === 1 ? 'bg-white/[0.025]' : ''
+                  } ${row._rowClass || ''} ${onRowClick ? 'cursor-pointer' : ''} hover:bg-white/[0.07]`}
                 >
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 py-3 text-text-primary ${
+                      className={`px-4 py-3.5 text-text-primary ${
                         col.align === 'right'
                           ? 'text-right'
                           : col.align === 'center'
@@ -157,7 +157,7 @@ export default function DataTable({
       </div>
 
       {showPagination && (
-        <div className="flex items-center justify-between mt-3 px-1">
+        <div className="flex items-center justify-between mt-4 px-1">
           <span className="text-xs text-text-muted">
             Showing {startIdx + 1}–{Math.min(endIdx, sortedData.length)} of {sortedData.length} records
           </span>
@@ -166,7 +166,7 @@ export default function DataTable({
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 text-xs rounded-md border border-border-subtle bg-bg-card text-text-muted hover:text-text-primary hover:bg-bg-card-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-xs rounded-xl border border-white/10 bg-white/[0.04] text-text-muted hover:text-text-primary hover:bg-white/[0.07] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
@@ -178,7 +178,7 @@ export default function DataTable({
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-xs rounded-md border border-border-subtle bg-bg-card text-text-muted hover:text-text-primary hover:bg-bg-card-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-xs rounded-xl border border-white/10 bg-white/[0.04] text-text-muted hover:text-text-primary hover:bg-white/[0.07] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>

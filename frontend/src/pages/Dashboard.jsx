@@ -16,10 +16,14 @@ import {
   getMostWins,
   getTeams,
   getManOfTheMatch,
+  getPhaseStats,
   getInningsDNA,
   getSixEvolution,
+  getChaseAnalysis,
   getDismissalTypes,
   getPhaseDominance,
+  getTossImpact,
+  getVenueAnalytics,
   getBattingMatrix,
   getBowlingMatrix,
   searchPlayers,
@@ -30,6 +34,7 @@ import {
   BarChart, Bar, Cell, AreaChart, Area, PieChart, Pie,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line, Legend, ReferenceLine, ScatterChart, Scatter, ZAxis,
+  ComposedChart,
 } from 'recharts'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
@@ -317,9 +322,19 @@ export default function Dashboard() {
     [season]
   )
 
+  const { data: phaseStats, loading: phaseStatsLoading } = useFetch(
+    () => getPhaseStats(season),
+    [season]
+  )
+
   const { data: sixEvolution, loading: sixEvolutionLoading } = useFetch(
     () => getSixEvolution(),
     []
+  )
+
+  const { data: chaseAnalysis, loading: chaseLoading } = useFetch(
+    () => getChaseAnalysis(season),
+    [season]
   )
 
   const { data: dismissalTypes, loading: dismissalLoading } = useFetch(
@@ -329,6 +344,16 @@ export default function Dashboard() {
 
   const { data: phaseDominance, loading: phaseLoading } = useFetch(
     () => getPhaseDominance(season),
+    [season]
+  )
+
+  const { data: tossImpact, loading: tossLoading } = useFetch(
+    () => getTossImpact(season),
+    [season]
+  )
+
+  const { data: venueAnalytics, loading: venueAnalyticsLoading } = useFetch(
+    () => getVenueAnalytics(season),
     [season]
   )
 
@@ -496,6 +521,50 @@ export default function Dashboard() {
       }))
   }, [phaseDominance])
 
+  const phaseEconomicsData = useMemo(() => {
+    if (!Array.isArray(phaseStats)) return []
+    const labelMap = { powerplay: 'Powerplay', middle: 'Middle', death: 'Death' }
+    return phaseStats.map((row) => ({
+      ...row,
+      phaseLabel: labelMap[row.phase] || row.phase,
+      pressureIndex: Number((((row.run_rate || 0) * (row.boundary_pct || 0)) / Math.max(row.avg_wickets || 1, 0.4)).toFixed(1)),
+    }))
+  }, [phaseStats])
+
+  const chaseCurveData = useMemo(() => {
+    if (!Array.isArray(chaseAnalysis)) return []
+    return chaseAnalysis.map((row) => ({
+      ...row,
+      survivalGap: Number((100 - (row.chase_win_pct || 0)).toFixed(1)),
+    }))
+  }, [chaseAnalysis])
+
+  const tossBiasData = useMemo(() => {
+    if (!Array.isArray(tossImpact)) return []
+    return tossImpact
+      .filter((row) => row.matches >= 5 && Number.isFinite(row.toss_win_pct))
+      .map((row) => ({
+        ...row,
+        venueShort: row.venue?.length > 18 ? `${row.venue.slice(0, 17)}...` : row.venue,
+        decision: row.toss_decision === 'field' ? 'Bowl first' : 'Bat first',
+        bias: Number(Math.abs((row.toss_win_pct || 0) - 50).toFixed(1)),
+      }))
+      .sort((a, b) => b.bias - a.bias)
+      .slice(0, 8)
+  }, [tossImpact])
+
+  const venueScoringData = useMemo(() => {
+    if (!Array.isArray(venueAnalytics)) return []
+    return venueAnalytics
+      .filter((row) => row.matches >= 10 && row.avg_1st_innings && row.avg_2nd_innings)
+      .slice(0, 8)
+      .map((row) => ({
+        ...row,
+        venueShort: row.venue?.length > 16 ? `${row.venue.slice(0, 15)}...` : row.venue,
+        chaseTilt: Number(((row.avg_2nd_innings || 0) - (row.avg_1st_innings || 0)).toFixed(1)),
+      }))
+  }, [venueAnalytics])
+
   const dismissalBreakup = useMemo(() => {
     if (!Array.isArray(dismissalTypes)) return []
     return dismissalTypes.map((d, idx) => ({
@@ -550,6 +619,13 @@ export default function Dashboard() {
   const featuredTeam = winsChartData[0] || null
   const latestResult = recentMatches[0] || null
   const motmLeader = motmPlayerData[0] || null
+  const fastestPhase = [...phaseEconomicsData].sort((a, b) => (b.run_rate || 0) - (a.run_rate || 0))[0] || null
+  const hardestChaseBand = [...chaseCurveData]
+    .filter((row) => row.total_chases >= 5)
+    .sort((a, b) => (a.chase_win_pct || 0) - (b.chase_win_pct || 0))[0] || null
+  const strongestTossBias = tossBiasData[0] || null
+  const venueTiltLeader = [...venueScoringData]
+    .sort((a, b) => Math.abs(b.chaseTilt || 0) - Math.abs(a.chaseTilt || 0))[0] || null
 
   const kpiCards = useMemo(() => {
     if (!kpis) return []
@@ -631,6 +707,33 @@ export default function Dashboard() {
       meta: getMatchResult(latestResult),
       accent: 'amber',
       to: `/matches/${latestResult.match_id}`,
+    },
+  ].filter(Boolean)
+
+  const analyticalTakeaways = [
+    fastestPhase && {
+      label: 'Highest run-rate phase',
+      value: fastestPhase.phaseLabel,
+      meta: `${formatDecimal(fastestPhase.run_rate, 2)} RPO with ${formatDecimal(fastestPhase.boundary_pct, 1)}% boundary-ball pressure`,
+      accent: 'lime',
+    },
+    hardestChaseBand && {
+      label: 'Hardest chase band',
+      value: hardestChaseBand.target_range,
+      meta: `${formatDecimal(hardestChaseBand.chase_win_pct, 1)}% chase success across ${hardestChaseBand.total_chases} games`,
+      accent: 'magenta',
+    },
+    strongestTossBias && {
+      label: 'Strongest toss signal',
+      value: strongestTossBias.decision,
+      meta: `${strongestTossBias.venue}: toss winner wins ${formatDecimal(strongestTossBias.toss_win_pct, 1)}%`,
+      accent: 'cyan',
+    },
+    venueTiltLeader && {
+      label: venueTiltLeader.chaseTilt >= 0 ? 'Best chase venue' : 'Best defend venue',
+      value: venueTiltLeader.venueShort,
+      meta: `1st inn ${formatDecimal(venueTiltLeader.avg_1st_innings, 1)} vs 2nd inn ${formatDecimal(venueTiltLeader.avg_2nd_innings, 1)}`,
+      accent: 'amber',
     },
   ].filter(Boolean)
 
@@ -790,6 +893,184 @@ export default function Dashboard() {
           {heroInsights.map((item) => (
             <InsightCard key={`${item.eyebrow}-${item.title}`} {...item} />
           ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeader
+          title="Decision lab"
+          description="Analysis that answers real cricket questions: when scoring accelerates, which targets survive, and where toss or venue conditions matter."
+          accent="cyan"
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {analyticalTakeaways.map((item) => (
+            <MiniGlowStat
+              key={`${item.label}-${item.value}`}
+              label={item.label}
+              value={item.value}
+              meta={item.meta}
+              accent={item.accent}
+            />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <DashboardPanel accent="lime" className="min-h-[430px]">
+            <div className="mb-4 flex flex-col gap-1">
+              <h3 className="text-lg font-heading font-bold text-text-primary">Innings phase economics</h3>
+              <p className="text-xs text-text-secondary">
+                Run rate, boundary-ball pressure, and wicket cost by phase. Use this to see where innings are actually won.
+              </p>
+            </div>
+            {phaseStatsLoading ? (
+              <Loading message="Calculating phase economics..." />
+            ) : !phaseEconomicsData.length ? (
+              <p className="text-text-muted text-sm py-10 text-center">No phase data available</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={phaseEconomicsData} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
+                  <CartesianGrid {...cartesianGridProps} />
+                  <XAxis dataKey="phaseLabel" tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0]?.payload
+                    return (
+                      <div className="rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                        <p className="font-bold text-text-primary">{d?.phaseLabel}</p>
+                        <p className="text-accent-lime">Run rate: <span className="font-mono">{formatDecimal(d?.run_rate, 2)}</span></p>
+                        <p className="text-accent-amber">Boundary balls: <span className="font-mono">{formatDecimal(d?.boundary_pct, 1)}%</span></p>
+                        <p className="text-accent-magenta">Avg wickets: <span className="font-mono">{formatDecimal(d?.avg_wickets, 2)}</span></p>
+                      </div>
+                    )
+                  }} />
+                  <Bar yAxisId="left" dataKey="run_rate" name="Run rate" fill="#B8FF00" radius={[12, 12, 0, 0]} barSize={42} {...CHART_ANIMATION} />
+                  <Line yAxisId="right" type="monotone" dataKey="boundary_pct" name="Boundary %" stroke="#FFB800" strokeWidth={3} dot={{ r: 5, fill: '#FFB800', strokeWidth: 0 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="avg_wickets" name="Avg wickets" stroke="#FF2D78" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 4, fill: '#FF2D78', strokeWidth: 0 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </DashboardPanel>
+
+          <DashboardPanel accent="magenta" className="min-h-[430px]">
+            <div className="mb-4 flex flex-col gap-1">
+              <h3 className="text-lg font-heading font-bold text-text-primary">Chase survival curve</h3>
+              <p className="text-xs text-text-secondary">
+                Target bands show how quickly chase probability collapses as first-innings totals rise.
+              </p>
+            </div>
+            {chaseLoading ? (
+              <Loading message="Modeling chase bands..." />
+            ) : !chaseCurveData.length ? (
+              <p className="text-text-muted text-sm py-10 text-center">No chase data available</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <AreaChart data={chaseCurveData} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
+                  <defs>
+                    <linearGradient id="chase-survival-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF2D78" stopOpacity={0.38} />
+                      <stop offset="95%" stopColor="#FF2D78" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...cartesianGridProps} />
+                  <XAxis dataKey="target_range" tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0]?.payload
+                    return (
+                      <div className="rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                        <p className="font-bold text-text-primary">Target {d?.target_range}</p>
+                        <p className="text-accent-magenta">Chase win: <span className="font-mono">{formatDecimal(d?.chase_win_pct, 1)}%</span></p>
+                        <p className="text-text-muted">{d?.chase_wins}/{d?.total_chases} successful chases</p>
+                        <p className="text-accent-cyan">Avg target: <span className="font-mono">{formatDecimal(d?.avg_target, 1)}</span></p>
+                      </div>
+                    )
+                  }} />
+                  <ReferenceLine y={50} stroke="#8888A0" strokeDasharray="4 4" />
+                  <Area type="monotone" dataKey="chase_win_pct" stroke="#FF2D78" strokeWidth={3} fill="url(#chase-survival-gradient)" dot={{ r: 5, fill: '#FF2D78', stroke: '#0B0E16', strokeWidth: 2 }} {...CHART_ANIMATION} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </DashboardPanel>
+
+          <DashboardPanel accent="cyan" className="min-h-[430px]">
+            <div className="mb-4 flex flex-col gap-1">
+              <h3 className="text-lg font-heading font-bold text-text-primary">Toss leverage by venue</h3>
+              <p className="text-xs text-text-secondary">
+                Ranking venues where the toss winner has the biggest edge. Bars show distance from a neutral 50%.
+              </p>
+            </div>
+            {tossLoading ? (
+              <Loading message="Measuring toss leverage..." />
+            ) : !tossBiasData.length ? (
+              <p className="text-text-muted text-sm py-10 text-center">No toss signal available</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={330}>
+                <BarChart data={tossBiasData} layout="vertical" margin={{ top: 8, right: 42, left: 8, bottom: 8 }}>
+                  <CartesianGrid {...cartesianGridProps} />
+                  <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="venueShort" width={108} tick={{ fill: '#C8C8D8', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0]?.payload
+                    return (
+                      <div className="max-w-[260px] rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                        <p className="font-bold text-text-primary">{d?.venue}</p>
+                        <p className="text-accent-cyan">{d?.decision}: <span className="font-mono">{formatDecimal(d?.toss_win_pct, 1)}%</span> toss-winner wins</p>
+                        <p className="text-text-muted">{d?.matches} matches in sample</p>
+                      </div>
+                    )
+                  }} />
+                  <Bar dataKey="bias" radius={[0, 10, 10, 0]} barSize={18} {...CHART_ANIMATION}>
+                    {tossBiasData.map((entry) => (
+                      <Cell key={`${entry.venue}-${entry.toss_decision}`} fill={entry.toss_decision === 'field' ? '#00E5FF' : '#FFB800'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </DashboardPanel>
+
+          <DashboardPanel accent="amber" className="min-h-[430px]">
+            <div className="mb-4 flex flex-col gap-1">
+              <h3 className="text-lg font-heading font-bold text-text-primary">Venue scoring split</h3>
+              <p className="text-xs text-text-secondary">
+                First vs second innings scoring, overlaid with bat-first win rate. This separates flat decks from defendable venues.
+              </p>
+            </div>
+            {venueAnalyticsLoading ? (
+              <Loading message="Profiling venues..." />
+            ) : !venueScoringData.length ? (
+              <p className="text-text-muted text-sm py-10 text-center">No venue split available</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={330}>
+                <ComposedChart data={venueScoringData} margin={{ top: 10, right: 8, left: 0, bottom: 38 }}>
+                  <CartesianGrid {...cartesianGridProps} />
+                  <XAxis dataKey="venueShort" tick={{ fill: '#C8C8D8', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} angle={-25} textAnchor="end" interval={0} />
+                  <YAxis yAxisId="runs" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
+                  <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0]?.payload
+                    return (
+                      <div className="max-w-[260px] rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                        <p className="font-bold text-text-primary">{d?.venue}</p>
+                        <p className="text-accent-amber">1st innings: <span className="font-mono">{formatDecimal(d?.avg_1st_innings, 1)}</span></p>
+                        <p className="text-accent-cyan">2nd innings: <span className="font-mono">{formatDecimal(d?.avg_2nd_innings, 1)}</span></p>
+                        <p className="text-accent-lime">Bat-first wins: <span className="font-mono">{formatDecimal(d?.bat_first_win_pct, 1)}%</span></p>
+                      </div>
+                    )
+                  }} />
+                  <Bar yAxisId="runs" dataKey="avg_1st_innings" name="1st innings" fill="#FFB800" radius={[8, 8, 0, 0]} barSize={18} {...CHART_ANIMATION} />
+                  <Bar yAxisId="runs" dataKey="avg_2nd_innings" name="2nd innings" fill="#00E5FF" radius={[8, 8, 0, 0]} barSize={18} {...CHART_ANIMATION} />
+                  <Line yAxisId="pct" type="monotone" dataKey="bat_first_win_pct" name="Bat-first win %" stroke="#B8FF00" strokeWidth={3} dot={{ r: 4, fill: '#B8FF00', strokeWidth: 0 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </DashboardPanel>
         </div>
       </section>
 

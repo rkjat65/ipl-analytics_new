@@ -138,7 +138,7 @@ export default function PlayerAvatar({
 
   return (
     <div
-      className={`relative flex-shrink-0 ${className}`}
+      className={`player-avatar-frame relative flex-shrink-0 overflow-hidden ${className}`}
       style={{
         width: `${size}px`,
         height: `${size}px`,

@@ -181,7 +181,7 @@ export default function Sidebar({ open, onToggle }) {
 
       <aside
         className={`
-          bg-bg-elevated border-r border-border-subtle flex flex-col transition-all duration-200 shrink-0 z-50 h-full
+          border-r border-white/10 bg-black/45 backdrop-blur-2xl shadow-[18px_0_50px_rgba(0,0,0,0.22)] flex flex-col transition-all duration-200 shrink-0 z-50 h-full
           ${open
             ? 'w-52 fixed inset-y-0 left-0 lg:relative'
             : 'hidden lg:flex w-16'
@@ -189,27 +189,27 @@ export default function Sidebar({ open, onToggle }) {
         `}
       >
         {/* Brand */}
-        <div className="h-14 flex items-center px-4 border-b border-border-subtle gap-3">
+        <div className="h-16 flex items-center px-4 border-b border-white/10 gap-3">
           <button
             onClick={onToggle}
-            className="shrink-0 w-8 h-8 rounded-lg overflow-hidden hover:ring-2 hover:ring-accent-cyan/30 transition-all"
+            className="shrink-0 w-10 h-10 rounded-2xl overflow-hidden border border-white/10 bg-white/[0.04] p-1 shadow-[0_14px_28px_rgba(0,0,0,0.25)] hover:ring-2 hover:ring-accent-cyan/30 transition-all"
           >
-            <img src="/logo.png" alt="Crickrida — home" className="w-full h-full object-cover" />
+            <img src="/logo.png" alt="Crickrida home" className="w-full h-full object-cover rounded-xl" />
           </button>
           {open && (
             <div className="overflow-hidden">
               <span className="font-heading font-bold text-text-primary text-sm tracking-wide">
                 Crickrida
               </span>
-              <p className="text-[10px] text-text-muted font-mono leading-none">
-                Cricket via Stats.
+              <p className="text-[10px] text-text-secondary font-mono leading-none">
+                IPL command room
               </p>
             </div>
           )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
           {navItems.map((item) => {
             const highlightColor = item.highlight ? HIGHLIGHT_COLORS[item.highlight] : null
 
@@ -219,12 +219,12 @@ export default function Sidebar({ open, onToggle }) {
                 to={item.to}
                 onClick={() => { if (window.innerWidth < 1024) onToggle() }}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                  `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 ${
                     isActive
-                      ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30'
+                      ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35 shadow-[0_10px_24px_rgba(0,229,255,0.08)]'
                       : highlightColor
-                        ? `${highlightColor.text} ${highlightColor.hover} border border-transparent hover:bg-white/[0.03]`
-                        : 'text-text-secondary hover:text-text-primary border border-transparent hover:bg-white/[0.03]'
+                        ? `${highlightColor.text} ${highlightColor.hover} border border-transparent hover:bg-white/[0.05]`
+                        : 'text-text-secondary hover:text-text-primary border border-transparent hover:bg-white/[0.05]'
                   } ${!open ? 'justify-center px-0' : ''}`
                 }
                 title={item.label}
@@ -244,7 +244,7 @@ export default function Sidebar({ open, onToggle }) {
         </nav>
 
         {/* User account section */}
-        <div className="border-t border-border-subtle p-2 flex flex-col gap-1">
+        <div className="border-t border-white/10 p-2 flex flex-col gap-1">
           {isAuthenticated ? (
             <>
               {/* User avatar + name */}
@@ -349,7 +349,7 @@ export default function Sidebar({ open, onToggle }) {
         {/* Collapse toggle — desktop only */}
         <button
           onClick={onToggle}
-          className="h-10 hidden lg:flex items-center justify-center border-t border-border-subtle text-text-muted hover:text-text-primary transition-colors"
+          className="h-11 hidden lg:flex items-center justify-center border-t border-white/10 text-text-muted hover:text-accent-cyan transition-colors"
         >
           <svg
             viewBox="0 0 24 24"

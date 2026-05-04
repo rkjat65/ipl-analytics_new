@@ -41,7 +41,7 @@ export default function AnalyticsChartShell({
       )}
     >
       <div className={clsx('pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r opacity-90', ring)} />
-      <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-white/[0.03] blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.035),transparent_28%,rgba(0,229,255,0.025)_55%,transparent_78%)] opacity-80" />
 
       <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-xl space-y-1">

@@ -25,7 +25,7 @@ export default function PlayerNameCell({
     return (
       <Link
         to={to}
-        className={`flex items-center gap-2 min-w-0 text-accent-cyan hover:text-white hover:underline font-medium transition-colors ${className} ${textClassName}`.trim()}
+        className={`player-name-cell flex items-center gap-2 min-w-0 text-accent-cyan hover:text-white font-semibold transition-colors ${className} ${textClassName}`.trim()}
       >
         {content}
       </Link>
@@ -33,7 +33,7 @@ export default function PlayerNameCell({
   }
 
   return (
-    <div className={`flex items-center gap-2 min-w-0 text-text-primary ${className} ${textClassName}`.trim()}>
+    <div className={`player-name-cell flex items-center gap-2 min-w-0 text-text-primary font-semibold ${className} ${textClassName}`.trim()}>
       {content}
     </div>
   )
