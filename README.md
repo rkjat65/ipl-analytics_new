@@ -1,129 +1,89 @@
-# IPL Analytics
+# IPL Analytics Platform — 17 Seasons of Cricket Intelligence
 
-Local development uses a **FastAPI** backend and a **Vite + React** frontend. The dev server proxies `/api` to the backend on port **8000**.
+> End-to-end analysis of IPL ball-by-ball data from 2008 to 2025, producing team performance, player records, and match pattern dashboards.
 
-## Prerequisites
+[![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-Visit-blue?style=flat-square)](https://rkjat.in/portfolio/ipl-analytics.html)
+[![Case Study](https://img.shields.io/badge/Case%20Study-rkjat.in-informational?style=flat-square)](https://rkjat.in/portfolio/ipl-analytics.html)
+[![Stack](https://img.shields.io/badge/Stack-Python%20%7C%20FastAPI%20%7C%20DuckDB%20%7C%20React-yellow?style=flat-square)]()
 
-- **Node.js** 18+ and npm
-- **Python** 3.11+ (3.13 works) with `pip`
-- Optional: copy env files — see [Environment](#environment)
+---
 
-## First-time setup
+## What This Is
 
-### Backend
+The most comprehensive open-source IPL analytics platform built on ball-by-ball data — not match summaries. It covers every delivery of every match across 17 IPL seasons (2008–2025), enabling phase-level analysis, pressure metrics, and player matchup data that match-summary tools cannot produce.
 
-From the **repository root** (`ipl-analytics_new`):
+**Scale:** 1,169+ matches · 600+ players tracked · 17 seasons of ball-by-ball data
 
-```bash
-cd backend
-pip install -r requirements.txt
+---
+
+## What It Answers
+
+The platform is built around specific questions an analyst would actually ask:
+
+- Which teams perform best in the death overs (overs 17–20) under pressure?
+- How has powerplay strategy evolved from 2008 to 2025?
+- Which bowlers are most effective against left-handed batsmen?
+- How do batting averages change across the three phases of an innings?
+- Which venues produce the highest/lowest scoring matches and why?
+
+---
+
+## Architecture
+
+```
+Cricsheet JSON (ball-by-ball)
+        ↓
+    DuckDB (in-process query engine)
+        ↓
+    FastAPI (analytical backend)
+        ↓
+    React + Tailwind (interactive dashboard frontend)
 ```
 
-If `pip` tries a private index and times out, force public PyPI:
+**Key architectural decision:** The analysis layer is kept strictly separate from the content/social media layer. The DuckDB analytical database can power future applications without data contamination or reprocessing.
 
-```bash
-pip install -r requirements.txt --index-url https://pypi.org/simple
-```
+**Why DuckDB over Pandas:** DuckDB enables fast in-process querying of large JSON datasets at query time rather than pre-aggregating — faster iteration, no stale pre-computed tables.
 
-Create `backend/.env` if you do not have it yet (see `.env.example` in the repo root for variable names). The API reads `backend/.env` on startup.
+**Why ball-by-ball over match summaries:** Ball-by-ball data enables phase analysis (powerplay, middle overs, death), pressure metrics, and wagon-wheel-equivalent insights that are impossible with match-level aggregates.
 
-### Frontend
+---
 
-From the **repository root**:
+## Tech Stack
 
-```bash
-npm install
-```
+| Layer | Technology |
+|---|---|
+| Data source | [Cricsheet](https://cricsheet.org/) — open ball-by-ball JSON |
+| Query engine | DuckDB |
+| Backend API | FastAPI (Python) |
+| Frontend | React + Tailwind CSS |
+| Data processing | Python (pandas, numpy) |
 
-Or from `frontend/`:
+---
 
-```bash
-cd frontend
-npm install
-```
+## Data Source
 
-Create `frontend/.env` for Vite (e.g. `VITE_GOOGLE_CLIENT_ID`). Restart the dev server after changing any `VITE_*` variable.
+All data sourced from [Cricsheet](https://cricsheet.org/) — the most granular publicly available cricket dataset, released under Creative Commons license. No proprietary data.
 
-## Run the app (development)
+---
 
-Use **two terminals**: one for the API, one for the UI.
+## Live Demo
 
-### 1. Backend (API)
+**[→ Explore the Live Dashboard](https://rkjat.in/portfolio/ipl-analytics.html)**
 
-Repository root:
+**[→ Read the Full Case Study](https://rkjat.in/portfolio/ipl-analytics.html)**
 
-```bash
-cd /path/to/ipl-analytics_new
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-```
+---
 
-how to 
+## Related Projects
 
-- **URL:** [http://localhost:8000](http://localhost:8000)
-- **Health:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
-- **`--reload`** restarts the server when you edit Python files.
+- **[India's Fiscal Federalism](https://github.com/rkjat65/India-Economic-Pulse)** — Policy data analysis
+- **[India Economic Pulse](https://github.com/rkjat65/India-Economic-Pulse)** — Macroeconomic indicator dashboard
+- **[Portfolio](https://rkjat.in)** — rkjat.in
 
-### 2. Frontend
+---
 
-Repository root:
+## Author
 
-```bash
-cd /path/to/ipl-analytics_new
-npm run dev
-```
+**Radhakishan Jat** — Research & Content Analyst, Data Storyteller
 
-Or:
-
-```bash
-cd frontend
-npm run dev
-```
-
-- **URL:** [http://localhost:5173](http://localhost:5173)
-- API calls to `/api` are proxied to `http://localhost:8000` (see `frontend/vite.config.js`).
-
-Open the **frontend URL** in the browser during development.
-
-## Stop and rerun
-
-### Stop
-
-In each terminal where a server is running, press **Ctrl+C**.
-
-### Rerun
-
-Start the same commands again (backend first is a good habit so `/api` is ready when the UI loads).
-
-You do **not** need to run `npm install` or `pip install` again unless dependencies changed.
-
-## Port already in use (`address already in use`)
-
-If the backend fails on port **8000**, another process (often an old `uvicorn`) is still bound to it.
-
-macOS / Linux:
-
-```bash
-lsof -nP -iTCP:8000 -sTCP:LISTEN
-kill <PID>
-```
-
-Then start `uvicorn` again. Alternatively use another port, e.g. `--port 8001`, and update the `proxy.target` in `frontend/vite.config.js` to match.
-
-## Production build (frontend)
-
-From the repository root:
-
-```bash
-npm run build
-```
-
-Output is in `frontend/dist/`. If that folder exists, the FastAPI app can serve the built UI from the same process (see `backend/main.py`).
-
-## Environment
-
-| Location        | Purpose |
-|----------------|---------|
-| `backend/.env` | API keys, DB-related settings, `GOOGLE_CLIENT_ID` for server-side Google verify, `CORS_ORIGINS`, etc. |
-| `frontend/.env` | `VITE_*` variables only (exposed to the browser), e.g. `VITE_GOOGLE_CLIENT_ID` |
-
-See `.env.example` at the repo root for a starting list of variables.
+[Portfolio](https://rkjat.in) · [LinkedIn](https://linkedin.com/in/rkjat65) · [radhakishanjat65@gmail.com](mailto:radhakishanjat65@gmail.com)
