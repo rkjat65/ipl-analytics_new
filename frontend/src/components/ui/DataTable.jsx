@@ -95,8 +95,14 @@ export default function DataTable({
                     } ${isSortable ? 'cursor-pointer select-none hover:text-text-primary transition-colors' : ''}`}
                     onClick={() => handleSort(col)}
                   >
-                    <span className="inline-flex items-center gap-1">
-                      {col.label}
+                    <span className="inline-flex items-center gap-1 group relative">
+                      <span>{col.label}</span>
+                      {col.tooltip && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-52 p-3 bg-[#0B0E16]/95 border border-white/10 rounded-xl shadow-2xl text-[10px] font-bold text-text-secondary whitespace-normal tracking-normal text-center z-50 normal-case leading-relaxed">
+                          {col.tooltip}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-[#0B0E16]" />
+                        </div>
+                      )}
                       {isSortable && (
                         <svg
                           viewBox="0 0 24 24"

@@ -24,23 +24,23 @@ def season_summary(season: str):
 
     # Top run scorer
     top_batter = query("""
-        SELECT d.batter AS player, SUM(d.runs_batter) AS runs
+        SELECT d.batter AS player, d.batting_team AS team, SUM(d.runs_batter) AS runs
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE m.season = ? AND d.is_super_over = false
-        GROUP BY d.batter
+        GROUP BY d.batter, d.batting_team
         ORDER BY runs DESC
         LIMIT 1
     """, [season])
 
     # Top wicket taker
     top_bowler = query("""
-        SELECT d.bowler AS player,
+        SELECT d.bowler AS player, d.bowling_team AS team,
                SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out','retired hurt','retired out','obstructing the field') THEN 1 ELSE 0 END) AS wickets
         FROM deliveries d
         JOIN matches m ON d.match_id = m.match_id
         WHERE m.season = ? AND d.is_super_over = false
-        GROUP BY d.bowler
+        GROUP BY d.bowler, d.bowling_team
         ORDER BY wickets DESC
         LIMIT 1
     """, [season])
@@ -91,6 +91,11 @@ def season_summary(season: str):
     """, [season])
 
     result = summary[0]
+    if top_batter:
+        top_batter[0]["team"] = normalize_team(top_batter[0]["team"])
+    if top_bowler:
+        top_bowler[0]["team"] = normalize_team(top_bowler[0]["team"])
+    
     result["orange_cap"] = top_batter[0] if top_batter else None
     result["purple_cap"] = top_bowler[0] if top_bowler else None
     result["most_pom"] = top_pom[0] if top_pom else None

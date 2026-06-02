@@ -17,7 +17,8 @@ import HeadToHead from './pages/HeadToHead'
 import BattingCompare from './pages/BattingCompare'
 import ContentStudio from './pages/ContentStudio'
 import SocialCompose from './pages/SocialCompose'
-// AdvancedAnalytics removed — Team Form Index moved to Content Studio
+import AdvancedAnalytics from './pages/AdvancedAnalytics'
+import IPL2026 from './pages/IPL2026'
 import CricketPulse from './pages/CricketPulse'
 
 import Admin from './pages/Admin'
@@ -46,7 +47,10 @@ export default function App() {
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/:venueName" element={<VenueProfile />} />
         <Route path="/seasons" element={<Seasons />} />
+        <Route path="/seasons/2026" element={<IPL2026 />} />
         <Route path="/seasons/:year" element={<Seasons />} />
+        <Route path="/ipl-2026" element={<IPL2026 />} />
+        <Route path="/advanced" element={<AdvancedAnalytics />} />
         <Route path="/players/:playerName" element={<PlayerProfile />} />
         <Route path="/h2h" element={<HeadToHead />} />
         <Route path="/content-studio" element={<ContentStudio />} />

@@ -5,6 +5,7 @@ import { useFetch } from '../hooks/useFetch'
 import { getMatches, getSeasons, getTeams } from '../lib/api'
 import Loading from '../components/ui/Loading'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
+import Select from '../components/ui/Select'
 import { formatDate, getMatchResult } from '../utils/format'
 import { getTeamAbbr } from '../constants/teams'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
@@ -112,6 +113,11 @@ export default function Matches() {
     )
   }
 
+  const teamOptions = [
+    { value: '', label: 'All Teams' },
+    ...(teams || []).map((t) => ({ value: t, label: t })),
+  ]
+
   return (
     <div className="space-y-12 pb-24 max-w-7xl mx-auto">
       <SEO title="Match Archive - IPL Analytics Hub" description="Complete historical records of every IPL match. Filter by season and participating teams." />
@@ -136,14 +142,13 @@ export default function Matches() {
               <div className="w-px h-10 bg-border-subtle mx-2 hidden sm:block" />
               <div className="flex flex-col gap-2">
                  <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Team Filter</label>
-                 <select
+                 <Select
+                    options={teamOptions}
                     value={team}
-                    onChange={(e) => updateParam('team', e.target.value)}
-                    className="w-56"
-                 >
-                    <option value="">All Teams</option>
-                    {(teams || []).map(t => <option key={t} value={t}>{t}</option>)}
-                 </select>
+                    onChange={(val) => updateParam('team', val)}
+                    placeholder=""
+                    className="w-56 text-xs uppercase font-black tracking-wider"
+                 />
               </div>
            </div>
         </div>

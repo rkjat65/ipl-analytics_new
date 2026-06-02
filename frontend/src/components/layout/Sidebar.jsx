@@ -18,12 +18,37 @@ const navItems = [
     ),
   },
   {
+    to: '/advanced',
+    label: 'Advanced Labs',
+    highlight: 'lime',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.0" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
+      </svg>
+    ),
+  },
+  {
+    to: '/seasons/2026',
+    label: 'IPL 2026 🏆',
+    highlight: 'amber',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.0" className="w-4 h-4 shrink-0 text-[#F2C94C] animate-pulse">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 7 12 7s5-3 7.5-3a2.5 2.5 0 0 1 0 5H18" />
+        <path d="M12 7v13" />
+        <path d="M8 21h8" />
+        <path d="M12 5V3m0 4l3-3m-3 3L9 4" />
+      </svg>
+    )
+  },
+  {
     to: '/content-studio',
     label: 'Studio',
     highlight: 'cyan',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2 2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
         <circle cx="12" cy="13" r="4" />
       </svg>
     ),

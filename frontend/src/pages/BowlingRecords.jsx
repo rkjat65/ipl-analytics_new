@@ -74,6 +74,7 @@ const SORT_OPTIONS = [
   { value: 'wickets', label: 'Wickets' },
   { value: 'avg', label: 'Average' },
   { value: 'economy', label: 'Economy' },
+  { value: 'ter', label: 'True Econ (TER)' },
   { value: 'sr', label: 'Strike Rate' },
   { value: 'five_wickets', label: '5W Hauls' },
   { value: 'four_wickets', label: '4W Hauls' },
@@ -105,6 +106,7 @@ export default function BowlingRecords() {
   const [team, setTeam] = useState('')
   const [sortBy, setSortBy] = useState('wickets')
   const [minBalls, setMinBalls] = useState(0)
+  const [showGlossary, setShowGlossary] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [showcaseOpen, setShowcaseOpen] = useState(false)
   const [comparePlayers, setComparePlayers] = useState([])
@@ -148,16 +150,28 @@ export default function BowlingRecords() {
       label: 'Player',
       render: (val) => <PlayerNameCell name={val} to={`/bowling/${encodeURIComponent(val)}`} size={32} />,
     },
-    { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono font-bold text-text-muted">{val}</span> },
+    { key: 'matches', label: 'Mat', align: 'right', tooltip: 'Total matches played', render: (val) => <span className="font-mono font-bold text-text-muted">{val}</span> },
     {
       key: 'wickets',
       label: 'Wkts',
       align: 'right',
+      tooltip: 'Total career wickets taken',
       render: (val) => <span className="font-mono font-black text-accent-magenta text-base">{val}</span>,
     },
-    { key: 'avg', label: 'Avg', align: 'right', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    { key: 'economy', label: 'Econ', align: 'right', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    { key: 'sr', label: 'SR', align: 'right', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
+    { key: 'avg', label: 'Avg', align: 'right', tooltip: 'Bowling Average: Runs conceded per wicket taken (runs / wickets)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
+    { key: 'economy', label: 'Econ', align: 'right', tooltip: 'Economy Rate: Average runs conceded per over (runs / balls * 6)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
+    {
+      key: 'ter',
+      label: 'TER',
+      align: 'right',
+      tooltip: "True Economy Rate: Player's economy rate compared to the average economy rate in the matches and phases they bowled in. Negative is better (conceding fewer runs).",
+      render: (val) => {
+        const num = parseFloat(val) || 0
+        const colorClass = num <= 0 ? 'text-[#00E5FF] font-black' : 'text-[#FF2D78] opacity-80'
+        return <span className={`font-mono ${colorClass}`}>{num <= 0 ? formatDecimal(num) : `+${formatDecimal(num)}`}</span>
+      }
+    },
+    { key: 'sr', label: 'SR', align: 'right', tooltip: 'Bowling Strike Rate: Average balls bowled per wicket taken (balls / wickets)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
     {
       key: 'compare',
       label: 'Intel',
@@ -192,7 +206,11 @@ export default function BowlingRecords() {
   const getMetricValue = (entry) => {
     if (sortBy === 'five_wickets') return entry?.five_w ?? entry?.five_wickets ?? 0
     if (sortBy === 'four_wickets') return entry?.four_w ?? entry?.four_wickets ?? 0
-    return entry?.[sortBy] ?? 0
+    const val = entry?.[sortBy] ?? 0
+    if (['avg', 'economy', 'sr', 'ter'].includes(sortBy)) {
+      return -parseFloat(val)
+    }
+    return val
   }
 
   const barInsight = useMemo(() => {
@@ -235,6 +253,71 @@ export default function BowlingRecords() {
             <HeroStat label="Strike Rate" value={leader ? formatDecimal(leader.sr) : '—'} accent="cyan" meta="Lethality Index" />
           </div>
         </div>
+      </section>
+
+      {/* ── FAN GLOSSARY BANNER ──────────────────────────────────── */}
+      <section className="bg-white/[0.02] rounded-[32px] border border-white/5 p-6 backdrop-blur-md relative overflow-hidden transition-all duration-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent-cyan/10 text-accent-cyan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4.5 h-4.5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Understanding Bowling Analytics</h3>
+              <p className="text-xs text-text-muted">New to advanced cricket stats? Expand this guide to learn how we evaluate bowlers.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowGlossary(!showGlossary)}
+            className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-text-secondary hover:border-accent-cyan hover:text-white transition-all flex items-center gap-1"
+          >
+            {showGlossary ? 'Hide Guide' : 'Explain Stats'}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className={`w-3.5 h-3.5 transition-transform duration-300 ${showGlossary ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
+
+        {showGlossary && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-white/5 animate-fadeIn">
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-accent-cyan uppercase tracking-widest">True Economy Rate (TER)</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                TER measures how many runs a bowler concedes per over compared to the average runs conceded by other bowlers in the same matches and phases.
+              </p>
+              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                <strong>Example:</strong> If a bowler's TER is <span className="text-accent-cyan font-bold">-0.8</span>, it means they concede 0.8 runs fewer per over than average, showing excellent control and pressure.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-accent-magenta uppercase tracking-widest">Bowling Average (Avg)</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Runs conceded divided by wickets taken. Represents the run-cost per wicket. Lower average is better.
+              </p>
+              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                <strong>Rule of thumb:</strong> An average under 24 is considered excellent in T20, indicating they take wickets without bleeding too many runs.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-accent-amber uppercase tracking-widest">Economy Rate (Econ)</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                The average runs conceded per over bowled. Represents a bowler's ability to restrict scoring. Lower is better.
+              </p>
+              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                <strong>Rule of thumb:</strong> An economy under 7.5 is very good. Under 6.5 is elite, typically belonging to world-class spin squeezers or death overs masters.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── COMMAND CENTER FILTERS ───────────────────────────── */}

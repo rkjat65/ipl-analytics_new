@@ -74,6 +74,7 @@ const SORT_OPTIONS = [
   { value: 'runs', label: 'Runs' },
   { value: 'avg', label: 'Average' },
   { value: 'sr', label: 'Strike Rate' },
+  { value: 'tsr', label: 'True SR (TSR)' },
   { value: 'fifties', label: '50s' },
   { value: 'hundreds', label: '100s' },
   { value: 'sixes', label: 'Sixes' },
@@ -106,6 +107,7 @@ export default function BattingRecords() {
   const [team, setTeam] = useState('')
   const [sortBy, setSortBy] = useState('runs')
   const [minBalls, setMinBalls] = useState(0)
+  const [showGlossary, setShowGlossary] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [showcaseOpen, setShowcaseOpen] = useState(false)
   const [comparePlayers, setComparePlayers] = useState([])
@@ -149,16 +151,28 @@ export default function BattingRecords() {
       label: 'Player',
       render: (val) => <PlayerNameCell name={val} to={`/batting/${encodeURIComponent(val)}`} size={32} />,
     },
-    { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono font-bold text-text-muted">{val}</span> },
+    { key: 'matches', label: 'Mat', align: 'right', tooltip: 'Total matches played', render: (val) => <span className="font-mono font-bold text-text-muted">{val}</span> },
     {
       key: 'runs',
       label: 'Runs',
       align: 'right',
+      tooltip: 'Total career runs scored in IPL',
       render: (val) => <span className="font-mono font-black text-accent-lime text-base">{formatNumber(val)}</span>,
     },
-    { key: 'avg', label: 'Avg', align: 'right', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    { key: 'sr', label: 'SR', align: 'right', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    { key: 'sixes', label: '6s', align: 'right', render: (val) => <span className="font-mono font-black text-accent-amber">{val}</span> },
+    { key: 'avg', label: 'Avg', align: 'right', tooltip: 'Batting Average: Runs scored per dismissal (runs / dismissals)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
+    { key: 'sr', label: 'SR', align: 'right', tooltip: 'Strike Rate: Runs scored per 100 balls faced', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
+    {
+      key: 'tsr',
+      label: 'TSR',
+      align: 'right',
+      tooltip: "True Strike Rate: Player's strike rate compared to the average strike rate of other batters in the same matches and phases. Positive means faster scoring than average.",
+      render: (val) => {
+        const num = parseFloat(val) || 0
+        const colorClass = num >= 0 ? 'text-[#00E5FF] font-black' : 'text-[#FF2D78] opacity-80'
+        return <span className={`font-mono ${colorClass}`}>{num >= 0 ? `+${formatDecimal(num)}` : formatDecimal(num)}</span>
+      }
+    },
+    { key: 'sixes', label: '6s', align: 'right', tooltip: 'Total number of sixes hit by the batter', render: (val) => <span className="font-mono font-black text-accent-amber">{val}</span> },
     {
       key: 'compare',
       label: 'Intel',
@@ -228,6 +242,71 @@ export default function BattingRecords() {
             <HeroStat label="Avg Score" value={leader ? formatDecimal(leader.avg) : '—'} accent="cyan" meta="Consistency Index" />
           </div>
         </div>
+      </section>
+
+      {/* ── FAN GLOSSARY BANNER ──────────────────────────────────── */}
+      <section className="bg-white/[0.02] rounded-[32px] border border-white/5 p-6 backdrop-blur-md relative overflow-hidden transition-all duration-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent-cyan/10 text-accent-cyan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4.5 h-4.5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Understanding Batting Analytics</h3>
+              <p className="text-xs text-text-muted">New to advanced cricket stats? Expand this guide to learn how we evaluate batters.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowGlossary(!showGlossary)}
+            className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-text-secondary hover:border-accent-cyan hover:text-white transition-all flex items-center gap-1"
+          >
+            {showGlossary ? 'Hide Guide' : 'Explain Stats'}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className={`w-3.5 h-3.5 transition-transform duration-300 ${showGlossary ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
+
+        {showGlossary && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-white/5 animate-fadeIn">
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-accent-lime uppercase tracking-widest">True Strike Rate (TSR)</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                TSR measures how much faster or slower a player scores compared to the expectation for the matches/phases they played in.
+              </p>
+              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                <strong>Example:</strong> If a player's TSR is <span className="text-accent-cyan font-bold">+12.5</span>, it means they score 12.5 runs more per 100 balls than an average batter would in those exact situations.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-accent-cyan uppercase tracking-widest">Batting Average (Avg)</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Runs scored divided by the number of times dismissed. Represents a batter's consistency and ability to hold their wicket.
+              </p>
+              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                <strong>Rule of thumb:</strong> An average over 35 is considered excellent in T20, indicating the player anchors the innings reliably.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-accent-amber uppercase tracking-widest">Strike Rate (SR)</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                The average runs scored per 100 balls faced. Represents a batter's raw scoring speed (tempo).
+              </p>
+              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                <strong>Rule of thumb:</strong> A strike rate above 140 is strong. Above 160 is elite, typically belonging to finishers or aggressive powerplay openers.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── COMMAND CENTER FILTERS ───────────────────────────── */}

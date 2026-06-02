@@ -41,7 +41,7 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
-function ProfileStat({ label, value, color = 'cyan', meta = '' }) {
+function ProfileStat({ label, value, color = 'cyan', meta = '', tooltip = '' }) {
   const accentColor = {
     cyan: '#00E5FF',
     lime: '#B8FF00',
@@ -50,10 +50,81 @@ function ProfileStat({ label, value, color = 'cyan', meta = '' }) {
   }[color] || '#00E5FF'
 
   return (
-    <div className="bg-[#0B0E16] border border-white/5 rounded-[24px] p-6 group transition-all hover:border-white/10">
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-text-muted mb-2">{label}</p>
+    <div className="bg-[#0B0E16] border border-white/5 rounded-[24px] p-6 group transition-all hover:border-white/10 relative">
+      <div className="flex items-center justify-between gap-1 mb-2">
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-text-muted truncate">{label}</p>
+        {tooltip && (
+          <div className="relative group/tooltip flex shrink-0">
+            <span className="cursor-pointer text-text-muted hover:text-white transition-colors text-xs select-none">
+              ⓘ
+            </span>
+            <div className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:block w-48 p-2.5 bg-[#0B0E16]/95 border border-white/10 rounded-xl shadow-2xl text-[10px] font-semibold text-text-secondary tracking-normal text-center z-50 leading-relaxed normal-case">
+              {tooltip}
+              <div className="absolute top-full right-2 -mt-1 border-4 border-transparent border-t-[#0B0E16]" />
+            </div>
+          </div>
+        )}
+      </div>
       <p className="text-3xl font-black font-heading tracking-tighter" style={{ color: accentColor }}>{value}</p>
       {meta && <p className="mt-2 text-[10px] font-black text-white/30 uppercase tracking-widest">{meta}</p>}
+    </div>
+  )
+}
+
+function getBattingCommentary(name, b1, b2) {
+  if (!b1.runs && !b2.runs) return ""
+  const diffSr = b2.sr - b1.sr
+  const diffAvg = b2.avg - b1.avg
+  if (diffSr > 8 && diffAvg > 4) {
+    return `${name} is an elite chase specialist, boosting strike rate by ${formatDecimal(diffSr)} and average by ${formatDecimal(diffAvg)} when chasing under scoreboard pressure.`
+  } else if (diffSr < -8 && diffAvg < -4) {
+    return `${name} excels when setting targets, performing significantly better under less scoreboard pressure in the first innings.`
+  } else {
+    return `${name} exhibits balanced metrics across both innings, demonstrating versatility in both setting and chasing targets.`
+  }
+}
+
+function getBowlingCommentary(name, b1, b2) {
+  if (!b1.wickets && !b2.wickets) return ""
+  const diffEcon = b2.economy - b1.economy
+  if (diffEcon < -0.4) {
+    return `${name} is highly defensive when defending targets in the second innings, choking run flow with an economy drop of ${formatDecimal(Math.abs(diffEcon))}.`
+  } else if (diffEcon > 0.4) {
+    return `${name} is more effective in first innings restriction, showing better economy control when wickets are fresh.`
+  } else {
+    return `${name} maintains a consistent economy and strike tempo regardless of bowling sequence.`
+  }
+}
+
+function SplitsCompareRow({ label, val1, val2, color1 = '#00E5FF', color2 = '#FF2D78', isDecimal = false, isLowerBetter = false }) {
+  const n1 = parseFloat(val1) || 0
+  const n2 = parseFloat(val2) || 0
+  const maxVal = Math.max(n1, n2, 1)
+  const isBetter1 = isLowerBetter ? n1 < n2 : n1 > n2;
+  const isBetter2 = isLowerBetter ? n2 < n1 : n2 > n1;
+  const isEqual = n1 === n2;
+
+  return (
+    <div className="py-4 border-b border-white/5 last:border-b-0 group">
+      <p className="text-center text-[9px] font-black text-text-muted uppercase tracking-[0.2em] mb-2 transition-colors group-hover:text-text-secondary">{label}</p>
+      <div className="flex items-center gap-4">
+        <div className="flex-1 flex flex-col items-end gap-1">
+          <span className="font-mono text-base font-black" style={{ color: isBetter1 || isEqual ? color1 : '#ffffff40' }}>
+            {isDecimal ? formatDecimal(n1) : n1}
+          </span>
+          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden flex justify-end">
+            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${(n1 / maxVal) * 100}%`, backgroundColor: color1 }} />
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col items-start gap-1">
+          <span className="font-mono text-base font-black" style={{ color: isBetter2 || isEqual ? color2 : '#ffffff40' }}>
+            {isDecimal ? formatDecimal(n2) : n2}
+          </span>
+          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${(n2 / maxVal) * 100}%`, backgroundColor: color2 }} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -146,12 +217,60 @@ export default function PlayerProfile() {
       {activeTab === 'batting' && hasBatting && (
         <div className="space-y-12 animate-in">
            {/* Career Grid */}
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <ProfileStat label="Appearances" value={batting.career.matches} color="cyan" meta="Total Matches" />
-              <ProfileStat label="Run Volume" value={formatNumber(batting.career.runs)} color="lime" meta="Career Aggregation" />
-              <ProfileStat label="Metric Avg" value={formatDecimal(batting.career.avg)} color="amber" meta="Consistency Index" />
-              <ProfileStat label="Impact SR" value={formatDecimal(batting.career.sr)} color="magenta" meta="Strike Tempo" />
+           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <ProfileStat label="Appearances" value={batting.career.matches} color="cyan" meta="Total Matches" tooltip="Total matches played in your IPL career." />
+              <ProfileStat label="Run Volume" value={formatNumber(batting.career.runs)} color="lime" meta="Career Aggregation" tooltip="Total runs scored in your IPL career." />
+              <ProfileStat label="Metric Avg" value={formatDecimal(batting.career.avg)} color="amber" meta="Consistency Index" tooltip="Batting Average: Runs scored per dismissal (runs / dismissals). Measures consistency." />
+              <ProfileStat label="Impact SR" value={formatDecimal(batting.career.sr)} color="magenta" meta="Strike Tempo" tooltip="Strike Rate: Runs scored per 100 balls faced. Measures raw scoring speed." />
+              <ProfileStat 
+                label="True SR (TSR)" 
+                value={(batting.career.tsr >= 0 ? '+' : '') + formatDecimal(batting.career.tsr)} 
+                color={batting.career.tsr >= 0 ? 'cyan' : 'magenta'} 
+                meta="Vs Match Average" 
+                tooltip="True Strike Rate: How much faster or slower you score compared to average batters in the same matches and phases."
+              />
            </div>
+
+           {/* Inning Splits Card */}
+           {batting.innings_splits && batting.innings_splits.length > 0 && (
+             (() => {
+               const bat1 = batting.innings_splits.find(s => s.innings_number === 1) || { matches: 0, runs: 0, avg: 0, sr: 0, fours: 0, sixes: 0 };
+               const bat2 = batting.innings_splits.find(s => s.innings_number === 2) || { matches: 0, runs: 0, avg: 0, sr: 0, fours: 0, sixes: 0 };
+               const commentary = getBattingCommentary(decodedName, bat1, bat2);
+               return (
+                 <div className="bg-[#0B0E16] border border-white/5 rounded-[32px] p-8 md:p-10 shadow-xl space-y-6">
+                   <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                     <div>
+                       <h3 className="text-xl font-black font-heading text-white uppercase tracking-tight">Advanced Inning Splits</h3>
+                       <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">First Innings (Setting Target) vs Second Innings (Chasing)</p>
+                     </div>
+                     <span className="w-fit px-3 py-1 rounded-full bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan text-[9px] font-black uppercase tracking-widest">
+                       Analyst Splits View
+                     </span>
+                   </div>
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                     <div className="space-y-2">
+                       <div className="flex justify-between text-[9px] font-black uppercase text-text-muted px-2">
+                         <span>1st Inn (Setting)</span>
+                         <span>2nd Inn (Chasing)</span>
+                       </div>
+                       <SplitsCompareRow label="Matches Played" val1={bat1.matches} val2={bat2.matches} />
+                       <SplitsCompareRow label="Runs Volume" val1={bat1.runs} val2={bat2.runs} />
+                       <SplitsCompareRow label="Batting Average" val1={bat1.avg} val2={bat2.avg} isDecimal />
+                       <SplitsCompareRow label="Strike Rate" val1={bat1.sr} val2={bat2.sr} isDecimal />
+                       <SplitsCompareRow label="Boundaries" val1={bat1.fours + bat1.sixes} val2={bat2.fours + bat2.sixes} />
+                     </div>
+                     <div className="bg-white/5 border border-white/5 rounded-2xl p-6 h-full flex flex-col justify-center space-y-3">
+                       <span className="text-[9px] font-black uppercase tracking-widest text-accent-cyan">Analyst Commentary</span>
+                       <p className="text-sm font-medium text-text-secondary leading-relaxed italic">
+                         {commentary || "No significant split variance detected."}
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+               );
+             })()
+           )}
 
            {/* Trend Charts */}
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -239,12 +358,60 @@ export default function PlayerProfile() {
       {activeTab === 'bowling' && hasBowling && (
         <div className="space-y-12 animate-in">
            {/* Career Grid */}
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <ProfileStat label="Territories" value={bowling.career.matches} color="cyan" meta="Matches Played" />
-              <ProfileStat label="Impact Wkts" value={bowling.career.wickets} color="magenta" meta="Career Scalps" />
-              <ProfileStat label="Control Econ" value={formatDecimal(bowling.career.economy)} color="amber" meta="Discipline Index" />
-              <ProfileStat label="Lethality Avg" value={formatDecimal(bowling.career.avg)} color="lime" meta="Strike Metric" />
+           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <ProfileStat label="Appearances" value={bowling.career.matches} color="cyan" meta="Matches Played" tooltip="Total matches played in your IPL career." />
+              <ProfileStat label="Impact Wkts" value={bowling.career.wickets} color="magenta" meta="Career Scalps" tooltip="Total wickets taken in your IPL career." />
+              <ProfileStat label="Control Econ" value={formatDecimal(bowling.career.economy)} color="amber" meta="Discipline Index" tooltip="Economy Rate: Average runs conceded per over (runs / balls * 6). Measures run restriction." />
+              <ProfileStat label="Lethality Avg" value={formatDecimal(bowling.career.avg)} color="lime" meta="Strike Metric" tooltip="Bowling Average: Runs conceded per wicket taken. Measures wicket-taking cost." />
+              <ProfileStat 
+                label="True Econ (TER)" 
+                value={(bowling.career.ter >= 0 ? '+' : '') + formatDecimal(bowling.career.ter)} 
+                color={bowling.career.ter < 0 ? 'cyan' : 'magenta'} 
+                meta="Vs Match Average" 
+                tooltip="True Economy Rate: How many runs fewer (negative) or more (positive) you concede per over compared to average bowlers in the same situations."
+              />
            </div>
+
+           {/* Inning Splits Card */}
+           {bowling.innings_splits && bowling.innings_splits.length > 0 && (
+             (() => {
+               const bowl1 = bowling.innings_splits.find(s => s.innings_number === 1) || { matches: 0, wickets: 0, avg: 0, economy: 0, sr: 0 };
+               const bowl2 = bowling.innings_splits.find(s => s.innings_number === 2) || { matches: 0, wickets: 0, avg: 0, economy: 0, sr: 0 };
+               const commentary = getBowlingCommentary(decodedName, bowl1, bowl2);
+               return (
+                 <div className="bg-[#0B0E16] border border-white/5 rounded-[32px] p-8 md:p-10 shadow-xl space-y-6">
+                   <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                     <div>
+                       <h3 className="text-xl font-black font-heading text-white uppercase tracking-tight">Advanced Inning Splits</h3>
+                       <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">First Innings (Bowling 1st / Restricting) vs Second Innings (Bowling 2nd / Defending)</p>
+                     </div>
+                     <span className="w-fit px-3 py-1 rounded-full bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan text-[9px] font-black uppercase tracking-widest">
+                       Analyst Splits View
+                     </span>
+                   </div>
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                     <div className="space-y-2">
+                       <div className="flex justify-between text-[9px] font-black uppercase text-text-muted px-2">
+                         <span>1st Inn (Restricting)</span>
+                         <span>2nd Inn (Defending)</span>
+                       </div>
+                       <SplitsCompareRow label="Matches Played" val1={bowl1.matches} val2={bowl2.matches} />
+                       <SplitsCompareRow label="Wickets Taken" val1={bowl1.wickets} val2={bowl2.wickets} />
+                       <SplitsCompareRow label="Bowling Average" val1={bowl1.avg} val2={bowl2.avg} isDecimal isLowerBetter />
+                       <SplitsCompareRow label="Economy Rate" val1={bowl1.economy} val2={bowl2.economy} isDecimal isLowerBetter />
+                       <SplitsCompareRow label="Bowling Strike Rate" val1={bowl1.sr} val2={bowl2.sr} isDecimal isLowerBetter />
+                     </div>
+                     <div className="bg-white/5 border border-white/5 rounded-2xl p-6 h-full flex flex-col justify-center space-y-3">
+                       <span className="text-[9px] font-black uppercase tracking-widest text-accent-cyan">Analyst Commentary</span>
+                       <p className="text-sm font-medium text-text-secondary leading-relaxed italic">
+                         {commentary || "No significant split variance detected."}
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+               );
+             })()
+           )}
 
            {/* Trend Charts */}
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -58,6 +58,7 @@ export const getPlayerBatting = (name) => fetchAPI(`/players/${encodeURIComponen
 export const getPlayerBowling = (name) => fetchAPI(`/players/${encodeURIComponent(name)}/bowling`)
 export const getPlayerBattingMatchups = (name) => fetchAPI(`/players/${encodeURIComponent(name)}/matchups/batting`)
 export const getPlayerBowlingMatchups = (name) => fetchAPI(`/players/${encodeURIComponent(name)}/matchups/bowling`)
+export const getPlayerMatchup = (batter, bowler) => fetchAPI(`/players/matchup/${encodeURIComponent(batter)}/${encodeURIComponent(bowler)}`)
 
 // Teams
 export const getTeamStats = (name) => fetchAPI(`/teams/${encodeURIComponent(name)}/stats`)

@@ -27,9 +27,12 @@ import {
   getBattingMatrix,
   getBowlingMatrix,
   searchPlayers,
+  getPointsTable,
+  getSeasonSummary,
 } from '../lib/api'
 import { getTeamColor, getTeamAbbr } from '../constants/teams'
 import TeamLogo from '../components/ui/TeamLogo'
+import PlayerAvatar from '../components/ui/PlayerAvatar'
 import {
   BarChart, Bar, Cell, AreaChart, Area, PieChart, Pie,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -276,6 +279,28 @@ export default function Dashboard() {
   const [bowlMatrixZoom, setBowlMatrixZoom] = useState(1)
 
   const { data: seasons, loading: seasonsLoading } = useFetch(() => getSeasons(), [])
+
+  const activeSeason = useMemo(() => {
+    if (season && !season.includes(',')) {
+      return season
+    }
+    if (seasons && seasons.length > 0) {
+      return String(seasons[seasons.length - 1])
+    }
+    return ''
+  }, [season, seasons])
+
+  const { data: pointsTable, loading: ptLoading } = useFetch(
+    () => (activeSeason ? getPointsTable(activeSeason) : Promise.resolve(null)),
+    [activeSeason]
+  )
+
+  const { data: activeSeasonSummary, loading: assLoading } = useFetch(
+    () => (activeSeason ? getSeasonSummary(activeSeason) : Promise.resolve(null)),
+    [activeSeason]
+  )
+
+  const ptData = useMemo(() => (pointsTable || []).map((row, i) => ({ ...row, pos: i + 1 })), [pointsTable])
 
   const { data: kpis, loading: kpisLoading, error: kpisError } = useFetch(
     () => getKPIs(season),
@@ -846,7 +871,7 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-text-secondary text-sm">
-                <span className="text-text-primary font-medium">Sign in</span> to unlock full analytics, player profiles, and match details.
+                You are browsing in Guest Mode. <span className="text-text-primary font-medium">Sign in</span> to unlock advanced AI-driven cricket questions, generate custom pulse graphics, and manage your billing.
               </p>
             </div>
             <button
@@ -881,6 +906,148 @@ export default function Dashboard() {
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in">
+        {/* Left Column - Season Standings */}
+        <div className="lg:col-span-2">
+          <DashboardPanel accent="cyan" className="h-full flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-heading font-bold text-text-primary">Season Standings</h3>
+                  <p className="text-xs text-text-secondary">Points table for the {activeSeason} campaign</p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">IPL {activeSeason}</span>
+              </div>
+
+              {ptLoading ? (
+                <Loading message="Loading standings..." />
+              ) : ptData && ptData.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/5 text-text-muted font-semibold">
+                        <th className="py-2.5 px-2 text-center w-10">Pos</th>
+                        <th className="py-2.5 px-2">Team</th>
+                        <th className="py-2.5 px-2 text-center w-12">Pld</th>
+                        <th className="py-2.5 px-2 text-center w-12 font-medium text-accent-lime">Won</th>
+                        <th className="py-2.5 px-2 text-center w-12">Lost</th>
+                        <th className="py-2.5 px-2 text-center w-12 font-bold text-text-primary">Pts</th>
+                        <th className="py-2.5 px-2 text-right w-16">NRR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ptData.map((row, idx) => (
+                        <tr key={row.team} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                          <td className="py-2.5 px-2 text-center font-bold">
+                            <span className={idx < 4 ? 'text-accent-cyan' : 'text-text-muted'}>{row.pos}</span>
+                          </td>
+                          <td className="py-2.5 px-2">
+                            <div className="flex items-center gap-2">
+                              <TeamLogo team={row.team} size={20} />
+                              <Link to={`/teams/${encodeURIComponent(row.team)}`} className="font-semibold text-text-primary hover:text-accent-cyan transition-colors truncate max-w-[140px] sm:max-w-none">
+                                {row.team}
+                              </Link>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2 text-center font-mono text-text-secondary">{row.played}</td>
+                          <td className="py-2.5 px-2 text-center font-mono font-medium text-accent-lime">{row.won}</td>
+                          <td className="py-2.5 px-2 text-center font-mono text-text-secondary">{row.lost}</td>
+                          <td className="py-2.5 px-2 text-center font-mono font-bold text-text-primary">{row.points}</td>
+                          <td className="py-2.5 px-2 text-right font-mono font-semibold" style={{ color: row.nrr > 0 ? '#B8FF00' : '#FF2D78' }}>
+                            {row.nrr > 0 ? '+' : ''}{formatDecimal(row.nrr, 3)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-text-muted">No standings data available.</div>
+              )}
+            </div>
+          </DashboardPanel>
+        </div>
+
+        {/* Right Column - Caps Races */}
+        <div className="flex flex-col gap-4">
+          {/* Orange Cap Card */}
+          <DashboardPanel accent="amber" className="flex-1 relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-accent-amber/5 blur-[40px] pointer-events-none" />
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-amber/25 bg-accent-amber/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent-amber">
+                  Orange Cap
+                </span>
+                <span className="text-[10px] text-text-muted font-medium">Runs Leader</span>
+              </div>
+
+              {assLoading ? (
+                <div className="h-16 flex items-center justify-center"><Loading message="" /></div>
+              ) : activeSeasonSummary?.orange_cap ? (
+                <div className="flex items-center gap-3">
+                  <PlayerAvatar name={activeSeasonSummary.orange_cap.player} size={48} teamColor={getTeamColor(activeSeasonSummary.orange_cap.team)} />
+                  <div className="min-w-0 flex-1">
+                    <Link to={`/players/${encodeURIComponent(activeSeasonSummary.orange_cap.player)}`} className="text-base font-bold text-text-primary hover:text-accent-amber transition-colors truncate block">
+                      {activeSeasonSummary.orange_cap.player}
+                    </Link>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <TeamLogo team={activeSeasonSummary.orange_cap.team} size={14} />
+                      <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">
+                        {getTeamAbbr(activeSeasonSummary.orange_cap.team)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-xl font-heading font-black text-accent-amber block">{activeSeasonSummary.orange_cap.runs}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-text-muted font-bold">Runs</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted italic py-4">No Orange Cap data available</p>
+              )}
+            </div>
+          </DashboardPanel>
+
+          {/* Purple Cap Card */}
+          <DashboardPanel accent="magenta" className="flex-1 relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-accent-magenta/5 blur-[40px] pointer-events-none" />
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-magenta/25 bg-accent-magenta/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent-magenta">
+                  Purple Cap
+                </span>
+                <span className="text-[10px] text-text-muted font-medium">Wickets Leader</span>
+              </div>
+
+              {assLoading ? (
+                <div className="h-16 flex items-center justify-center"><Loading message="" /></div>
+              ) : activeSeasonSummary?.purple_cap ? (
+                <div className="flex items-center gap-3">
+                  <PlayerAvatar name={activeSeasonSummary.purple_cap.player} size={48} teamColor={getTeamColor(activeSeasonSummary.purple_cap.team)} />
+                  <div className="min-w-0 flex-1">
+                    <Link to={`/players/${encodeURIComponent(activeSeasonSummary.purple_cap.player)}`} className="text-base font-bold text-text-primary hover:text-accent-magenta transition-colors truncate block">
+                      {activeSeasonSummary.purple_cap.player}
+                    </Link>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <TeamLogo team={activeSeasonSummary.purple_cap.team} size={14} />
+                      <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">
+                        {getTeamAbbr(activeSeasonSummary.purple_cap.team)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-xl font-heading font-black text-accent-magenta block">{activeSeasonSummary.purple_cap.wickets}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-text-muted font-bold">Wickets</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted italic py-4">No Purple Cap data available</p>
+              )}
+            </div>
+          </DashboardPanel>
+        </div>
       </section>
 
       <section className="space-y-4">
@@ -928,29 +1095,35 @@ export default function Dashboard() {
             ) : !phaseEconomicsData.length ? (
               <p className="text-text-muted text-sm py-10 text-center">No phase data available</p>
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <ComposedChart data={phaseEconomicsData} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
-                  <CartesianGrid {...cartesianGridProps} />
-                  <XAxis dataKey="phaseLabel" tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0]?.payload
-                    return (
-                      <div className="rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
-                        <p className="font-bold text-text-primary">{d?.phaseLabel}</p>
-                        <p className="text-accent-lime">Run rate: <span className="font-mono">{formatDecimal(d?.run_rate, 2)}</span></p>
-                        <p className="text-accent-amber">Boundary balls: <span className="font-mono">{formatDecimal(d?.boundary_pct, 1)}%</span></p>
-                        <p className="text-accent-magenta">Avg wickets: <span className="font-mono">{formatDecimal(d?.avg_wickets, 2)}</span></p>
-                      </div>
-                    )
-                  }} />
-                  <Bar yAxisId="left" dataKey="run_rate" name="Run rate" fill="#B8FF00" radius={[12, 12, 0, 0]} barSize={42} {...CHART_ANIMATION} />
-                  <Line yAxisId="right" type="monotone" dataKey="boundary_pct" name="Boundary %" stroke="#FFB800" strokeWidth={3} dot={{ r: 5, fill: '#FFB800', strokeWidth: 0 }} />
-                  <Line yAxisId="left" type="monotone" dataKey="avg_wickets" name="Avg wickets" stroke="#FF2D78" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 4, fill: '#FF2D78', strokeWidth: 0 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={phaseEconomicsData} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="phaseLabel" tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="left" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
+                    <Tooltip content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0]?.payload
+                      return (
+                        <div className="rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                          <p className="font-bold text-text-primary">{d?.phaseLabel}</p>
+                          <p className="text-accent-lime">Run rate: <span className="font-mono">{formatDecimal(d?.run_rate, 2)}</span></p>
+                          <p className="text-accent-amber">Boundary balls: <span className="font-mono">{formatDecimal(d?.boundary_pct, 1)}%</span></p>
+                          <p className="text-accent-magenta">Avg wickets: <span className="font-mono">{formatDecimal(d?.avg_wickets, 2)}</span></p>
+                        </div>
+                      )
+                    }} />
+                    <Bar yAxisId="left" dataKey="run_rate" name="Run rate" fill="#B8FF00" radius={[12, 12, 0, 0]} barSize={42} {...CHART_ANIMATION} />
+                    <Line yAxisId="right" type="monotone" dataKey="boundary_pct" name="Boundary %" stroke="#FFB800" strokeWidth={3} dot={{ r: 5, fill: '#FFB800', strokeWidth: 0 }} />
+                    <Line yAxisId="left" type="monotone" dataKey="avg_wickets" name="Avg wickets" stroke="#FF2D78" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 4, fill: '#FF2D78', strokeWidth: 0 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+                <div className="mt-4 rounded-xl border border-accent-lime/15 bg-accent-lime/5 p-3 text-xs text-text-secondary leading-relaxed">
+                  <span className="font-bold text-accent-lime uppercase tracking-wider block mb-1">Fan Takeaway</span>
+                  Powerplays see high-tempo scoring, while Death overs see explosive runs alongside twice the wicket rate.
+                </div>
+              </>
             )}
           </DashboardPanel>
 
@@ -966,33 +1139,39 @@ export default function Dashboard() {
             ) : !chaseCurveData.length ? (
               <p className="text-text-muted text-sm py-10 text-center">No chase data available</p>
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <AreaChart data={chaseCurveData} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
-                  <defs>
-                    <linearGradient id="chase-survival-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF2D78" stopOpacity={0.38} />
-                      <stop offset="95%" stopColor="#FF2D78" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid {...cartesianGridProps} />
-                  <XAxis dataKey="target_range" tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0]?.payload
-                    return (
-                      <div className="rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
-                        <p className="font-bold text-text-primary">Target {d?.target_range}</p>
-                        <p className="text-accent-magenta">Chase win: <span className="font-mono">{formatDecimal(d?.chase_win_pct, 1)}%</span></p>
-                        <p className="text-text-muted">{d?.chase_wins}/{d?.total_chases} successful chases</p>
-                        <p className="text-accent-cyan">Avg target: <span className="font-mono">{formatDecimal(d?.avg_target, 1)}</span></p>
-                      </div>
-                    )
-                  }} />
-                  <ReferenceLine y={50} stroke="#8888A0" strokeDasharray="4 4" />
-                  <Area type="monotone" dataKey="chase_win_pct" stroke="#FF2D78" strokeWidth={3} fill="url(#chase-survival-gradient)" dot={{ r: 5, fill: '#FF2D78', stroke: '#0B0E16', strokeWidth: 2 }} {...CHART_ANIMATION} />
-                </AreaChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chaseCurveData} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
+                    <defs>
+                      <linearGradient id="chase-survival-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#FF2D78" stopOpacity={0.38} />
+                        <stop offset="95%" stopColor="#FF2D78" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="target_range" tick={{ fill: '#C8C8D8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0]?.payload
+                      return (
+                        <div className="rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                          <p className="font-bold text-text-primary">Target {d?.target_range}</p>
+                          <p className="text-accent-magenta">Chase win: <span className="font-mono">{formatDecimal(d?.chase_win_pct, 1)}%</span></p>
+                          <p className="text-text-muted">{d?.chase_wins}/{d?.total_chases} successful chases</p>
+                          <p className="text-accent-cyan">Avg target: <span className="font-mono">{formatDecimal(d?.avg_target, 1)}</span></p>
+                        </div>
+                      )
+                    }} />
+                    <ReferenceLine y={50} stroke="#8888A0" strokeDasharray="4 4" />
+                    <Area type="monotone" dataKey="chase_win_pct" stroke="#FF2D78" strokeWidth={3} fill="url(#chase-survival-gradient)" dot={{ r: 5, fill: '#FF2D78', stroke: '#0B0E16', strokeWidth: 2 }} {...CHART_ANIMATION} />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="mt-4 rounded-xl border border-accent-magenta/15 bg-accent-magenta/5 p-3 text-xs text-text-secondary leading-relaxed">
+                  <span className="font-bold text-accent-magenta uppercase tracking-wider block mb-1">Fan Takeaway</span>
+                  Targets above 180 runs see successful chases drop below 35%, making them highly defendable.
+                </div>
+              </>
             )}
           </DashboardPanel>
 
@@ -1008,29 +1187,35 @@ export default function Dashboard() {
             ) : !tossBiasData.length ? (
               <p className="text-text-muted text-sm py-10 text-center">No toss signal available</p>
             ) : (
-              <ResponsiveContainer width="100%" height={330}>
-                <BarChart data={tossBiasData} layout="vertical" margin={{ top: 8, right: 42, left: 8, bottom: 8 }}>
-                  <CartesianGrid {...cartesianGridProps} />
-                  <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="venueShort" width={108} tick={{ fill: '#C8C8D8', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0]?.payload
-                    return (
-                      <div className="max-w-[260px] rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
-                        <p className="font-bold text-text-primary">{d?.venue}</p>
-                        <p className="text-accent-cyan">{d?.decision}: <span className="font-mono">{formatDecimal(d?.toss_win_pct, 1)}%</span> toss-winner wins</p>
-                        <p className="text-text-muted">{d?.matches} matches in sample</p>
-                      </div>
-                    )
-                  }} />
-                  <Bar dataKey="bias" radius={[0, 10, 10, 0]} barSize={18} {...CHART_ANIMATION}>
-                    {tossBiasData.map((entry) => (
-                      <Cell key={`${entry.venue}-${entry.toss_decision}`} fill={entry.toss_decision === 'field' ? '#00E5FF' : '#FFB800'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={tossBiasData} layout="vertical" margin={{ top: 8, right: 42, left: 8, bottom: 8 }}>
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis type="number" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="venueShort" width={108} tick={{ fill: '#C8C8D8', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                    <Tooltip content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0]?.payload
+                      return (
+                        <div className="max-w-[260px] rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                          <p className="font-bold text-text-primary">{d?.venue}</p>
+                          <p className="text-accent-cyan">{d?.decision}: <span className="font-mono">{formatDecimal(d?.toss_win_pct, 1)}%</span> toss-winner wins</p>
+                          <p className="text-text-muted">{d?.matches} matches in sample</p>
+                        </div>
+                      )
+                    }} />
+                    <Bar dataKey="bias" radius={[0, 10, 10, 0]} barSize={18} {...CHART_ANIMATION}>
+                      {tossBiasData.map((entry) => (
+                        <Cell key={`${entry.venue}-${entry.toss_decision}`} fill={entry.toss_decision === 'field' ? '#00E5FF' : '#FFB800'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-4 rounded-xl border border-accent-cyan/15 bg-accent-cyan/5 p-3 text-xs text-text-secondary leading-relaxed">
+                  <span className="font-bold text-accent-cyan uppercase tracking-wider block mb-1">Fan Takeaway</span>
+                  Visualizes whether winning the toss yields a significant advantage, and if teams prefer chasing vs setting targets.
+                </div>
+              </>
             )}
           </DashboardPanel>
 
@@ -1046,29 +1231,35 @@ export default function Dashboard() {
             ) : !venueScoringData.length ? (
               <p className="text-text-muted text-sm py-10 text-center">No venue split available</p>
             ) : (
-              <ResponsiveContainer width="100%" height={330}>
-                <ComposedChart data={venueScoringData} margin={{ top: 10, right: 8, left: 0, bottom: 38 }}>
-                  <CartesianGrid {...cartesianGridProps} />
-                  <XAxis dataKey="venueShort" tick={{ fill: '#C8C8D8', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} angle={-25} textAnchor="end" interval={0} />
-                  <YAxis yAxisId="runs" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
-                  <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0]?.payload
-                    return (
-                      <div className="max-w-[260px] rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
-                        <p className="font-bold text-text-primary">{d?.venue}</p>
-                        <p className="text-accent-amber">1st innings: <span className="font-mono">{formatDecimal(d?.avg_1st_innings, 1)}</span></p>
-                        <p className="text-accent-cyan">2nd innings: <span className="font-mono">{formatDecimal(d?.avg_2nd_innings, 1)}</span></p>
-                        <p className="text-accent-lime">Bat-first wins: <span className="font-mono">{formatDecimal(d?.bat_first_win_pct, 1)}%</span></p>
-                      </div>
-                    )
-                  }} />
-                  <Bar yAxisId="runs" dataKey="avg_1st_innings" name="1st innings" fill="#FFB800" radius={[8, 8, 0, 0]} barSize={18} {...CHART_ANIMATION} />
-                  <Bar yAxisId="runs" dataKey="avg_2nd_innings" name="2nd innings" fill="#00E5FF" radius={[8, 8, 0, 0]} barSize={18} {...CHART_ANIMATION} />
-                  <Line yAxisId="pct" type="monotone" dataKey="bat_first_win_pct" name="Bat-first win %" stroke="#B8FF00" strokeWidth={3} dot={{ r: 4, fill: '#B8FF00', strokeWidth: 0 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={venueScoringData} margin={{ top: 10, right: 8, left: 0, bottom: 38 }}>
+                    <CartesianGrid {...cartesianGridProps} />
+                    <XAxis dataKey="venueShort" tick={{ fill: '#C8C8D8', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} angle={-25} textAnchor="end" interval={0} />
+                    <YAxis yAxisId="runs" tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
+                    <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fill: '#8888A0', fontSize: 11 }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0]?.payload
+                      return (
+                        <div className="max-w-[260px] rounded-xl border border-white/10 bg-[#10131b] px-3 py-2 text-xs shadow-xl">
+                          <p className="font-bold text-text-primary">{d?.venue}</p>
+                          <p className="text-accent-amber">1st innings: <span className="font-mono">{formatDecimal(d?.avg_1st_innings, 1)}</span></p>
+                          <p className="text-accent-cyan">2nd innings: <span className="font-mono">{formatDecimal(d?.avg_2nd_innings, 1)}</span></p>
+                          <p className="text-accent-lime">Bat-first wins: <span className="font-mono">{formatDecimal(d?.bat_first_win_pct, 1)}%</span></p>
+                        </div>
+                      )
+                    }} />
+                    <Bar yAxisId="runs" dataKey="avg_1st_innings" name="1st innings" fill="#FFB800" radius={[8, 8, 0, 0]} barSize={18} {...CHART_ANIMATION} />
+                    <Bar yAxisId="runs" dataKey="avg_2nd_innings" name="2nd innings" fill="#00E5FF" radius={[8, 8, 0, 0]} barSize={18} {...CHART_ANIMATION} />
+                    <Line yAxisId="pct" type="monotone" dataKey="bat_first_win_pct" name="Bat-first win %" stroke="#B8FF00" strokeWidth={3} dot={{ r: 4, fill: '#B8FF00', strokeWidth: 0 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+                <div className="mt-4 rounded-xl border border-accent-amber/15 bg-accent-amber/5 p-3 text-xs text-text-secondary leading-relaxed">
+                  <span className="font-bold text-accent-amber uppercase tracking-wider block mb-1">Fan Takeaway</span>
+                  Differentiates high-scoring batting paradises from low-scoring bowling-friendly venues.
+                </div>
+              </>
             )}
           </DashboardPanel>
         </div>
@@ -1958,6 +2149,10 @@ export default function Dashboard() {
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#00E5FF' }} /> Consistent (Avg 30+)</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#8B5CF6' }} /> Others</span>
                 </div>
+                <div className="mt-4 rounded-xl border border-accent-lime/15 bg-accent-lime/5 p-3 text-xs text-text-secondary leading-relaxed">
+                  <span className="font-bold text-accent-lime uppercase tracking-wider block mb-1">Fan Takeaway</span>
+                  Batters in the top-right are elite assets: they score fast (high strike rate) and stay in long (high average).
+                </div>
               </div>
 
               <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -2108,6 +2303,10 @@ export default function Dashboard() {
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#00E5FF' }} /> Strike threat (Avg ≤ 20)</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#8B5CF6' }} /> Others</span>
                 </div>
+                <div className="mt-4 rounded-xl border border-accent-magenta/15 bg-accent-magenta/5 p-3 text-xs text-text-secondary leading-relaxed">
+                  <span className="font-bold text-accent-magenta uppercase tracking-wider block mb-1">Fan Takeaway</span>
+                  Bowlers in the bottom-left are elite: they keep runs tight (low economy) and take wickets cheaply (low average).
+                </div>
               </div>
             </div>
           )}
@@ -2180,10 +2379,13 @@ export default function Dashboard() {
           action={
             <div className="flex items-center gap-2">
               <span className="text-xs text-text-muted font-mono">Sort by</span>
-              <select value={batSort} onChange={e => setBatSort(e.target.value)}
-                className="rounded-xl border border-accent-lime/20 bg-accent-lime/5 px-3 py-1.5 text-xs text-text-primary font-mono focus:outline-none focus:border-accent-lime/50">
-                {BAT_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-              </select>
+              <Select
+                value={batSort}
+                onChange={setBatSort}
+                options={BAT_SORT_OPTIONS.map(o => ({ value: o.key, label: o.label }))}
+                placeholder={null}
+                className="!py-1.5 !text-xs font-mono border-accent-lime/20 bg-accent-lime/5 focus:border-accent-lime/50 text-text-primary"
+              />
             </div>
           }
         />
@@ -2326,10 +2528,13 @@ export default function Dashboard() {
           action={
             <div className="flex items-center gap-2">
               <span className="text-xs text-text-muted font-mono">Sort by</span>
-              <select value={bowlSort} onChange={e => setBowlSort(e.target.value)}
-                className="rounded-xl border border-accent-magenta/20 bg-accent-magenta/5 px-3 py-1.5 text-xs text-text-primary font-mono focus:outline-none focus:border-accent-magenta/50">
-                {BOWL_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-              </select>
+              <Select
+                value={bowlSort}
+                onChange={setBowlSort}
+                options={BOWL_SORT_OPTIONS.map(o => ({ value: o.key, label: o.label }))}
+                placeholder={null}
+                className="!py-1.5 !text-xs font-mono border-accent-magenta/20 bg-accent-magenta/5 focus:border-accent-magenta/50 text-text-primary"
+              />
             </div>
           }
         />
