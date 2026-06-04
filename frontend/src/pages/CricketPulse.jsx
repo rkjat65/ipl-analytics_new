@@ -758,7 +758,12 @@ export default function CricketPulse() {
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      <SEO title="Cricket Pulse — Social Growth Engine" description="Auto-discover tweet-worthy IPL insights, create branded cards, and grow your cricket data brand." />
+      <SEO
+        title="Cricket Pulse — AI-Generated IPL Insights & Match Narratives | Crickrida"
+        description="AI-powered cricket insights for IPL — auto-discovered match narratives, stat highlights, and analytics summaries. Get the stories behind the numbers for every IPL game."
+        keywords="IPL insights, cricket AI analysis, IPL match summary, cricket pulse, IPL statistics stories"
+        url="https://crickrida.rkjat.in/pulse"
+      />
 
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl mb-8 border border-border-subtle">

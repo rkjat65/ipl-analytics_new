@@ -84,7 +84,21 @@ export default function VenueProfile() {
 
   return (
     <div className="space-y-12 pb-20">
-      <SEO title={`${decoded} - Territory Intel`} />
+      <SEO
+        title={`${decoded} IPL Stats — Ground Records & Pitch Analysis | Crickrida`}
+        description={`IPL stats at ${decoded} — average first-innings score, chase success rate, toss impact, and complete match results. Full ground-by-ground analysis for ${decoded}.`}
+        keywords={`${decoded} IPL, ${decoded} cricket stats, ${decoded} average score, IPL venue stats, cricket ground analysis`}
+        url={`https://crickrida.rkjat.in/venues/${encodeURIComponent(decoded)}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SportsActivityLocation",
+          "name": decoded,
+          "description": `IPL cricket ground profile for ${decoded} with match statistics, average scores, and historical results.`,
+          "url": `https://crickrida.rkjat.in/venues/${encodeURIComponent(decoded)}`,
+          "sport": "Cricket",
+          "address": { "@type": "PostalAddress", "addressCountry": "IN" }
+        }}
+      />
 
       {/* ── CINEMATIC HERO ────────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] min-h-[440px] flex items-end">

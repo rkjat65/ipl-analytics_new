@@ -213,7 +213,26 @@ export default function BattingRecords() {
 
   return (
     <div className="space-y-12 pb-20">
-      <SEO title="Batting Elite - Career Leaderboards" />
+      <SEO
+        title="IPL Batting Records & Career Leaderboards | Crickrida"
+        description="All-time and season-by-season IPL batting statistics — most runs, highest strike rates, centuries, half-centuries, and boundary counts for every IPL batter from 2008 to 2026."
+        keywords="IPL batting records, IPL most runs, IPL batting average, IPL strike rate, Virat Kohli IPL runs, Rohit Sharma IPL, IPL centuries, IPL half centuries"
+        url="https://crickrida.rkjat.in/batting"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Batting Records & Career Leaderboards",
+          "description": "Comprehensive IPL batting statistics including most runs, best averages, highest strike rates, centuries and half-centuries across all IPL seasons.",
+          "url": "https://crickrida.rkjat.in/batting",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Batting Records", "item": "https://crickrida.rkjat.in/batting" }
+            ]
+          }
+        }}
+      />
 
       <PlayerCompare 
         players={comparePlayers} 

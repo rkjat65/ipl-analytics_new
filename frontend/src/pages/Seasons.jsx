@@ -36,7 +36,12 @@ export default function Seasons() {
   if (seasonsLoading) {
     return (
       <div className="pb-24">
-        <SEO title="IPL Seasons" />
+        <SEO
+          title="IPL Season Records — All Seasons 2008–2026 | Crickrida"
+          description="Year-by-year IPL season records including points tables, season winners, top scorers, leading wicket-takers, and season highlights from 2008 to 2026."
+          keywords="IPL seasons, IPL season history, IPL 2008 to 2026, IPL season records, IPL points table history"
+          url="https://crickrida.rkjat.in/seasons"
+        />
         <Loading message="Loading seasons..." />
       </div>
     )
@@ -45,7 +50,12 @@ export default function Seasons() {
   if (!seasons?.length) {
     return (
       <div className="space-y-12 pb-24">
-        <SEO title="IPL Seasons" />
+        <SEO
+          title="IPL Season Records — All Seasons 2008–2026 | Crickrida"
+          description="Year-by-year IPL season records including points tables, season winners, top scorers, leading wicket-takers, and season highlights from 2008 to 2026."
+          keywords="IPL seasons, IPL season history, IPL 2008 to 2026, IPL season records, IPL points table history"
+          url="https://crickrida.rkjat.in/seasons"
+        />
         <section className="rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">
           <h1 className="text-3xl font-black font-heading text-white">Seasons</h1>
           <p className="mt-4 text-text-muted font-mono text-sm">No season data was found in the database.</p>
@@ -56,7 +66,12 @@ export default function Seasons() {
 
   return (
     <div className="space-y-12 pb-24">
-      <SEO title={`IPL ${selectedYear} - Season Intelligence`} />
+      <SEO
+        title={`IPL ${selectedYear} Season — Points Table, Results & Stats | Crickrida`}
+        description={`Complete IPL ${selectedYear} season stats — points table, match results, batting and bowling leaders, and the season champion. Full season intelligence for IPL ${selectedYear}.`}
+        keywords={`IPL ${selectedYear}, IPL ${selectedYear} points table, IPL ${selectedYear} winner, IPL ${selectedYear} stats, IPL ${selectedYear} season`}
+        url={`https://crickrida.rkjat.in/seasons/${selectedYear}`}
+      />
 
       {/* ── CINEMATIC HEADER ──────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">

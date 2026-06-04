@@ -120,7 +120,26 @@ export default function Matches() {
 
   return (
     <div className="space-y-12 pb-24 max-w-7xl mx-auto">
-      <SEO title="Match Archive - IPL Analytics Hub" description="Complete historical records of every IPL match. Filter by season and participating teams." />
+      <SEO
+        title="IPL Match Archive — All Results & Scorecards | Crickrida"
+        description="Complete archive of every IPL match from 2008 to 2026 — match results, scorecards, winning margins, and team-wise filters. Browse over 1000 IPL matches."
+        keywords="IPL match results, IPL scorecards, IPL match history, IPL 2026 results, IPL fixtures, cricket match archive"
+        url="https://crickrida.rkjat.in/matches"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Match Archive",
+          "description": "Complete archive of every IPL match from 2008 to 2026 with results, scorecards, and winning margins.",
+          "url": "https://crickrida.rkjat.in/matches",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Matches", "item": "https://crickrida.rkjat.in/matches" }
+            ]
+          }
+        }}
+      />
 
       {/* ── HEADER & FILTERS ─────────────────────────────────── */}
       <section className="space-y-10">

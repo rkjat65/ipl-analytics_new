@@ -172,7 +172,20 @@ export default function PlayerProfile() {
 
   return (
     <div className="space-y-12 pb-24">
-      <SEO title={`${decodedName} - Athlete Hub`} />
+      <SEO
+        title={`${decodedName} IPL Stats — Career Batting & Bowling Records | Crickrida`}
+        description={`Full IPL career statistics for ${decodedName} — runs scored, batting average, strike rate, wickets taken, economy rate, and season-by-season performance across all IPL editions.`}
+        keywords={`${decodedName} IPL stats, ${decodedName} cricket, ${decodedName} batting average, ${decodedName} IPL career, IPL player stats`}
+        url={`https://crickrida.rkjat.in/players/${encodeURIComponent(decodedName)}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": decodedName,
+          "description": `IPL cricket player profile for ${decodedName} with complete career statistics across all IPL seasons.`,
+          "url": `https://crickrida.rkjat.in/players/${encodeURIComponent(decodedName)}`,
+          "sport": "Cricket"
+        }}
+      />
 
       {/* ── CINEMATIC PLAYER HEADER ───────────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">

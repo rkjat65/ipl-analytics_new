@@ -231,7 +231,26 @@ export default function HeadToHead() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-24">
-      <SEO title="Head to Head - Team & Player Rivalry Analytics" />
+      <SEO
+        title="IPL Head to Head — Team & Player Rivalry Records | Crickrida"
+        description="Compare any two IPL teams or players head-to-head. Historical rivalry records, win percentages, head-to-head scores, and player matchup statistics across all IPL seasons."
+        keywords="IPL head to head, IPL team rivalry, CSK vs MI, RCB vs KKR, IPL player comparison, IPL h2h stats"
+        url="https://crickrida.rkjat.in/h2h"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Head-to-Head Rivalry Analytics",
+          "description": "Historical head-to-head records for IPL team rivalries and player matchups across all seasons.",
+          "url": "https://crickrida.rkjat.in/h2h",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Head to Head", "item": "https://crickrida.rkjat.in/h2h" }
+            ]
+          }
+        }}
+      />
 
       {/* SUB-NAVIGATION TOGGLE */}
       <div className="flex border border-border-subtle bg-bg-card/40 backdrop-blur-md rounded-2xl p-1 max-w-[320px] mx-auto">

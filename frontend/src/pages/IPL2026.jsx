@@ -46,7 +46,23 @@ export default function IPL2026() {
 
   return (
     <div className="space-y-10 pb-24">
-      <SEO title="IPL 2026 Hub - Crickrida" />
+      <SEO
+        title="IPL 2026 — Live Points Table, Schedule & Results | Crickrida"
+        description="Complete IPL 2026 season hub — live points table, match schedule, results, batting and bowling leaderboards, and in-depth analytics for the current IPL season."
+        keywords="IPL 2026, IPL 2026 points table, IPL 2026 schedule, IPL 2026 results, IPL 2026 leaderboard, IPL 2026 playoffs, cricket 2026"
+        url="https://crickrida.rkjat.in/ipl-2026"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SportsEvent",
+          "name": "Indian Premier League 2026",
+          "alternateName": "IPL 2026",
+          "sport": "Cricket",
+          "description": "The 2026 season of the Indian Premier League, the premier Twenty20 cricket competition in India.",
+          "url": "https://crickrida.rkjat.in/ipl-2026",
+          "organizer": { "@type": "SportsOrganization", "name": "Board of Control for Cricket in India", "alternateName": "BCCI" },
+          "location": { "@type": "Country", "name": "India" }
+        }}
+      />
 
       {/* ── HERO BANNER ────────────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#07090F] p-8 md:p-12">

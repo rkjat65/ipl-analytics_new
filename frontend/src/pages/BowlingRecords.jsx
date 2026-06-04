@@ -223,7 +223,26 @@ export default function BowlingRecords() {
 
   return (
     <div className="space-y-12 pb-20">
-      <SEO title="Bowling Elite - Territory Masters" />
+      <SEO
+        title="IPL Bowling Records & Career Stats | Crickrida"
+        description="Complete IPL bowling statistics — most wickets, best economy rates, bowling averages, dot-ball percentages, and five-wicket hauls for every IPL bowler from 2008 to 2026."
+        keywords="IPL bowling records, IPL most wickets, IPL economy rate, IPL bowling average, Jasprit Bumrah IPL, IPL bowlers stats, best IPL bowler"
+        url="https://crickrida.rkjat.in/bowling"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Bowling Records & Career Stats",
+          "description": "Comprehensive IPL bowling statistics including most wickets, best economy rates, bowling averages and five-wicket hauls across all IPL seasons.",
+          "url": "https://crickrida.rkjat.in/bowling",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Bowling Records", "item": "https://crickrida.rkjat.in/bowling" }
+            ]
+          }
+        }}
+      />
 
       <PlayerCompare 
         players={comparePlayers} 

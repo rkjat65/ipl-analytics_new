@@ -99,7 +99,26 @@ export default function Venues() {
 
   return (
     <div className="space-y-12 pb-20">
-      <SEO title="Stadium Intel - Franchise Grounds" />
+      <SEO
+        title="IPL Venues & Ground Analytics | Crickrida"
+        description="Venue-by-venue IPL analytics — average first-innings scores, chase success rates, toss impact, and win/loss records for every IPL stadium including Wankhede, Eden Gardens, Chepauk, Chinnaswamy, and more."
+        keywords="IPL venues, IPL stadiums, Wankhede Stadium IPL, Eden Gardens IPL, Chepauk IPL, cricket ground stats, IPL venue analysis"
+        url="https://crickrida.rkjat.in/venues"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Venues & Stadium Analytics",
+          "description": "Ground-by-ground IPL analytics including average scores, chase success rates, and toss impact for every IPL venue.",
+          "url": "https://crickrida.rkjat.in/venues",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Venues", "item": "https://crickrida.rkjat.in/venues" }
+            ]
+          }
+        }}
+      />
 
       {/* ── HEADER ────────────────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">

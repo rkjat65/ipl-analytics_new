@@ -120,7 +120,26 @@ export default function Teams() {
 
   return (
     <div className="space-y-16 pb-24">
-      <SEO title="Franchise Intelligence Hub" />
+      <SEO
+        title="IPL Teams & Franchise Stats | Crickrida"
+        description="Complete IPL franchise analytics — win/loss records, season-by-season performance, points tables, and historical data for all 10 IPL teams including CSK, MI, RCB, KKR, SRH, RR, DC, PBKS, LSG, and GT."
+        keywords="IPL teams, CSK stats, Mumbai Indians, Royal Challengers Bengaluru, KKR, Sunrisers Hyderabad, IPL franchise records, IPL team history"
+        url="https://crickrida.rkjat.in/teams"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Teams & Franchise Analytics",
+          "description": "Complete IPL team analytics with win/loss records, season performances, and historical data for all 10 IPL franchises.",
+          "url": "https://crickrida.rkjat.in/teams",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Teams", "item": "https://crickrida.rkjat.in/teams" }
+            ]
+          }
+        }}
+      />
 
       {/* ── BROADCAST HEADER ─────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-12 md:p-20">

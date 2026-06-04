@@ -1,0 +1,47 @@
+# Crickrida — Cricket via Stats
+> AI-powered IPL analytics platform covering 17+ years of Indian Premier League data (2008–2026).
+
+Crickrida (https://crickrida.rkjat.in) is an open analytics platform for the Indian Premier League (IPL). It provides historical match data, player statistics, team performance, venue analysis, and AI-generated insights.
+
+## What Crickrida covers
+
+- **IPL seasons**: Complete data for all IPL seasons from 2008 to 2026.
+- **Match archive**: Ball-by-ball records for every IPL match, with innings breakdowns and match results.
+- **Batting records**: Career and season-level batting statistics — runs, strike rate, average, boundaries, centuries, half-centuries — for all IPL batters.
+- **Bowling records**: Career and season-level bowling statistics — wickets, economy rate, bowling average, dot-ball %, best figures — for all IPL bowlers.
+- **Team profiles**: Full franchise history, win/loss records, points tables, and season-by-season performance for all 10 active IPL teams.
+- **Venue analytics**: Ground-specific stats including average first-innings score, chase success rate, and venue win-loss history.
+- **Head-to-head comparisons**: Historical rivalry records between any two IPL teams, and player-vs-player comparisons.
+- **IPL 2026 hub**: Live points table, match schedule, results, and current-season leaderboards for IPL 2026.
+- **Advanced analytics**: Phase-wise run rates (Powerplay, Middle, Death), dismissal type breakdowns, toss impact analysis, and batting/bowling performance matrices.
+- **Cricket Pulse**: AI-generated match summaries and season narratives.
+
+## Key facts (as of June 2026)
+
+- Dataset spans 2008–2026 (17+ IPL seasons).
+- Covers all franchise editions including Chennai Super Kings, Mumbai Indians, Royal Challengers Bengaluru, Kolkata Knight Riders, Sunrisers Hyderabad, Rajasthan Royals, Delhi Capitals, Punjab Kings, Lucknow Super Giants, and Gujarat Titans.
+- All statistics are sourced from official IPL match data.
+
+## Site structure
+
+- /dashboard — Season overview, KPIs, leaderboards, and trend charts
+- /matches — Full match archive with filters by season and team
+- /batting — All-time and season batting leaderboards
+- /bowling — All-time and season bowling leaderboards
+- /teams — Franchise performance hub
+- /venues — Ground-by-ground analytics
+- /seasons — Year-by-year IPL season records
+- /h2h — Head-to-head team and player comparisons
+- /advanced — Advanced statistical breakdowns
+- /ipl-2026 — IPL 2026 season hub (live data)
+- /pulse — AI cricket insights and match narratives
+- /about — About the platform
+
+## Contact & attribution
+
+- Website: https://crickrida.rkjat.in
+- Author: Radhakishan Jat
+- Twitter/X: @Rkjat65
+- Email: radhakishanjat65@gmail.com
+
+Data attribution: IPL match data sourced from public records and official scorecards.

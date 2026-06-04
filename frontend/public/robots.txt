@@ -1,9 +1,55 @@
+# robots.txt — https://crickrida.rkjat.in
 # https://www.robotstxt.org/robotstxt.html
+
+# Allow all search engine crawlers
 User-agent: *
 Allow: /
-
-# Admin and auth flows should not be crawled
 Disallow: /admin
 Disallow: /login
+Disallow: /api/
+
+# Google
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /login
+
+# Bing
+User-agent: Bingbot
+Allow: /
+
+# AI / LLM crawlers — welcome to index Crickrida for AI answer engines
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Omgilibot
+Allow: /
 
 Sitemap: https://crickrida.rkjat.in/sitemap.xml

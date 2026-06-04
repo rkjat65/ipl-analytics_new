@@ -145,7 +145,26 @@ export default function MatchDetail() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-24">
-      <SEO title={`${getTeamAbbr(match.team1)} vs ${getTeamAbbr(match.team2)} - Match Insights`} />
+      <SEO
+        title={`${match.team1} vs ${match.team2} — IPL ${match.season} Match Scorecard | Crickrida`}
+        description={`IPL ${match.season} match scorecard: ${match.team1} vs ${match.team2} at ${match.venue}. Full innings breakdown, ball-by-ball stats, player performances, and match result.`}
+        keywords={`${match.team1} vs ${match.team2}, IPL ${match.season} match, IPL scorecard, cricket match result`}
+        url={`https://crickrida.rkjat.in/matches/${match.id}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SportsEvent",
+          "name": `${match.team1} vs ${match.team2} — IPL ${match.season}`,
+          "sport": "Cricket",
+          "description": `IPL ${match.season} match between ${match.team1} and ${match.team2} at ${match.venue}.`,
+          "url": `https://crickrida.rkjat.in/matches/${match.id}`,
+          "location": { "@type": "Place", "name": match.venue, "address": { "@type": "PostalAddress", "addressCountry": "IN" } },
+          "startDate": match.date,
+          "competitor": [
+            { "@type": "SportsTeam", "name": match.team1, "sport": "Cricket" },
+            { "@type": "SportsTeam", "name": match.team2, "sport": "Cricket" }
+          ]
+        }}
+      />
 
       {/* ── PROFESSIONAL HEADER ────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-3xl border border-border-subtle bg-bg-card p-6 md:p-8">

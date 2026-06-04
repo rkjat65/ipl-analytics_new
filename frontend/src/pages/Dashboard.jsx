@@ -774,8 +774,28 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <SEO
-        title="Dashboard"
-        description="Crickrida — Cricket analytics dashboard with real-time stats, batting and bowling leaderboards, match results, and season trends."
+        title="IPL Cricket Analytics Dashboard | Crickrida"
+        description="Explore IPL cricket stats across 17+ seasons. Live points table, batting & bowling leaderboards, match results, phase analysis, and season trends — all in one dashboard."
+        keywords="IPL analytics, IPL stats, cricket dashboard, IPL leaderboard, IPL 2026, batting records, bowling records, cricket statistics India"
+        url="https://crickrida.rkjat.in/dashboard"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "IPL Cricket Analytics Dashboard",
+          "description": "Comprehensive IPL cricket analytics dashboard with batting and bowling leaderboards, match results, season trends, and phase-wise statistics across 17+ IPL seasons.",
+          "url": "https://crickrida.rkjat.in/dashboard",
+          "isPartOf": { "@type": "WebSite", "url": "https://crickrida.rkjat.in" },
+          "about": {
+            "@type": "SportsOrganization",
+            "name": "Indian Premier League",
+            "alternateName": "IPL",
+            "sport": "Cricket"
+          },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [{ "@type": "ListItem", "position": 1, "name": "Dashboard", "item": "https://crickrida.rkjat.in/dashboard" }]
+          }
+        }}
       />
       <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(0,229,255,0.18),transparent_0%,transparent_38%),radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_0%,transparent_36%),linear-gradient(135deg,#0B0E16_0%,#101726_42%,#130F1D_100%)] p-5 sm:p-6 lg:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.32)] animate-in">
         <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-accent-cyan/0 via-accent-cyan/50 to-accent-cyan/0" />

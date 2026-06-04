@@ -103,7 +103,20 @@ export default function TeamProfile() {
 
   return (
     <div className="space-y-16 pb-24">
-      <SEO title={`${decoded} - Franchise HQ`} />
+      <SEO
+        title={`${decoded} IPL Stats — Win/Loss Record & Season History | Crickrida`}
+        description={`Complete IPL statistics for ${decoded} — all-time win/loss record, season-by-season performance, top players, head-to-head results, and points table history.`}
+        keywords={`${decoded} IPL stats, ${decoded} win loss record, ${decoded} season history, ${decoded} cricket, IPL team stats`}
+        url={`https://crickrida.rkjat.in/teams/${encodeURIComponent(decoded)}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SportsTeam",
+          "name": decoded,
+          "sport": "Cricket",
+          "description": `IPL franchise profile for ${decoded} with complete historical statistics, win/loss records, and season-by-season performance.`,
+          "url": `https://crickrida.rkjat.in/teams/${encodeURIComponent(decoded)}`
+        }}
+      />
 
       {/* ── CINEMATIC FRANCHISE HEADER ───────────────────────── */}
       <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-20">

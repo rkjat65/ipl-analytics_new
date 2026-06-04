@@ -841,8 +841,24 @@ export default function AdvancedAnalytics() {
   return (
     <div className="min-h-screen bg-bg-primary">
       <SEO
-        title="Advanced Analytics - Form Index, Win Predictor"
-        description="Advanced IPL analytics with team form index, match win predictor, fantasy picks, and player impact analysis powered by statistical models."
+        title="Advanced IPL Analytics — Win Predictor, Form Index & Phase Stats | Crickrida"
+        description="Advanced IPL cricket analytics — team form index, match win probability, Powerplay vs Death over phase analysis, dismissal breakdowns, toss impact, and batting/bowling performance matrices."
+        keywords="IPL advanced analytics, IPL win predictor, IPL powerplay stats, IPL death overs, IPL toss impact, cricket statistical analysis, IPL form index"
+        url="https://crickrida.rkjat.in/advanced"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "Advanced IPL Analytics",
+          "description": "Deep statistical analysis of IPL cricket including phase-wise performance, win probability models, and dismissal pattern breakdowns.",
+          "url": "https://crickrida.rkjat.in/advanced",
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
+              { "@type": "ListItem", "position": 2, "name": "Advanced Analytics", "item": "https://crickrida.rkjat.in/advanced" }
+            ]
+          }
+        }}
       />
       {/* Page Header */}
       <div className="mb-8">
