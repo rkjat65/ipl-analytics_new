@@ -1,9 +1,9 @@
 // Shared styles and constants for card templates
 
 export const CARD_DIMENSIONS = {
-  twitter: { width: 1200, height: 800 },
+  twitter: { width: 1200, height: 675 },
   instagram: { width: 1080, height: 1080 },
-  linkedin: { width: 1200, height: 888 },
+  linkedin: { width: 1200, height: 628 },
   portrait: { width: 1080, height: 1920 },
 }
 
@@ -95,23 +95,11 @@ export function watermarkStyle() {
     position: 'absolute',
     bottom: '20px',
     right: '32px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
     fontFamily: FONTS.mono,
     fontSize: '18px',
     color: NEON_COLORS.textMuted,
     letterSpacing: '0.05em',
     zIndex: 10,
-  }
-}
-
-export function watermarkLogoStyle() {
-  return {
-    width: '22px',
-    height: '22px',
-    borderRadius: '4px',
-    opacity: 0.7,
   }
 }
 

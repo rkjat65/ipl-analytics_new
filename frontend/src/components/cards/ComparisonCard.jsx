@@ -1,4 +1,4 @@
-import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, watermarkLogoStyle, formatNumber, formatDecimal, CARD_DIMENSIONS, scaledSize, scaledFont } from './cardStyles'
+import { NEON_COLORS, FONTS, cardContainerStyle, dotGridBackground, watermarkStyle, formatNumber, formatDecimal, CARD_DIMENSIONS, scaledSize, scaledFont } from './cardStyles'
 import PlayerAvatar from '../ui/PlayerAvatar'
 
 function StatBar({ label, val1, val2, sf }) {
@@ -164,7 +164,7 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
             /* Mixed type: side-by-side stat panels */
             <div style={{ display: 'flex', flexDirection: dimensions.height > dimensions.width ? 'column' : 'row', gap: '32px' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: FONTS.mono, fontSize: '18px', color: '#00E5FF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 600 }}>
+                <div style={{ fontFamily: FONTS.mono, fontSize: '14px', color: '#00E5FF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 600 }}>
                   {p1Type}
                 </div>
                 <div style={{ fontFamily: FONTS.mono, fontSize: '36px', fontWeight: 700, color: '#00E5FF', marginBottom: '16px' }}>
@@ -172,7 +172,7 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
                   <span style={{ fontSize: '15px', color: '#F0F0F5', marginLeft: '8px', opacity: 0.6 }}>{p1Rows.primary.label}</span>
                 </div>
                 {p1Rows.rows.map(r => (
-                  <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `6px solid ${NEON_COLORS.border}` }}>
+                  <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${NEON_COLORS.border}` }}>
                     <span style={{ fontFamily: FONTS.mono, fontSize: '15px', color: '#F0F0F5', opacity: 0.7 }}>{r.label}</span>
                     <span style={{ fontFamily: FONTS.mono, fontSize: '20px', fontWeight: 700, color: '#F0F0F5' }}>{r.value}</span>
                   </div>
@@ -199,7 +199,7 @@ export default function ComparisonCard({ player1 = {}, player2 = {}, metric = 'b
         </div>
       </div>
 
-      <div style={watermarkStyle()}><img src="/logo.png" alt="" style={watermarkLogoStyle()} />crickrida.rkjat.in</div>
+      <div style={watermarkStyle()}>@Crickrida &bull; Cricket via Stats</div>
     </div>
   )
 }

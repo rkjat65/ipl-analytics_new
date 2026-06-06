@@ -1,80 +1,18 @@
 import { useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import SEO from '../components/SEO'
 import { useFetch } from '../hooks/useFetch'
 import { getMatches, getSeasons, getTeams } from '../lib/api'
 import Loading from '../components/ui/Loading'
+import Badge from '../components/ui/Badge'
 import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
-import Select from '../components/ui/Select'
 import { formatDate, getMatchResult } from '../utils/format'
-import { getTeamAbbr } from '../constants/teams'
-import PlayerAvatar from '../components/ui/PlayerAvatar'
-import TeamLogo from '../components/ui/TeamLogo'
+import { getTeamColor, getTeamAbbr } from '../constants/teams'
 
-const PAGE_SIZE = 24
-
-/* ── Match Card Component ───────────────────────────── */
-function MatchCard({ match, index }) {
-  const navigate = useNavigate()
-  const result = getMatchResult(match)
-  const isTeam1Winner = match.winner === match.team1
-  const isTeam2Winner = match.winner === match.team2
-  
-  return (
-    <div 
-      onClick={() => navigate(`/matches/${match.match_id}`)}
-      className="group relative overflow-hidden rounded-2xl border border-border-subtle bg-bg-card p-6 cursor-pointer transition-all duration-300 hover:border-accent-cyan/40 hover:bg-bg-card-hover hover:-translate-y-1 shadow-lg"
-      style={{ animationDelay: `${index * 20}ms` }}
-    >
-      <div className="relative z-10 flex flex-col h-full space-y-6">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">{formatDate(match.date)}</span>
-          <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md bg-bg-elevated border border-border-subtle text-text-secondary">
-            {match.city || 'IPL'}
-          </span>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <TeamLogo team={match.team1} size={36} className="transition-transform group-hover:scale-110" />
-              <span className={`text-base font-black font-heading tracking-tight ${isTeam1Winner ? 'text-text-primary' : 'text-text-muted'}`}>
-                {getTeamAbbr(match.team1)}
-              </span>
-            </div>
-            {isTeam1Winner && <div className="w-1.5 h-1.5 rounded-full bg-accent-cyan shadow-glow-cyan" />}
-          </div>
-
-          <div className="relative flex items-center justify-center py-1 opacity-20">
-            <div className="absolute inset-x-0 h-px bg-text-muted/20" />
-            <span className="relative z-10 px-3 bg-bg-card text-[9px] font-black text-text-muted italic">VS</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <TeamLogo team={match.team2} size={36} className="transition-transform group-hover:scale-110" />
-              <span className={`text-base font-black font-heading tracking-tight ${isTeam2Winner ? 'text-text-primary' : 'text-text-muted'}`}>
-                {getTeamAbbr(match.team2)}
-              </span>
-            </div>
-            {isTeam2Winner && <div className="w-1.5 h-1.5 rounded-full bg-accent-magenta shadow-glow-magenta" />}
-          </div>
-        </div>
-
-        <div className="mt-auto pt-6 border-t border-border-subtle flex items-center justify-between gap-4">
-          <p className="text-[11px] font-bold text-text-secondary line-clamp-2 leading-tight flex-1">
-            {result}
-          </p>
-          {match.player_of_match && (
-             <PlayerAvatar name={match.player_of_match} size={24} />
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+const PAGE_SIZE = 20
 
 export default function Matches() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const season = searchParams.get('season') || ''
   const team = searchParams.get('team') || ''
@@ -95,136 +33,181 @@ export default function Matches() {
 
   function updateParam(key, value) {
     const params = new URLSearchParams(searchParams)
-    if (value) params.set(key, value)
-    else params.delete(key)
-    if (key !== 'page') params.delete('page')
+    if (value) {
+      params.set(key, value)
+    } else {
+      params.delete(key)
+    }
+    // Reset to page 1 when filters change
+    if (key !== 'page') {
+      params.delete('page')
+    }
     setSearchParams(params)
   }
 
+  const seasonOptions = (seasons || []).map((s) => ({ value: s, label: s }))
+  const teamOptions = (teams || []).map((t) => ({ value: t, label: t }))
+
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-40 gap-6">
-        <div className="w-16 h-16 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center text-danger text-2xl font-black">!</div>
-        <div className="text-center">
-          <h2 className="text-2xl font-black font-heading text-text-primary uppercase tracking-tight">System Error</h2>
-          <p className="text-text-muted mt-2">Unable to connect to the match archive stream.</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-danger font-heading text-lg">Failed to load matches</p>
+        <p className="text-text-secondary text-sm">{error}</p>
       </div>
     )
   }
 
-  const teamOptions = [
-    { value: '', label: 'All Teams' },
-    ...(teams || []).map((t) => ({ value: t, label: t })),
-  ]
-
   return (
-    <div className="space-y-12 pb-24 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <SEO
-        title="IPL Match Archive — All Results & Scorecards | Crickrida"
-        description="Complete archive of every IPL match from 2008 to 2026 — match results, scorecards, winning margins, and team-wise filters. Browse over 1000 IPL matches."
-        keywords="IPL match results, IPL scorecards, IPL match history, IPL 2026 results, IPL fixtures, cricket match archive"
-        url="https://crickrida.rkjat.in/matches"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          "name": "IPL Match Archive",
-          "description": "Complete archive of every IPL match from 2008 to 2026 with results, scorecards, and winning margins.",
-          "url": "https://crickrida.rkjat.in/matches",
-          "breadcrumb": {
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
-              { "@type": "ListItem", "position": 2, "name": "Matches", "item": "https://crickrida.rkjat.in/matches" }
-            ]
-          }
-        }}
+        title="IPL Matches"
+        description="Browse all IPL matches with detailed scorecards, results, and match summaries. Filter by season and team."
       />
-
-      {/* ── HEADER & FILTERS ─────────────────────────────────── */}
-      <section className="space-y-10">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-           <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/20 bg-accent-cyan/5 px-4 py-1 text-[10px] font-black uppercase tracking-widest text-accent-cyan">
-                Match Archive Database
-              </span>
-              <h1 className="text-4xl md:text-6xl font-black font-heading text-text-primary tracking-tighter leading-none uppercase">
-                Match<br/><span className="text-text-muted">Center</span>
-              </h1>
-           </div>
-
-           <div className="flex flex-wrap items-center gap-6 bg-bg-card border border-border-subtle rounded-2xl p-6 shadow-xl relative">
-              <div className="flex flex-col gap-2">
-                 <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Season</label>
-                 <MultiSeasonSelect seasons={seasons || []} value={season} onChange={(val) => updateParam('season', val)} />
-              </div>
-              <div className="w-px h-10 bg-border-subtle mx-2 hidden sm:block" />
-              <div className="flex flex-col gap-2">
-                 <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Team Filter</label>
-                 <Select
-                    options={teamOptions}
-                    value={team}
-                    onChange={(val) => updateParam('team', val)}
-                    placeholder=""
-                    className="w-56 text-xs uppercase font-black tracking-wider"
-                 />
-              </div>
-           </div>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-heading font-bold text-text-primary">Matches</h1>
+          <p className="text-text-secondary text-sm mt-1">
+            {loading ? 'Loading...' : `${total.toLocaleString()} matches found`}
+          </p>
         </div>
-      </section>
+      </div>
 
-      {/* ── MATCH GRID ────────────────────────────────────────── */}
-      <section className="relative">
-        {loading ? (
-          <Loading message="Syncing match records..." />
-        ) : matches.length === 0 ? (
-          <div className="py-40 text-center bg-bg-card rounded-3xl border border-border-subtle border-dashed">
-             <p className="text-text-muted font-black uppercase tracking-widest">No match records found</p>
-             <button 
-               onClick={() => setSearchParams({})}
-               className="mt-6 px-8 py-3 bg-text-primary text-bg-primary font-black uppercase tracking-widest text-[10px] rounded-lg hover:opacity-90 transition-all"
-             >
-               Clear Filters
-             </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in">
-            {matches.map((m, idx) => (
-              <MatchCard key={m.match_id} match={m} index={idx} />
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm font-body">Season</label>
+          <MultiSeasonSelect
+            seasons={seasons || []}
+            value={season}
+            onChange={(val) => updateParam('season', val)}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm font-body">Team</label>
+          <select
+            value={team}
+            onChange={(e) => updateParam('team', e.target.value)}
+            className="bg-bg-card border border-border-subtle rounded-md px-3 py-2 text-sm text-text-primary font-body focus:outline-none focus:border-accent-cyan transition-colors appearance-none cursor-pointer pr-8"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888A0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+            }}
+          >
+            <option value="">All Teams</option>
+            {teamOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
-          </div>
-        )}
-      </section>
-
-      {/* ── PAGINATION ────────────────────────────────────────── */}
-      {totalPages > 1 && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 pt-12 border-t border-border-subtle">
-           <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">
-             Viewing <span className="text-text-primary">{offset + 1}—{Math.min(offset + PAGE_SIZE, total)}</span> of {total} records
-           </p>
-           <div className="flex items-center gap-4">
-              <button
-                onClick={() => updateParam('page', String(page - 1))}
-                disabled={page <= 1}
-                className="px-6 py-2 rounded-lg border border-border-subtle text-[10px] font-black uppercase tracking-widest disabled:opacity-20 hover:bg-bg-card-hover transition-all"
-              >
-                Prev
-              </button>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-elevated border border-border-subtle">
-                 <span className="text-[10px] font-black text-text-muted">PAGE</span>
-                 <span className="text-sm font-black text-text-primary font-mono">{page}</span>
-                 <span className="text-[10px] font-black text-text-muted">/</span>
-                 <span className="text-sm font-black text-text-secondary font-mono">{totalPages}</span>
-              </div>
-              <button
-                onClick={() => updateParam('page', String(page + 1))}
-                disabled={page >= totalPages}
-                className="px-6 py-2 rounded-lg border border-border-subtle text-[10px] font-black uppercase tracking-widest disabled:opacity-20 hover:bg-bg-card-hover transition-all"
-              >
-                Next
-              </button>
-           </div>
+          </select>
         </div>
+      </div>
+
+      {/* Match List */}
+      {loading ? (
+        <Loading message="Loading matches..." />
+      ) : matches.length === 0 ? (
+        <p className="text-text-muted text-sm py-12 text-center">No matches found for the selected filters.</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-lg border border-border-subtle">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-bg-elevated border-b border-border-subtle">
+                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap">Teams</th>
+                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap hidden md:table-cell">Venue</th>
+                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap">Result</th>
+                  <th className="px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wider text-left whitespace-nowrap hidden sm:table-cell">Player of Match</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matches.map((match, i) => (
+                  <tr
+                    key={match.match_id}
+                    onClick={() => navigate(`/matches/${match.match_id}`)}
+                    className={`border-b border-border-subtle transition-colors hover:bg-bg-card-hover cursor-pointer animate-row ${
+                      i % 2 === 1 ? 'bg-bg-card/50' : ''
+                    }`}
+                    style={{ animationDelay: `${i * 30}ms` }}
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Link to={`/matches/${match.match_id}`} className="text-text-secondary font-mono text-xs hover:text-text-primary">
+                        {formatDate(match.date)}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link to={`/matches/${match.match_id}`} className="hover:underline">
+                        <span className="font-heading font-semibold text-text-primary">
+                          <span
+                            className="inline-block w-1.5 h-1.5 rounded-full mr-1.5"
+                            style={{ backgroundColor: getTeamColor(match.team1) }}
+                          />
+                          {getTeamAbbr(match.team1)}
+                        </span>
+                        <span className="text-text-muted mx-2">vs</span>
+                        <span className="font-heading font-semibold text-text-primary">
+                          <span
+                            className="inline-block w-1.5 h-1.5 rounded-full mr-1.5"
+                            style={{ backgroundColor: getTeamColor(match.team2) }}
+                          />
+                          {getTeamAbbr(match.team2)}
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary text-xs hidden md:table-cell max-w-[200px] truncate">
+                      {match.venue}{match.city ? `, ${match.city}` : ''}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link to={`/matches/${match.match_id}`}>
+                        {match.winner ? (
+                          <Badge
+                            text={getMatchResult(match)}
+                            color={match.winner === match.team1 ? 'cyan' : 'magenta'}
+                          />
+                        ) : (
+                          <Badge text={getMatchResult(match)} color="muted" />
+                        )}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-accent-amber text-xs hidden sm:table-cell">
+                      {match.player_of_match || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-text-muted text-sm">
+                Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => updateParam('page', String(page - 1))}
+                  disabled={page <= 1}
+                  className="px-4 py-2 text-sm font-body rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-card-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Prev
+                </button>
+                <span className="text-text-secondary text-sm font-mono px-2">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => updateParam('page', String(page + 1))}
+                  disabled={page >= totalPages}
+                  className="px-4 py-2 text-sm font-body rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-card-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

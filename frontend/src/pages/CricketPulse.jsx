@@ -235,7 +235,7 @@ function ImageCreatorModal({ insight, onClose }) {
           {image && !generating && (
             <div className="space-y-4">
               <div className="rounded-xl overflow-hidden border border-border-subtle bg-bg-elevated">
-                <img src={image} alt="Cricket Pulse share card preview" className="w-full h-auto" />
+                <img src={image} alt="Generated card" className="w-full h-auto" />
               </div>
               <div className="flex gap-2">
                 <button onClick={handleDownload}
@@ -297,7 +297,7 @@ function SavedQueryCard({ item, onRestore, onDelete }) {
           <div className="flex gap-1.5 shrink-0">
             <button onClick={() => onRestore(item)}
               className="w-8 h-8 rounded-lg bg-accent-cyan/10 flex items-center justify-center text-accent-cyan hover:bg-accent-cyan/20 transition-all text-xs"
-              title="Copy question to clipboard & open Pulse feed">
+              title="Restore & view">
               ↩
             </button>
             <button onClick={() => onDelete(item.timestamp)}
@@ -741,10 +741,7 @@ export default function CricketPulse() {
   }
 
   const handleRestoreSaved = (item) => {
-    if (item?.question) {
-      navigator.clipboard.writeText(item.question).catch(() => {})
-    }
-    setActiveTab('feed')
+    setActiveTab('ask')
   }
 
   const TABS = [
@@ -758,12 +755,7 @@ export default function CricketPulse() {
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      <SEO
-        title="Cricket Pulse — AI-Generated IPL Insights & Match Narratives | Crickrida"
-        description="AI-powered cricket insights for IPL — auto-discovered match narratives, stat highlights, and analytics summaries. Get the stories behind the numbers for every IPL game."
-        keywords="IPL insights, cricket AI analysis, IPL match summary, cricket pulse, IPL statistics stories"
-        url="https://crickrida.rkjat.in/pulse"
-      />
+      <SEO title="Cricket Pulse — Social Growth Engine" description="Auto-discover tweet-worthy IPL insights, create branded cards, and grow your cricket data brand." />
 
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl mb-8 border border-border-subtle">
@@ -1014,9 +1006,11 @@ export default function CricketPulse() {
             <div className="text-center py-16 bg-bg-card border border-border-subtle rounded-2xl">
               <span className="text-5xl block mb-4 opacity-40">📌</span>
               <h3 className="text-lg font-heading font-bold text-text-primary mb-2">No Saved Queries Yet</h3>
-              <p className="text-text-secondary text-sm max-w-md mx-auto">
-                Bookmarked Ask Cricket answers you saved earlier will show here. New saves are not available while that experience is turned off.
-              </p>
+              <p className="text-text-secondary text-sm mb-4">{"Ask questions in the \"Ask Cricket\" tab and hit Save to bookmark them here"}</p>
+              <button onClick={() => setActiveTab('ask')}
+                className="px-5 py-2.5 rounded-xl bg-accent-cyan/15 text-accent-cyan text-sm font-heading font-semibold border border-accent-cyan/30 hover:bg-accent-cyan/25 transition-all">
+                🏏 Go to Ask Cricket
+              </button>
             </div>
           )}
 

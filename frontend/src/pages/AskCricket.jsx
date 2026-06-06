@@ -31,75 +31,6 @@ function saveChatHistory(userEmail, messages) {
 
 const COLORS = ['#00E5FF', '#FF2D78', '#B8FF00', '#FFB800', '#A78BFA', '#34D399', '#F87171', '#60A5FA', '#FBBF24', '#E879F9']
 
-// Assign a stable colour per unique label value
-function labelColor(label, palette = COLORS) {
-  if (!label) return palette[0]
-  let hash = 0
-  for (let i = 0; i < label.length; i++) hash = label.charCodeAt(i) + ((hash << 5) - hash)
-  return palette[Math.abs(hash) % palette.length]
-}
-
-/* ── Timeline Chart — one row per match, shows date + label card ── */
-function TimelineChart({ data, chartConfig }) {
-  const { dateKey, labelKey, allKeys = [] } = chartConfig
-  // Extra info columns (everything that isn't the date or label)
-  const extraKeys = allKeys.filter(k => k !== dateKey && k !== labelKey)
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex flex-col gap-2 py-2 min-w-[320px]">
-        {data.map((row, i) => {
-          const dateVal = row[dateKey] ? String(row[dateKey]).slice(0, 10) : '—'
-          const labelVal = labelKey ? String(row[labelKey] ?? '—') : null
-          const color = labelColor(labelVal)
-          return (
-            <div key={i} className="flex items-center gap-3 group">
-              {/* Match number */}
-              <span className="text-[10px] font-mono text-text-muted w-6 text-right shrink-0">
-                {i + 1}
-              </span>
-              {/* Date pill */}
-              <span className="text-[11px] font-mono text-text-muted bg-surface-dark/50 border border-border-subtle px-2 py-0.5 rounded shrink-0">
-                {dateVal}
-              </span>
-              {/* Colour bar */}
-              <div
-                className="h-7 rounded flex items-center px-3 transition-all"
-                style={{ background: color + '22', border: `1px solid ${color}55`, minWidth: 120, flex: 1 }}
-              >
-                <span className="text-xs font-bold truncate" style={{ color }}>
-                  {labelVal ?? '—'}
-                </span>
-              </div>
-              {/* Extra columns */}
-              {extraKeys.map(k => (
-                <span key={k} className="text-[11px] font-mono text-text-muted shrink-0">
-                  <span className="text-[9px] text-text-muted/50 mr-0.5">{k}:</span>
-                  {String(row[k] ?? '—')}
-                </span>
-              ))}
-            </div>
-          )
-        })}
-      </div>
-      {/* Legend: unique labels */}
-      {labelKey && (() => {
-        const unique = [...new Set(data.map(r => String(r[labelKey] ?? '')))]
-        return (
-          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border-subtle/30">
-            {unique.map(lbl => (
-              <span key={lbl} className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: labelColor(lbl) }} />
-                <span style={{ color: labelColor(lbl) }}>{lbl}</span>
-              </span>
-            ))}
-          </div>
-        )
-      })()}
-    </div>
-  )
-}
-
 function StatCard({ data }) {
   if (!data || data.length === 0) return null
   const row = data[0]
@@ -118,62 +49,20 @@ function StatCard({ data }) {
 }
 
 function DataTable({ data }) {
-  const [sortKey, setSortKey] = useState('')
-  const [sortDir, setSortDir] = useState('asc')
-
   if (!data || data.length === 0) return <p className="text-text-muted text-sm">No results</p>
   const cols = Object.keys(data[0])
-
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortKey) return 0
-    const av = a?.[sortKey]
-    const bv = b?.[sortKey]
-    if (av === bv) return 0
-    if (av === null || av === undefined) return 1
-    if (bv === null || bv === undefined) return -1
-    const left = typeof av === 'number' ? av : String(av).toLowerCase()
-    const right = typeof bv === 'number' ? bv : String(bv).toLowerCase()
-    return sortDir === 'asc' ? (left > right ? 1 : -1) : (left < right ? 1 : -1)
-  })
-
-  const toggleSort = (key) => {
-    if (sortKey === key) {
-      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-      return
-    }
-    setSortKey(key)
-    setSortDir('asc')
-  }
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm font-mono">
         <thead>
           <tr className="border-b border-border-subtle">
             {cols.map(c => (
-              <th
-                key={c}
-                onClick={() => toggleSort(c)}
-                className="text-left py-2 px-3 text-text-muted text-xs uppercase tracking-wider cursor-pointer select-none hover:text-text-primary"
-              >
-                <span className="inline-flex items-center gap-1">
-                  {c}
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={`w-3 h-3 transition-transform ${sortKey === c && sortDir === 'desc' ? 'rotate-180 opacity-100' : sortKey === c ? 'opacity-100' : 'opacity-35'}`}
-                  >
-                    <polyline points="18 15 12 9 6 15" />
-                  </svg>
-                </span>
-              </th>
+              <th key={c} className="text-left py-2 px-3 text-text-muted text-xs uppercase tracking-wider">{c}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {sortedData.map((row, i) => (
+          {data.map((row, i) => (
             <tr key={i} className="border-b border-border-subtle/50 hover:bg-bg-card-hover transition-colors">
               {cols.map(c => (
                 <td key={c} className="py-2 px-3 text-text-primary">
@@ -193,10 +82,6 @@ function AutoChart({ data, chartType, chartConfig }) {
 
   if (chartType === 'stat') {
     return <StatCard data={data} />
-  }
-
-  if (chartType === 'timeline') {
-    return <TimelineChart data={data} chartConfig={chartConfig} />
   }
 
   if (chartType === 'bar') {
@@ -669,7 +554,7 @@ export default function AskCricket() {
                     <p className="text-xs text-text-muted font-mono truncate">{"💬 \""}{msg.question}{"\""}</p>
                   )}
                   <div className="rounded-xl overflow-hidden border border-border-subtle bg-bg-elevated">
-                    <img src={msg.image} alt="AI-generated cricket answer image" className="w-full h-auto max-w-lg" />
+                    <img src={msg.image} alt="AI Generated" className="w-full h-auto max-w-lg" />
                   </div>
                   <div className="flex gap-2">
                     <button

@@ -1,72 +1,37 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { getBowlingLeaderboard, getBowlingMatrix, getSeasons, getTeams } from '../lib/api'
+import { getBowlingLeaderboard, getSeasons, getTeams } from '../lib/api'
 import SEO from '../components/SEO'
 import DataTable from '../components/ui/DataTable'
 import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
-import { formatNumber, formatDecimal } from '../utils/format'
+import MultiSeasonSelect from '../components/ui/MultiSeasonSelect'
+import { formatDecimal } from '../utils/format'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
-import PlayerNameCell from '../components/ui/PlayerNameCell'
-import {
-  AnimatedPresentationSection,
-  PresentationControls,
-  usePresentationDeck,
-} from '../components/ui/ChartPresentation'
-import LeaderboardShowcaseModal from '../components/ui/LeaderboardShowcaseModal'
-import PlayerCompare from '../components/ui/PlayerCompare'
 import { exportAsImage, downloadImage } from '../utils/exportCard'
 import {
-  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, ZAxis, ReferenceLine, ComposedChart, Line, Legend
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from 'recharts'
-import {
-  AnalyticsChartShell,
-  GlassTooltipSurface,
-  cartesianGridProps,
-  cartesianGridFull,
-  CHART_ANIMATION,
-  axisTickPrimary,
-  cursorBand,
-} from '../components/charts'
 
-/* ── Custom Tooltips ─────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
-  const playerName = payload?.[0]?.payload?.fullName || payload?.[0]?.payload?.player || null
   return (
-    <GlassTooltipSurface eyebrow={playerName ? 'Leaderboard row' : 'Metric'} title={!playerName ? label : undefined}>
-      {playerName ? (
-        <div className="mb-2">
-          <PlayerNameCell name={playerName} to={`/bowling/${encodeURIComponent(playerName)}`} size={28} />
-        </div>
-      ) : null}
+    <div className="bg-[#16161F] border border-[#2A2A3A] rounded-lg px-3 py-2 shadow-lg">
+      <p className="text-[#8888A0] text-xs mb-1 font-mono">{label}</p>
       {payload.map((entry, i) => (
-        <p key={i} className="text-sm font-black flex items-center gap-2" style={{ color: entry.color || '#E8E8ED' }}>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-          {entry.name}: <span className="font-mono">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
+        <p key={i} className="text-xs" style={{ color: entry.color || '#E8E8ED' }}>
+          {entry.name}: <span className="font-mono font-semibold">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
       ))}
-    </GlassTooltipSurface>
-  )
-}
-
-function MatrixTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const player = payload[0]?.payload
-  return (
-    <GlassTooltipSurface eyebrow="Control profile" className="max-w-[280px]">
-      <div className="mb-3">
-        <PlayerNameCell name={player?.player} to={player?.player ? `/bowling/${encodeURIComponent(player.player)}` : undefined} size={32} />
-      </div>
-      <div className="space-y-1">
-        <p className="text-xs font-black text-accent-magenta uppercase flex justify-between">Wickets <span className="font-mono">{formatNumber(player?.wickets)}</span></p>
-        <p className="text-xs font-black text-accent-cyan uppercase flex justify-between">Avg <span className="font-mono">{formatDecimal(player?.avg)}</span></p>
-        <p className="text-xs font-black text-accent-amber uppercase flex justify-between">Econ <span className="font-mono">{formatDecimal(player?.economy)}</span></p>
-      </div>
-      <p className="text-[10px] font-bold text-text-muted mt-3 uppercase tracking-widest">{player?.innings} innings &bull; {player?.matches} matches</p>
-    </GlassTooltipSurface>
+    </div>
   )
 }
 
@@ -74,30 +39,23 @@ const SORT_OPTIONS = [
   { value: 'wickets', label: 'Wickets' },
   { value: 'avg', label: 'Average' },
   { value: 'economy', label: 'Economy' },
-  { value: 'ter', label: 'True Econ (TER)' },
   { value: 'sr', label: 'Strike Rate' },
   { value: 'five_wickets', label: '5W Hauls' },
   { value: 'four_wickets', label: '4W Hauls' },
   { value: 'matches', label: 'Matches' },
 ]
 
-const BAR_COLORS = ['#FF2D78', '#8B5CF6', '#00E5FF', '#FFB800', '#B8FF00', '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399']
+const BAR_COLORS = [
+  '#FF2D78', '#8B5CF6', '#00E5FF', '#FFB800', '#B8FF00',
+  '#EF4444', '#22D3EE', '#F472B6', '#A78BFA', '#34D399',
+  '#FB923C', '#FBBF24', '#60A5FA', '#E879F9', '#22C55E',
+]
 
-function HeroStat({ label, value, accent = 'cyan', meta = '' }) {
-  const accentColor = {
-    cyan: '#00E5FF',
-    lime: '#B8FF00',
-    amber: '#FFB800',
-    magenta: '#FF2D78',
-  }[accent] || '#00E5FF'
-
-  return (
-    <div className="rounded-[24px] border border-white/5 bg-[#0B0E16] px-6 py-5 group transition-all hover:border-white/10">
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-text-muted mb-2">{label}</p>
-      <p className="text-3xl font-black font-heading tracking-tighter" style={{ color: accentColor }}>{value}</p>
-      {meta && <p className="mt-2 text-[10px] font-black text-white/30 uppercase tracking-widest">{meta}</p>}
-    </div>
-  )
+const rankAccent = (rank) => {
+  if (rank === 1) return 'bg-amber-500/10 border-l-2 border-l-amber-400'
+  if (rank === 2) return 'bg-gray-400/5 border-l-2 border-l-gray-400'
+  if (rank === 3) return 'bg-amber-700/10 border-l-2 border-l-amber-700'
+  return ''
 }
 
 export default function BowlingRecords() {
@@ -106,11 +64,7 @@ export default function BowlingRecords() {
   const [team, setTeam] = useState('')
   const [sortBy, setSortBy] = useState('wickets')
   const [minBalls, setMinBalls] = useState(0)
-  const [showGlossary, setShowGlossary] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const [showcaseOpen, setShowcaseOpen] = useState(false)
-  const [comparePlayers, setComparePlayers] = useState([])
-  const deck = usePresentationDeck(3, { autoStart: true, baseDelay: 900 })
 
   const handleDownloadChart = useCallback(async () => {
     if (!chartRef.current) return
@@ -130,12 +84,7 @@ export default function BowlingRecords() {
     [season, team, sortBy, minBalls]
   )
 
-  const { data: bowlingMatrix, loading: matrixLoading } = useFetch(
-    () => getBowlingMatrix(season, season ? 8 : 16, team),
-    [season, team]
-  )
-
-  const seasonOptions = [{ value: '', label: 'All Eras' }, ...(seasons || []).map((s) => ({ value: s, label: s }))]
+  const seasonOptions = [{ value: '', label: 'All Seasons' }, ...(seasons || []).map((s) => ({ value: s, label: s }))]
   const teamOptions = [{ value: '', label: 'All Teams' }, ...(teams || []).map((t) => ({ value: t, label: t }))]
 
   const columns = [
@@ -143,322 +92,170 @@ export default function BowlingRecords() {
       key: 'rank',
       label: '#',
       align: 'center',
-      render: (val) => <span className="font-mono font-black text-white/20 italic">{val}</span>,
+      render: (val) => {
+        const badges = { 1: 'text-amber-400', 2: 'text-gray-400', 3: 'text-amber-700' }
+        return <span className={`font-mono font-bold ${badges[val] || 'text-text-muted'}`}>{val}</span>
+      },
     },
     {
       key: 'player',
       label: 'Player',
-      render: (val) => <PlayerNameCell name={val} to={`/bowling/${encodeURIComponent(val)}`} size={32} />,
+      render: (val) => (
+        <Link to={`/bowling/${encodeURIComponent(val)}`} className="flex items-center gap-2 text-accent-cyan hover:underline font-medium">
+          <PlayerAvatar name={val} size={28} showBorder={false} />
+          {val}
+        </Link>
+      ),
     },
-    { key: 'matches', label: 'Mat', align: 'right', tooltip: 'Total matches played', render: (val) => <span className="font-mono font-bold text-text-muted">{val}</span> },
+    { key: 'matches', label: 'Mat', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
+    { key: 'innings', label: 'Inn', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
+    { key: 'overs', label: 'Overs', align: 'right', render: (val) => <span className="font-mono">{formatDecimal(val, 1)}</span> },
     {
       key: 'wickets',
       label: 'Wkts',
       align: 'right',
-      tooltip: 'Total career wickets taken',
-      render: (val) => <span className="font-mono font-black text-accent-magenta text-base">{val}</span>,
+      render: (val) => <span className="font-mono font-semibold text-accent-magenta">{val}</span>,
     },
-    { key: 'avg', label: 'Avg', align: 'right', tooltip: 'Bowling Average: Runs conceded per wicket taken (runs / wickets)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    { key: 'economy', label: 'Econ', align: 'right', tooltip: 'Economy Rate: Average runs conceded per over (runs / balls * 6)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    {
-      key: 'ter',
-      label: 'TER',
-      align: 'right',
-      tooltip: "True Economy Rate: Player's economy rate compared to the average economy rate in the matches and phases they bowled in. Negative is better (conceding fewer runs).",
-      render: (val) => {
-        const num = parseFloat(val) || 0
-        const colorClass = num <= 0 ? 'text-[#00E5FF] font-black' : 'text-[#FF2D78] opacity-80'
-        return <span className={`font-mono ${colorClass}`}>{num <= 0 ? formatDecimal(num) : `+${formatDecimal(num)}`}</span>
-      }
-    },
-    { key: 'sr', label: 'SR', align: 'right', tooltip: 'Bowling Strike Rate: Average balls bowled per wicket taken (balls / wickets)', render: (val) => <span className="font-mono font-bold">{formatDecimal(val)}</span> },
-    {
-      key: 'compare',
-      label: 'Intel',
-      align: 'center',
-      render: (_, row) => {
-        const isSelected = comparePlayers.some(p => p.player === row.player)
-        return (
-          <button
-            onClick={() => {
-              if (isSelected) setComparePlayers(prev => prev.filter(p => p.player !== row.player))
-              else if (comparePlayers.length < 3) setComparePlayers(prev => [...prev, row])
-            }}
-            className={`w-10 h-10 rounded-xl border transition-all flex items-center justify-center ${
-              isSelected 
-                ? 'bg-accent-magenta border-accent-magenta text-white shadow-lg' 
-                : 'border-white/5 bg-white/5 text-text-muted hover:border-accent-magenta hover:text-white'
-            }`}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-5 h-5">
-              {isSelected ? <path d="M5 13l4 4L19 7" /> : <path d="M12 4v16m8-8H4" />}
-            </svg>
-          </button>
-        )
-      }
-    }
+    { key: 'avg', label: 'Avg', align: 'right', render: (val) => <span className="font-mono">{formatDecimal(val)}</span> },
+    { key: 'economy', label: 'Econ', align: 'right', render: (val) => <span className="font-mono">{formatDecimal(val)}</span> },
+    { key: 'sr', label: 'SR', align: 'right', render: (val) => <span className="font-mono">{formatDecimal(val)}</span> },
+    { key: 'best_figures', label: 'BBI', align: 'right', render: (val) => <span className="font-mono">{val || '-'}</span> },
+    { key: 'four_w', label: '4W', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
+    { key: 'five_w', label: '5W', align: 'right', render: (val) => <span className="font-mono">{val}</span> },
   ]
 
-  const dataWithRank = (Array.isArray(bowlers) ? bowlers : []).map((b, i) => ({ ...b, rank: i + 1 }))
-  const leader = dataWithRank[0] || null
-  const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy
+  const dataWithRank = (Array.isArray(bowlers) ? bowlers : []).map((b, i) => ({
+    ...b,
+    rank: i + 1,
+    _rowClass: rankAccent(i + 1),
+  }))
 
-  const getMetricValue = (entry) => {
-    if (sortBy === 'five_wickets') return entry?.five_w ?? entry?.five_wickets ?? 0
-    if (sortBy === 'four_wickets') return entry?.four_w ?? entry?.four_wickets ?? 0
-    const val = entry?.[sortBy] ?? 0
-    if (['avg', 'economy', 'sr', 'ter'].includes(sortBy)) {
-      return -parseFloat(val)
-    }
-    return val
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-danger font-heading text-lg">Failed to load bowling records</p>
+        <p className="text-text-secondary text-sm">{error}</p>
+      </div>
+    )
   }
 
-  const barInsight = useMemo(() => {
-    if (!leader) return null
-    const v = getMetricValue(leader)
-    const formatted =
-      typeof v === 'number' && ['avg', 'economy', 'sr'].includes(sortBy) ? formatDecimal(v) : formatNumber(v)
-    return `${leader.player} is the benchmark on ${sortLabel} (${formatted}). Use the tail of the bars to judge squad depth.`
-  }, [leader, sortBy])
-
   return (
-    <div className="space-y-12 pb-20">
+    <div className="space-y-6">
       <SEO
-        title="IPL Bowling Records & Career Stats | Crickrida"
-        description="Complete IPL bowling statistics — most wickets, best economy rates, bowling averages, dot-ball percentages, and five-wicket hauls for every IPL bowler from 2008 to 2026."
-        keywords="IPL bowling records, IPL most wickets, IPL economy rate, IPL bowling average, Jasprit Bumrah IPL, IPL bowlers stats, best IPL bowler"
-        url="https://crickrida.rkjat.in/bowling"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          "name": "IPL Bowling Records & Career Stats",
-          "description": "Comprehensive IPL bowling statistics including most wickets, best economy rates, bowling averages and five-wicket hauls across all IPL seasons.",
-          "url": "https://crickrida.rkjat.in/bowling",
-          "breadcrumb": {
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://crickrida.rkjat.in/dashboard" },
-              { "@type": "ListItem", "position": 2, "name": "Bowling Records", "item": "https://crickrida.rkjat.in/bowling" }
-            ]
-          }
-        }}
+        title="Bowling Records & Leaderboard"
+        description="IPL bowling records and leaderboard. Top wicket-takers, best economy rates, bowling averages, and bowling figures across all IPL seasons."
       />
-
-      <PlayerCompare 
-        players={comparePlayers} 
-        onRemove={(name) => setComparePlayers(prev => prev.filter(p => p.player !== name))} 
-        mode="bowling"
-      />
-
-      {/* ── CINEMATIC HEADER ──────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#0B0E16] p-10 md:p-16">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,45,120,0.08),transparent_40%)]" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-12">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-accent-magenta/25 bg-accent-magenta/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-accent-magenta mb-6">
-              Territory Control
-            </span>
-            <h1 className="text-5xl md:text-7xl font-black font-heading text-text-primary tracking-tighter leading-none mb-6">
-              Bowling <br /> Strongholds
-            </h1>
-            <p className="text-lg text-text-secondary leading-relaxed max-w-lg">
-              Deconstruct the lethal impact of every IPL bowler. From wicket-taking clusters to game-defining economy discipline.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 w-full lg:w-72">
-            <HeroStat label="Leader" value={leader ? leader.wickets : '—'} accent="magenta" meta={leader ? leader.player : 'Wickets Leader'} />
-            <HeroStat label="Econ" value={leader ? formatDecimal(leader.economy) : '—'} accent="amber" meta="Control Benchmark" />
-            <HeroStat label="Strike Rate" value={leader ? formatDecimal(leader.sr) : '—'} accent="cyan" meta="Lethality Index" />
-          </div>
-        </div>
-      </section>
-
-      {/* ── FAN GLOSSARY BANNER ──────────────────────────────────── */}
-      <section className="bg-white/[0.02] rounded-[32px] border border-white/5 p-6 backdrop-blur-md relative overflow-hidden transition-all duration-300">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent-cyan/10 text-accent-cyan">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4.5 h-4.5">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4M12 8h.01" />
-              </svg>
-            </span>
-            <div>
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">Understanding Bowling Analytics</h3>
-              <p className="text-xs text-text-muted">New to advanced cricket stats? Expand this guide to learn how we evaluate bowlers.</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowGlossary(!showGlossary)}
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-text-secondary hover:border-accent-cyan hover:text-white transition-all flex items-center gap-1"
-          >
-            {showGlossary ? 'Hide Guide' : 'Explain Stats'}
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              className={`w-3.5 h-3.5 transition-transform duration-300 ${showGlossary ? 'rotate-180' : ''}`}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-        </div>
-
-        {showGlossary && (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-white/5 animate-fadeIn">
-            <div className="space-y-2">
-              <h4 className="text-xs font-black text-accent-cyan uppercase tracking-widest">True Economy Rate (TER)</h4>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                TER measures how many runs a bowler concedes per over compared to the average runs conceded by other bowlers in the same matches and phases.
-              </p>
-              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-                <strong>Example:</strong> If a bowler's TER is <span className="text-accent-cyan font-bold">-0.8</span>, it means they concede 0.8 runs fewer per over than average, showing excellent control and pressure.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-xs font-black text-accent-magenta uppercase tracking-widest">Bowling Average (Avg)</h4>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                Runs conceded divided by wickets taken. Represents the run-cost per wicket. Lower average is better.
-              </p>
-              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-                <strong>Rule of thumb:</strong> An average under 24 is considered excellent in T20, indicating they take wickets without bleeding too many runs.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-xs font-black text-accent-amber uppercase tracking-widest">Economy Rate (Econ)</h4>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                The average runs conceded per over bowled. Represents a bowler's ability to restrict scoring. Lower is better.
-              </p>
-              <p className="text-[10px] text-text-muted italic bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-                <strong>Rule of thumb:</strong> An economy under 7.5 is very good. Under 6.5 is elite, typically belonging to world-class spin squeezers or death overs masters.
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── COMMAND CENTER FILTERS ───────────────────────────── */}
-      <section className="bg-[#0B0E16] rounded-[32px] border border-white/5 p-6 md:p-8 flex flex-wrap items-center gap-6 shadow-2xl">
-        <div className="space-y-2">
-           <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Era</label>
-           <Select options={seasonOptions} value={season} onChange={setSeason} />
-        </div>
-        <div className="space-y-2">
-           <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Franchise</label>
-           <Select options={teamOptions} value={team} onChange={setTeam} />
-        </div>
-        <div className="space-y-2">
-           <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Metric</label>
-           <Select options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
-        </div>
-        <div className="space-y-2">
-           <label className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Threshold (Balls)</label>
-           <Select
-             options={[
-               { value: 0, label: 'No Limit' },
-               { value: 50, label: '50+' },
-               { value: 200, label: '200+' },
-               { value: 500, label: '500+' },
-               { value: 1000, label: '1k+' },
-             ]}
-             value={minBalls}
-             onChange={(v) => setMinBalls(Number(v))}
-           />
-        </div>
-      </section>
-
-      <PresentationControls deck={deck} title="Leaderboard Playback" />
-
-      {/* ── VISUAL ANALYTICS ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         {/* Top 15 Bar */}
-         {!loading && dataWithRank.length > 0 && (
-           <AnimatedPresentationSection deck={deck} index={0}>
-             <AnalyticsChartShell
-               title="Top 15 impact"
-               subtitle={`Sorted by ${sortLabel}`}
-               insight={barInsight}
-               accent="magenta"
-               badge="Leaderboard lens"
-               chartClassName="h-96"
-               actions={
-                 <button
-                   type="button"
-                   onClick={() => setShowcaseOpen(true)}
-                   className="rounded-xl border border-accent-magenta/25 bg-accent-magenta/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-accent-magenta transition-all hover:bg-accent-magenta hover:text-white"
-                 >
-                   Showcase
-                 </button>
-               }
-             >
-                   <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dataWithRank.slice(0, 15).sort((a,b) => getMetricValue(b) - getMetricValue(a))} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
-                         <CartesianGrid {...cartesianGridProps} />
-                         <XAxis type="number" tick={axisTickPrimary} axisLine={{ stroke: '#2A2A3A' }} tickLine={false} />
-                         <YAxis type="category" dataKey="player" width={100} axisLine={false} tickLine={false} tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 900 }} />
-                         <Tooltip content={<ChartTooltip />} cursor={cursorBand('rgba(255,45,120,0.07)')} />
-                         <Bar dataKey={sortBy} radius={[0, 10, 10, 0]} barSize={22} {...CHART_ANIMATION}>
-                            {dataWithRank.slice(0, 15).map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                         </Bar>
-                      </BarChart>
-                   </ResponsiveContainer>
-             </AnalyticsChartShell>
-           </AnimatedPresentationSection>
-         )}
-
-         {/* Matrix */}
-         {!loading && (
-           <AnimatedPresentationSection deck={deck} index={2}>
-              <AnalyticsChartShell
-                title="Control matrix"
-                subtitle="Average × economy • bubble size ∝ wickets"
-                insight="Lower economy with respectable average reads as the elite control cluster — bubble size highlights wicket volume."
-                accent="cyan"
-                badge="Scatter intelligence"
-                chartClassName="h-80"
-              >
-                    <ResponsiveContainer width="100%" height="100%">
-                       <ScatterChart margin={{ top: 12, right: 12, bottom: 12, left: 8 }}>
-                          <CartesianGrid {...cartesianGridFull} />
-                          <XAxis type="number" dataKey="avg" name="Average" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10 }} label={{ value: 'Avg conceded', position: 'bottom', fill: '#555566', fontSize: 10 }} />
-                          <YAxis type="number" dataKey="economy" name="Economy" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#8888A0', fontSize: 10 }} label={{ value: 'Economy', angle: -90, position: 'insideLeft', fill: '#555566', fontSize: 10 }} />
-                          <ZAxis type="number" dataKey="wickets" range={[60, 420]} />
-                          <Tooltip content={<MatrixTooltip />} cursor={{ strokeDasharray: '4 4', stroke: '#FF2D78', strokeOpacity: 0.35 }} />
-                          <Scatter data={(bowlingMatrix || []).slice(0, 20)} fill="#FF2D78" isAnimationActive>
-                             {(bowlingMatrix || []).slice(0, 20).map((entry, index) => (
-                               <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-                             ))}
-                          </Scatter>
-                       </ScatterChart>
-                    </ResponsiveContainer>
-              </AnalyticsChartShell>
-           </AnimatedPresentationSection>
-         )}
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-heading font-bold text-text-primary">Bowling Records</h1>
+        <p className="text-text-secondary text-sm mt-1">Top wicket takers across IPL seasons</p>
       </div>
 
-      {/* ── LEADERBOARD TABLE ────────────────────────────────── */}
-      {loading ? (
-        <Loading message="Syncing territory data..." />
-      ) : (
-        <div className="bg-[#0B0E16] rounded-[40px] border border-white/10 overflow-hidden shadow-2xl">
-          <div className="p-8 border-b border-white/5 flex justify-between items-center">
-             <h3 className="text-2xl font-black font-heading text-white">Global Leaderboard</h3>
-             <span className="px-3 py-1 rounded-full bg-white/5 text-[9px] font-black uppercase tracking-widest text-text-muted">{dataWithRank.length} Bowlers Listed</span>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm">Season</label>
+          <MultiSeasonSelect seasons={seasons || []} value={season} onChange={setSeason} />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm">Team</label>
+          <Select options={teamOptions} value={team} onChange={setTeam} placeholder="" />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm">Sort by</label>
+          <Select options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} placeholder="" />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-text-secondary text-sm">Min Balls</label>
+          <Select
+            options={[
+              { value: 0, label: 'All' },
+              { value: 50, label: '50+' },
+              { value: 100, label: '100+' },
+              { value: 200, label: '200+' },
+              { value: 500, label: '500+' },
+              { value: 1000, label: '1000+' },
+            ]}
+            value={minBalls}
+            onChange={(v) => setMinBalls(Number(v))}
+            placeholder=""
+          />
+        </div>
+      </div>
+
+      {/* Top 15 Bar Chart */}
+      {!loading && dataWithRank.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-heading font-semibold text-text-secondary">
+              Top 15 — {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
+            </h3>
+            <button
+              onClick={handleDownloadChart}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border-subtle text-text-secondary hover:text-accent-magenta hover:border-accent-magenta/40 transition-colors disabled:opacity-40"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {downloading ? 'Saving...' : 'Download'}
+            </button>
           </div>
-          <DataTable columns={columns} data={dataWithRank} />
+          <div ref={chartRef} className="bg-bg-primary rounded-lg p-2">
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={dataWithRank.slice(0, 15).map((b) => ({ name: b.player, value: (sortBy === 'five_wickets' ? b.five_w : sortBy === 'four_wickets' ? b.four_w : b[sortBy]) ?? 0 })).sort((a, b) => b.value - a.value)}
+              layout="vertical"
+              margin={{ top: 5, right: 60, left: 10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2A" horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fill: '#8888A0', fontSize: 12, fontFamily: 'JetBrains Mono' }}
+                axisLine={{ stroke: '#1E1E2A' }}
+                tickLine={{ stroke: '#1E1E2A' }}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={120}
+                tick={{ fill: '#8888A0', fontSize: 11, fontFamily: 'JetBrains Mono' }}
+                axisLine={{ stroke: '#1E1E2A' }}
+                tickLine={{ stroke: '#1E1E2A' }}
+              />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: '#1E1E2A' }} />
+              <Bar
+                dataKey="value"
+                name={SORT_OPTIONS.find((o) => o.value === sortBy)?.label || sortBy}
+                radius={[0, 4, 4, 0]}
+                barSize={18}
+                label={{
+                  position: 'right',
+                  fill: '#E8E8F0',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  formatter: (v) => typeof v === 'number' ? v.toLocaleString('en-IN') : v,
+                }}
+              >
+                {dataWithRank.slice(0, 15).map((_, idx) => (
+                  <Cell key={idx} fill={BAR_COLORS[idx % BAR_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          </div>
         </div>
       )}
 
-      <LeaderboardShowcaseModal
-        open={showcaseOpen}
-        onClose={() => setShowcaseOpen(false)}
-        title={`Elite ${sortLabel}`}
-        items={dataWithRank.slice(0, 10).map(b => ({ ...b, value: getMetricValue(b) }))}
-        metricLabel={sortLabel}
-        accent="#FF2D78"
-      />
+      {/* Table */}
+      {loading ? (
+        <Loading message="Loading bowling leaderboard..." />
+      ) : (
+        <DataTable columns={columns} data={dataWithRank} />
+      )}
     </div>
   )
 }

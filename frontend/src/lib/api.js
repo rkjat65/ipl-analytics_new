@@ -15,33 +15,18 @@ async function fetchAPI(endpoint, params = {}) {
   return res.json()
 }
 
-async function postJSON(endpoint, body) {
-  const url = `${window.location.origin}${API_BASE}${endpoint}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`)
-  }
-  return res.json()
-}
-
 // Meta
 export const getSeasons = () => fetchAPI('/meta/seasons')
 export const getTeams = () => fetchAPI('/meta/teams')
 export const searchPlayers = (q) => fetchAPI('/meta/players', { q })
-/** @param {string[]} names */
-export const batchLookupPlayers = (names) => postJSON('/meta/players/batch-lookup', { names })
 
 // Dashboard
 export const getKPIs = (season) => fetchAPI('/analytics/kpis', { season })
 export const getPhaseStats = (season) => fetchAPI('/analytics/phase-stats', { season })
 export const getInningsDNA = (season) => fetchAPI('/analytics/innings-dna', { season })
 export const getSixEvolution = () => fetchAPI('/analytics/six-evolution')
-export const getBattingMatrix = (season, min_innings, team) => fetchAPI('/analytics/batting-matrix', { season, min_innings, team })
-export const getBowlingMatrix = (season, min_innings, team) => fetchAPI('/analytics/bowling-matrix', { season, min_innings, team })
+export const getBattingMatrix = (season, min_innings) => fetchAPI('/analytics/batting-matrix', { season, min_innings })
+export const getBowlingMatrix = (season, min_innings) => fetchAPI('/analytics/bowling-matrix', { season, min_innings })
 export const getChaseAnalysis = (season) => fetchAPI('/analytics/chase-analysis', { season })
 export const getDismissalTypes = (season) => fetchAPI('/analytics/dismissal-types', { season })
 export const getPhaseDominance = (season) => fetchAPI('/analytics/phase-dominance', { season })
@@ -58,7 +43,6 @@ export const getPlayerBatting = (name) => fetchAPI(`/players/${encodeURIComponen
 export const getPlayerBowling = (name) => fetchAPI(`/players/${encodeURIComponent(name)}/bowling`)
 export const getPlayerBattingMatchups = (name) => fetchAPI(`/players/${encodeURIComponent(name)}/matchups/batting`)
 export const getPlayerBowlingMatchups = (name) => fetchAPI(`/players/${encodeURIComponent(name)}/matchups/bowling`)
-export const getPlayerMatchup = (batter, bowler) => fetchAPI(`/players/matchup/${encodeURIComponent(batter)}/${encodeURIComponent(bowler)}`)
 
 // Teams
 export const getTeamStats = (name) => fetchAPI(`/teams/${encodeURIComponent(name)}/stats`)
@@ -154,10 +138,7 @@ export const getTopSixes = (season) => fetchAPI('/analytics/top-sixes', { season
 export const getTopFours = (season) => fetchAPI('/analytics/top-fours', { season })
 export const getMostWins = (season) => fetchAPI('/analytics/most-wins', { season })
 export const getTitleWinners = () => fetchAPI('/analytics/title-winners')
-export const getManOfTheMatch = (params) => fetchAPI('/analytics/man-of-the-match', params)
 export const getCapWinners = () => fetchAPI('/analytics/cap-winners')
-export const getIPLPointsTable = (season = '2026') => fetchAPI('/analytics/points-table', { season })
-
 
 // Pulse — Social Growth Engine
 export const getPulseFeed = (params) => fetchAPI('/pulse/feed', params)
@@ -220,39 +201,17 @@ export const verifyPayment = (data, token) => {
 export const getAdminUsers = (token) => {
   return fetch(`${window.location.origin}/api/auth/admin/users`, {
     headers: { Authorization: `Bearer ${token}` },
-  }).then(res => parseApiResponse(res, 'Access denied'))
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
+    return res.json()
+  })
 }
 
 export const getAdminStats = (token) => {
   return fetch(`${window.location.origin}/api/auth/admin/stats`, {
     headers: { Authorization: `Bearer ${token}` },
-  }).then(res => parseApiResponse(res, 'Access denied'))
-}
-
-const parseApiResponse = async (res, fallbackMessage) => {
-  const text = await res.text()
-  if (!res.ok) {
-    try {
-      const json = JSON.parse(text)
-      throw new Error(json.detail || json.error || fallbackMessage)
-    } catch {
-      throw new Error(text || fallbackMessage)
-    }
-  }
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
-  }
-}
-
-export const runAdminSqlQuery = (token, sql) => {
-  return fetch(`${window.location.origin}/api/auth/admin/sql`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ sql }),
-  }).then(res => parseApiResponse(res, 'SQL query failed'))
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Access denied') })
+    return res.json()
+  })
 }

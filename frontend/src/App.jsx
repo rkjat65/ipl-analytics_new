@@ -1,6 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Matches from './pages/Matches'
@@ -16,20 +17,19 @@ import Seasons from './pages/Seasons'
 import HeadToHead from './pages/HeadToHead'
 import BattingCompare from './pages/BattingCompare'
 import ContentStudio from './pages/ContentStudio'
+import AskCricket from './pages/AskCricket'
 import SocialCompose from './pages/SocialCompose'
-import AdvancedAnalytics from './pages/AdvancedAnalytics'
-import IPL2026 from './pages/IPL2026'
+// AdvancedAnalytics removed — Team Form Index moved to Content Studio
 import CricketPulse from './pages/CricketPulse'
-
+import PlayerImpact from './pages/PlayerImpact'
+import Charts from './pages/Charts'
 import Admin from './pages/Admin'
-import About from './pages/About'
-import AdminOnlyRoute from './components/auth/AdminOnlyRoute'
 
 export default function App() {
   return (
     <Routes>
-      {/* Default: redirect to dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Public: Landing page (no sidebar/header) */}
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
 
       {/* App routes (with sidebar/header layout) */}
@@ -47,22 +47,16 @@ export default function App() {
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/:venueName" element={<VenueProfile />} />
         <Route path="/seasons" element={<Seasons />} />
-        <Route path="/seasons/2026" element={<IPL2026 />} />
         <Route path="/seasons/:year" element={<Seasons />} />
-        <Route path="/ipl-2026" element={<IPL2026 />} />
-        <Route path="/advanced" element={<AdvancedAnalytics />} />
         <Route path="/players/:playerName" element={<PlayerProfile />} />
         <Route path="/h2h" element={<HeadToHead />} />
         <Route path="/content-studio" element={<ContentStudio />} />
-        <Route path="/ask" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/ask" element={<AskCricket />} />
         <Route path="/social" element={<SocialCompose />} />
-        <Route path="/charts" element={<Navigate to="/dashboard#dashboard-insights" replace />} />
-
+        <Route path="/charts" element={<Charts />} />
         <Route path="/pulse" element={<CricketPulse />} />
-        <Route path="/player-impact" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/player-impact" element={<PlayerImpact />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-
-        <Route path="/about" element={<About />} />
       </Route>
     </Routes>
   )
