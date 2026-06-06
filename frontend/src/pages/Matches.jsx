@@ -60,8 +60,9 @@ export default function Matches() {
   return (
     <div className="space-y-6">
       <SEO
-        title="IPL Matches"
-        description="Browse all IPL matches with detailed scorecards, results, and match summaries. Filter by season and team."
+        title="IPL Matches — Full Archive, Scorecards & Results (2008–2026)"
+        description="Browse every IPL match since 2008 with detailed scorecards, results, and match summaries. Filter by season and team to find any Indian Premier League fixture."
+        url="/matches"
       />
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

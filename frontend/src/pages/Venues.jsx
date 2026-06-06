@@ -49,8 +49,9 @@ export default function Venues() {
   return (
     <div className="space-y-8">
       <SEO
-        title="IPL Venues"
-        description="IPL venue analytics with match counts, average scores, toss decisions, and performance trends for every cricket ground across all seasons."
+        title="IPL Venues — Stadium Stats, Pitch Reports & Records"
+        description="IPL venue analytics with match counts, average first-innings scores, toss decisions, chase success rates, and performance trends for every cricket ground that has hosted IPL matches."
+        url="/venues"
       />
       <div>
         <h1 className="text-3xl font-heading font-bold text-text-primary">Venue Analytics</h1>

@@ -372,8 +372,9 @@ export default function AskCricket() {
   return (
     <div className="flex flex-col h-full">
       <SEO
-        title="Ask Cricket - AI-Powered IPL Query Engine"
-        description="Ask natural language questions about IPL cricket and get instant AI-powered answers with stats, charts, and data visualizations."
+        title="Ask Cricket — AI-Powered IPL Q&A Engine"
+        description="Ask natural-language questions about IPL cricket — players, teams, records, matches — and get instant AI-powered answers with stats, charts, and data visualizations."
+        url="/ask"
       />
       {/* Header */}
       <div className="p-4 border-b border-border-subtle bg-bg-elevated/50">

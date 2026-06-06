@@ -3,11 +3,14 @@ import { Helmet } from 'react-helmet-async'
 const DEFAULT_OG_IMAGE = '/og-default.png'
 const SITE_NAME = 'Crickrida'
 const TWITTER_HANDLE = '@Rkjat65'
+export const SITE_URL = 'https://crickrida.rkjat.in'
 
 export default function SEO({ title, description, image, url, type = 'website', schema }) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME
   const ogImage = image || DEFAULT_OG_IMAGE
-  const canonical = url || (typeof window !== 'undefined' ? window.location.href : '')
+  const canonical = url
+    ? `${SITE_URL}${url}`
+    : (typeof window !== 'undefined' ? window.location.href : SITE_URL)
   const schemas = Array.isArray(schema) ? schema : (schema ? [schema] : [])
 
   return (

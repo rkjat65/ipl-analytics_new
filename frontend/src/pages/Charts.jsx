@@ -212,7 +212,11 @@ export default function Charts() {
 
   return (
     <div className="space-y-8">
-      <SEO title="Insights" description="Crickrida — Deep visual analytics that reveal the hidden patterns of IPL" />
+      <SEO
+        title="IPL Charts & Insights — Phase-wise Run Rates, Trends & Visual Analytics"
+        description="Deep visual analytics for the IPL: phase-wise run rates (Powerplay, Middle, Death), dismissal breakdowns, toss impact, cap-winner trends, and batting/bowling performance charts."
+        url="/charts"
+      />
 
       {/* Page Header + Season Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

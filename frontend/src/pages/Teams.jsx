@@ -85,8 +85,9 @@ export default function Teams() {
   return (
     <div className="space-y-8">
       <SEO
-        title="IPL Teams"
-        description="Explore all IPL team analytics including win rates, performance stats, player rosters, and historical data for every franchise."
+        title="IPL Teams — Franchise Stats, Win Records & History"
+        description="Explore analytics for every IPL franchise: win rates, performance stats, season-by-season records, and historical data for CSK, MI, RCB, KKR, and all 10 IPL teams."
+        url="/teams"
       />
       <div>
         <h1 className="text-3xl font-heading font-bold text-text-primary">Team Analytics</h1>

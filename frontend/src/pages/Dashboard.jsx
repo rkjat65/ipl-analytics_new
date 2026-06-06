@@ -255,8 +255,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <SEO
-        title="Dashboard"
-        description="Crickrida — Cricket analytics dashboard with real-time stats, batting and bowling leaderboards, match results, and season trends."
+        title="IPL Dashboard — Live Stats, Leaderboards & Season Trends"
+        description="Crickrida — Cricket analytics dashboard with real-time IPL stats, batting and bowling leaderboards, match results, points tables, and season trends."
+        url="/dashboard"
       />
       {/* Sign-in banner for unauthenticated users */}
       {!isAuthenticated && (

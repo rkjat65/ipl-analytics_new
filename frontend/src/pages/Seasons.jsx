@@ -208,8 +208,9 @@ export default function Seasons() {
   return (
     <div className="space-y-8">
       <SEO
-        title="IPL Seasons"
-        description="Explore IPL season-by-season analytics with points tables, top performers, orange and purple cap races, and season summaries."
+        title="IPL Seasons — Year-by-Year Records, Points Tables & Cap Winners"
+        description="Explore IPL season-by-season analytics from 2008 to 2026: final points tables, playoff results, Orange Cap and Purple Cap winners, and top performers for every season."
+        url="/seasons"
       />
       {/* Header + Season Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getTeamStats, getTeamSeasons, getTeamH2H, getTeams } from '../lib/api'
+import SEO, { SITE_URL } from '../components/SEO'
+import { breadcrumbSchema } from '../lib/breadcrumbs'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
@@ -58,9 +60,45 @@ export default function TeamProfile() {
 
   const { data: teams } = useFetch(() => getTeams(), [])
 
+  const canonicalPath = `/teams/${encodeURIComponent(decoded)}`
+  const seoDescription = stats
+    ? `${decoded} IPL stats: ${formatNumber(stats.matches)} matches played, ${formatNumber(stats.wins)} wins, ${formatNumber(stats.losses)} losses${stats.titles ? `, and ${stats.titles} IPL title${stats.titles > 1 ? 's' : ''}` : ''}. Explore ${decoded}'s season-by-season performance, head-to-head records, and franchise history on Crickrida.`
+    : `IPL franchise profile, match records, season history, and head-to-head stats for ${decoded}.`
+
+  const teamSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsTeam',
+    name: decoded,
+    url: `${SITE_URL}${canonicalPath}`,
+    description: seoDescription,
+    sport: 'Cricket',
+    memberOf: {
+      '@type': 'SportsOrganization',
+      name: 'Indian Premier League',
+      alternateName: 'IPL',
+    },
+  }
+
+  const breadcrumbs = breadcrumbSchema([
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Teams', path: '/teams' },
+    { name: decoded, path: canonicalPath },
+  ])
+
+  const seoEl = (
+    <SEO
+      title={`${decoded} — IPL Team Profile, Stats & Records`}
+      description={seoDescription}
+      url={canonicalPath}
+      type="profile"
+      schema={[teamSchema, breadcrumbs]}
+    />
+  )
+
   if (statsError) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
+        {seoEl}
         <p className="text-danger font-heading text-lg">Failed to load team profile</p>
         <p className="text-text-secondary text-sm">{statsError}</p>
       </div>
@@ -112,6 +150,7 @@ export default function TeamProfile() {
 
   return (
     <div className="space-y-8">
+      {seoEl}
       {/* Header */}
       <div>
         <Link to="/teams" className="text-text-muted text-sm hover:text-accent-cyan transition-colors mb-2 inline-block">

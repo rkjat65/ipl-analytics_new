@@ -7,6 +7,8 @@ import {
   getPlayerBattingMatchups,
   getPlayerBowlingMatchups,
 } from '../lib/api'
+import SEO, { SITE_URL } from '../components/SEO'
+import { breadcrumbSchema } from '../lib/breadcrumbs'
 import StatCard from '../components/ui/StatCard'
 import PlayerAvatar from '../components/ui/PlayerAvatar'
 import DataTable from '../components/ui/DataTable'
@@ -88,11 +90,64 @@ export default function PlayerProfile() {
     setActiveTab('batting')
   }
 
-  if (isLoading) return <Loading message={`Loading ${decodedName}'s profile...`} />
+  const canonicalPath = `/${fromBowling ? 'bowling' : 'batting'}/${encodeURIComponent(decodedName)}`
+
+  const seoDescriptionParts = []
+  if (hasBatting) {
+    const c = batting.career
+    seoDescriptionParts.push(
+      `${decodedName} has scored ${formatNumber(c.runs)} runs in ${c.matches} IPL matches at an average of ${formatDecimal(c.avg)} and strike rate of ${formatDecimal(c.sr)}.`
+    )
+  }
+  if (hasBowling) {
+    const c = bowling.career
+    seoDescriptionParts.push(
+      `As a bowler, ${decodedName} has taken ${formatNumber(c.wickets)} wickets in ${c.matches} IPL matches at an economy of ${formatDecimal(c.economy)}.`
+    )
+  }
+  const seoDescription = seoDescriptionParts.length
+    ? `${seoDescriptionParts.join(' ')} View full IPL career stats, season-by-season records, and head-to-head matchups for ${decodedName} on Crickrida.`
+    : `IPL career statistics, batting and bowling records, and performance analysis for ${decodedName}.`
+
+  const personSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: decodedName,
+    url: `${SITE_URL}${canonicalPath}`,
+    description: seoDescription,
+    ...(hasBatting || hasBowling
+      ? {
+          memberOf: {
+            '@type': 'SportsOrganization',
+            name: 'Indian Premier League',
+            alternateName: 'IPL',
+          },
+        }
+      : {}),
+  }
+
+  const breadcrumbs = breadcrumbSchema([
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: fromBowling ? 'Bowling Records' : 'Batting Records', path: fromBowling ? '/bowling' : '/batting' },
+    { name: decodedName, path: canonicalPath },
+  ])
+
+  const seoEl = (
+    <SEO
+      title={`${decodedName} — IPL Stats, Records & Career Profile`}
+      description={seoDescription}
+      url={canonicalPath}
+      type="profile"
+      schema={[personSchema, breadcrumbs]}
+    />
+  )
+
+  if (isLoading) return (<>{seoEl}<Loading message={`Loading ${decodedName}'s profile...`} /></>)
 
   if (!hasBatting && !hasBowling) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
+        {seoEl}
         <p className="text-danger font-heading text-lg">Player not found</p>
         <p className="text-text-secondary text-sm">No batting or bowling data for {decodedName}</p>
         <Link to="/batting" className="text-accent-cyan hover:underline text-sm">Back to Batting Records</Link>
@@ -106,6 +161,7 @@ export default function PlayerProfile() {
 
   return (
     <div className="space-y-8">
+      {seoEl}
       {/* Player Header */}
       <div className="flex items-center gap-5">
         <PlayerAvatar name={decodedName} size={72} shape="circle" />

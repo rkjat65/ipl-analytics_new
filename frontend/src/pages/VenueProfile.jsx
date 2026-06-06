@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
 import { getVenueStats, getVenueTopPerformers } from '../lib/api'
+import SEO, { SITE_URL } from '../components/SEO'
+import { breadcrumbSchema } from '../lib/breadcrumbs'
 import StatCard from '../components/ui/StatCard'
 import DataTable from '../components/ui/DataTable'
 import Loading from '../components/ui/Loading'
@@ -43,9 +45,39 @@ export default function VenueProfile() {
     [decoded]
   )
 
+  const canonicalPath = `/venues/${encodeURIComponent(decoded)}`
+  const seoDescription = stats?.stats
+    ? `${decoded} IPL venue stats: ${stats.stats.matches} matches hosted, average first-innings score of ${formatDecimal(stats.stats.avg_1st_innings, 1)}, and ${stats.stats.bat_first_win_pct ? `${formatDecimal(stats.stats.bat_first_win_pct, 1)}% bat-first win rate` : 'detailed chase vs defend records'}. See top run-scorers, top wicket-takers, and full ground analytics on Crickrida.`
+    : `IPL venue analytics, match history, top performers, and ground records for ${decoded}.`
+
+  const venueSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsActivityLocation',
+    name: decoded,
+    url: `${SITE_URL}${canonicalPath}`,
+    description: seoDescription,
+  }
+
+  const breadcrumbs = breadcrumbSchema([
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Venues', path: '/venues' },
+    { name: decoded, path: canonicalPath },
+  ])
+
+  const seoEl = (
+    <SEO
+      title={`${decoded} — IPL Venue Stats, Records & Analytics`}
+      description={seoDescription}
+      url={canonicalPath}
+      type="place"
+      schema={[venueSchema, breadcrumbs]}
+    />
+  )
+
   if (statsError) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
+        {seoEl}
         <p className="text-danger font-heading text-lg">Failed to load venue</p>
         <p className="text-text-secondary text-sm">{statsError}</p>
       </div>
@@ -95,6 +127,7 @@ export default function VenueProfile() {
 
   return (
     <div className="space-y-8">
+      {seoEl}
       {/* Header */}
       <div>
         <Link to="/venues" className="text-text-muted text-sm hover:text-accent-cyan transition-colors mb-2 inline-block">

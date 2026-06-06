@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { searchPlayers, getPlayerBatting } from '../lib/api'
+import SEO from '../components/SEO'
 import StatCard from '../components/ui/StatCard'
 import Loading from '../components/ui/Loading'
 import { formatNumber, formatDecimal } from '../utils/format'
@@ -141,6 +142,11 @@ export default function BattingCompare() {
 
   return (
     <div className="space-y-8">
+      <SEO
+        title="IPL Batting Comparison Tool — Compare Player Stats Side by Side"
+        description="Compare any IPL batters side by side — runs, average, strike rate, centuries, and more — with radar charts and head-to-head visual breakdowns."
+        url="/batting/compare"
+      />
       {/* Header */}
       <div>
         <h1 className="text-3xl font-heading font-bold text-text-primary">Compare Batsmen</h1>

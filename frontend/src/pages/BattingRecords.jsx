@@ -143,8 +143,9 @@ export default function BattingRecords() {
   return (
     <div className="space-y-6">
       <SEO
-        title="Batting Records & Leaderboard"
-        description="IPL batting records and leaderboard. Top run scorers, highest strike rates, centuries, and batting averages across all IPL seasons."
+        title="IPL Batting Records & Leaderboard — Top Run Scorers & Averages"
+        description="IPL batting records and leaderboard: top run scorers, highest strike rates, most centuries and fifties, and batting averages across all IPL seasons from 2008 to 2026."
+        url="/batting"
       />
       {/* Header */}
       <div>

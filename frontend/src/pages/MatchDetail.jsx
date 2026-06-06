@@ -7,6 +7,8 @@ import {
 } from 'recharts'
 import { useFetch } from '../hooks/useFetch'
 import { getMatch, getWinProbability } from '../lib/api'
+import SEO, { SITE_URL } from '../components/SEO'
+import { breadcrumbSchema } from '../lib/breadcrumbs'
 import Loading from '../components/ui/Loading'
 import Badge from '../components/ui/Badge'
 import { formatDate, formatDecimal } from '../utils/format'
@@ -165,6 +167,48 @@ export default function MatchDetail() {
       </div>
     )
   }
+
+  const canonicalPath = `/matches/${encodeURIComponent(matchId)}`
+  const matchTitle = `${match.team1} vs ${match.team2}${match.season ? ` — IPL ${match.season}` : ''}`
+  const seoDescription = `${match.team1} vs ${match.team2}${match.venue ? ` at ${match.venue}` : ''}${match.date ? ` on ${formatDate(match.date)}` : ''}. ${
+    match.winner
+      ? `${match.winner} won by ${match.win_by_runs > 0 ? `${match.win_by_runs} runs` : `${match.win_by_wickets} wickets`}.`
+      : (match.result || '')
+  } Full scorecard, manhattan & worm charts, partnerships, and win-probability analysis on Crickrida.`
+
+  const matchSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsEvent',
+    name: matchTitle,
+    url: `${SITE_URL}${canonicalPath}`,
+    description: seoDescription,
+    sport: 'Cricket',
+    startDate: match.date || undefined,
+    location: match.venue
+      ? { '@type': 'Place', name: `${match.venue}${match.city ? `, ${match.city}` : ''}` }
+      : undefined,
+    competitor: [
+      { '@type': 'SportsTeam', name: match.team1 },
+      { '@type': 'SportsTeam', name: match.team2 },
+    ],
+    ...(match.winner ? { winner: { '@type': 'SportsTeam', name: match.winner } } : {}),
+  }
+
+  const breadcrumbs = breadcrumbSchema([
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Matches', path: '/matches' },
+    { name: matchTitle, path: canonicalPath },
+  ])
+
+  const seoEl = (
+    <SEO
+      title={matchTitle}
+      description={seoDescription}
+      url={canonicalPath}
+      type="article"
+      schema={[matchSchema, breadcrumbs]}
+    />
+  )
 
   const winnerColor = match.winner ? getTeamColor(match.winner) : null
   const resultText =
@@ -639,6 +683,7 @@ export default function MatchDetail() {
 
   return (
     <div className="space-y-6">
+      {seoEl}
       {/* Back link */}
       <Link to="/matches" className="text-text-muted hover:text-accent-cyan text-sm inline-flex items-center gap-1 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

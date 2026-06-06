@@ -210,8 +210,9 @@ export default function HeadToHead() {
   return (
     <div className="space-y-8">
       <SEO
-        title="Head to Head Comparison"
-        description="Compare IPL teams head to head. Win records, venue stats, recent form, and historical matchup data between any two IPL franchises."
+        title="IPL Head-to-Head — Team Rivalry Stats & Matchup History"
+        description="Compare any two IPL teams head to head: all-time win-loss records, venue-wise breakdowns, recent form, and historical matchup data between every IPL franchise rivalry."
+        url="/h2h"
       />
       {/* Page Header */}
       <div>

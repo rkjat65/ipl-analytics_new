@@ -142,8 +142,9 @@ export default function BowlingRecords() {
   return (
     <div className="space-y-6">
       <SEO
-        title="Bowling Records & Leaderboard"
-        description="IPL bowling records and leaderboard. Top wicket-takers, best economy rates, bowling averages, and bowling figures across all IPL seasons."
+        title="IPL Bowling Records & Leaderboard — Top Wicket-Takers & Economy"
+        description="IPL bowling records and leaderboard: top wicket-takers, best economy rates, bowling averages, and best bowling figures across all IPL seasons from 2008 to 2026."
+        url="/bowling"
       />
       {/* Header */}
       <div>

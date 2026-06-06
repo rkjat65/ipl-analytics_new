@@ -755,7 +755,11 @@ export default function CricketPulse() {
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      <SEO title="Cricket Pulse — Social Growth Engine" description="Auto-discover tweet-worthy IPL insights, create branded cards, and grow your cricket data brand." />
+      <SEO
+        title="Cricket Pulse — AI-Generated IPL Insights & Match Narratives"
+        description="Auto-discover tweet-worthy IPL insights, AI-generated match summaries and season narratives, and create branded stat cards to grow your cricket data brand."
+        url="/pulse"
+      />
 
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl mb-8 border border-border-subtle">

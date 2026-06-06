@@ -251,8 +251,9 @@ export default function PlayerImpactPage() {
   return (
     <div className="min-h-screen" style={{ background: C.bg }}>
       <SEO
-        title="Player Impact Index"
-        description="Analyze any IPL player's impact with batting, bowling, and all-rounder metrics powered by advanced statistical models."
+        title="IPL Player Impact Index — Batting, Bowling & All-Rounder Ratings"
+        description="Analyze any IPL player's match impact with advanced batting, bowling, and all-rounder metrics powered by statistical models — go beyond raw stats to see who really wins matches."
+        url="/player-impact"
       />
 
       {/* Page Header */}

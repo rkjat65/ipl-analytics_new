@@ -68,6 +68,7 @@ export default function FAQ() {
       <SEO
         title="IPL FAQ — Frequently Asked Questions About the Indian Premier League"
         description="Answers to the most commonly asked questions about the IPL — format & rules, auctions, records, players, venues, history, and more. Everything you need to know about the Indian Premier League in one place."
+        url="/faq"
         type="website"
         schema={faqSchema}
       />
