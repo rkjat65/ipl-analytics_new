@@ -1,7 +1,6 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
-import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Matches from './pages/Matches'
@@ -23,13 +22,14 @@ import SocialCompose from './pages/SocialCompose'
 import CricketPulse from './pages/CricketPulse'
 import PlayerImpact from './pages/PlayerImpact'
 import Charts from './pages/Charts'
+import FAQ from './pages/FAQ'
 import Admin from './pages/Admin'
 
 export default function App() {
   return (
     <Routes>
-      {/* Public: Landing page (no sidebar/header) */}
-      <Route path="/" element={<Landing />} />
+      {/* Default: land straight on the dashboard */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<Login />} />
 
       {/* App routes (with sidebar/header layout) */}
@@ -56,6 +56,7 @@ export default function App() {
         <Route path="/charts" element={<Charts />} />
         <Route path="/pulse" element={<CricketPulse />} />
         <Route path="/player-impact" element={<PlayerImpact />} />
+        <Route path="/faq" element={<FAQ />} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       </Route>
     </Routes>

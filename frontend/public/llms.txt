@@ -12,9 +12,9 @@ Crickrida (https://crickrida.rkjat.in) is an open analytics platform for the Ind
 - **Team profiles**: Full franchise history, win/loss records, points tables, and season-by-season performance for all 10 active IPL teams.
 - **Venue analytics**: Ground-specific stats including average first-innings score, chase success rate, and venue win-loss history.
 - **Head-to-head comparisons**: Historical rivalry records between any two IPL teams, and player-vs-player comparisons.
-- **IPL 2026 hub**: Live points table, match schedule, results, and current-season leaderboards for IPL 2026.
-- **Advanced analytics**: Phase-wise run rates (Powerplay, Middle, Death), dismissal type breakdowns, toss impact analysis, and batting/bowling performance matrices.
+- **Charts & insights**: Phase-wise run rates (Powerplay, Middle, Death), dismissal type breakdowns, toss impact analysis, cap winners, and batting/bowling performance matrices.
 - **Cricket Pulse**: AI-generated match summaries and season narratives.
+- **FAQ**: Answers to the most commonly asked questions about IPL history, rules, format, auctions, records, and players — structured as Q&A for quick answer-engine retrieval.
 
 ## Key facts (as of June 2026)
 
@@ -24,7 +24,7 @@ Crickrida (https://crickrida.rkjat.in) is an open analytics platform for the Ind
 
 ## Site structure
 
-- /dashboard — Season overview, KPIs, leaderboards, and trend charts
+- /dashboard — Season overview, KPIs, leaderboards, and trend charts (default landing page)
 - /matches — Full match archive with filters by season and team
 - /batting — All-time and season batting leaderboards
 - /bowling — All-time and season bowling leaderboards
@@ -32,10 +32,9 @@ Crickrida (https://crickrida.rkjat.in) is an open analytics platform for the Ind
 - /venues — Ground-by-ground analytics
 - /seasons — Year-by-year IPL season records
 - /h2h — Head-to-head team and player comparisons
-- /advanced — Advanced statistical breakdowns
-- /ipl-2026 — IPL 2026 season hub (live data)
+- /charts — Statistical breakdowns and trend visualizations
 - /pulse — AI cricket insights and match narratives
-- /about — About the platform
+- /faq — Frequently asked questions about the IPL (history, rules, format, auctions, records, players)
 
 ## Contact & attribution
 

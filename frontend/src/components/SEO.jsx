@@ -4,10 +4,11 @@ const DEFAULT_OG_IMAGE = '/og-default.png'
 const SITE_NAME = 'Crickrida'
 const TWITTER_HANDLE = '@Rkjat65'
 
-export default function SEO({ title, description, image, url, type = 'website' }) {
+export default function SEO({ title, description, image, url, type = 'website', schema }) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME
   const ogImage = image || DEFAULT_OG_IMAGE
   const canonical = url || (typeof window !== 'undefined' ? window.location.href : '')
+  const schemas = Array.isArray(schema) ? schema : (schema ? [schema] : [])
 
   return (
     <Helmet>
@@ -29,6 +30,11 @@ export default function SEO({ title, description, image, url, type = 'website' }
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={ogImage} />
+
+      {/* Structured data (schema.org) — powers AI/answer-engine results */}
+      {schemas.map((s, i) => (
+        <script key={i} type="application/ld+json">{JSON.stringify(s)}</script>
+      ))}
     </Helmet>
   )
 }
