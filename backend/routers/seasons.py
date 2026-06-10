@@ -24,23 +24,25 @@ def season_summary(season: str):
 
     # Top run scorer
     top_batter = query("""
-        SELECT d.batter AS player, d.batting_team AS team, SUM(d.runs_batter) AS runs
+        SELECT d.batter AS player, i.batting_team AS team, SUM(d.runs_batter) AS runs
         FROM deliveries d
+        JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
         JOIN matches m ON d.match_id = m.match_id
         WHERE m.season = ? AND d.is_super_over = false
-        GROUP BY d.batter, d.batting_team
+        GROUP BY d.batter, i.batting_team
         ORDER BY runs DESC
         LIMIT 1
     """, [season])
 
     # Top wicket taker
     top_bowler = query("""
-        SELECT d.bowler AS player, d.bowling_team AS team,
+        SELECT d.bowler AS player, i.bowling_team AS team,
                SUM(CASE WHEN d.is_wicket AND d.dismissal_kind NOT IN ('run out','retired hurt','retired out','obstructing the field') THEN 1 ELSE 0 END) AS wickets
         FROM deliveries d
+        JOIN innings i ON d.match_id = i.match_id AND d.innings_number = i.innings_number
         JOIN matches m ON d.match_id = m.match_id
         WHERE m.season = ? AND d.is_super_over = false
-        GROUP BY d.bowler, d.bowling_team
+        GROUP BY d.bowler, i.bowling_team
         ORDER BY wickets DESC
         LIMIT 1
     """, [season])
