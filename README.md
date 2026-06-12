@@ -10,9 +10,9 @@
 
 ## What This Is
 
-The most comprehensive open-source IPL analytics platform built on ball-by-ball data — not match summaries. It covers every delivery of every match across 17 IPL seasons (2008–2025), enabling phase-level analysis, pressure metrics, and player matchup data that match-summary tools cannot produce.
+The most comprehensive open-source IPL analytics platform built on ball-by-ball data — not match summaries. It covers every delivery of every match across 17 IPL seasons (2008–2026), enabling phase-level analysis, pressure metrics, and player matchup data that match-summary tools cannot produce.
 
-**Scale:** 1,169+ matches · 600+ players tracked · 17 seasons of ball-by-ball data
+**Scale:** 1,243 matches · 700+ players tracked · 18 seasons of ball-by-ball data
 
 ---
 
@@ -21,7 +21,7 @@ The most comprehensive open-source IPL analytics platform built on ball-by-ball 
 The platform is built around specific questions an analyst would actually ask:
 
 - Which teams perform best in the death overs (overs 17–20) under pressure?
-- How has powerplay strategy evolved from 2008 to 2025?
+- How has powerplay strategy evolved from 2008 to 2026?
 - Which bowlers are most effective against left-handed batsmen?
 - How do batting averages change across the three phases of an innings?
 - Which venues produce the highest/lowest scoring matches and why?
