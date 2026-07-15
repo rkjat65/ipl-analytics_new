@@ -37,7 +37,8 @@ Cricsheet JSON (ball-by-ball)
         ↓
     FastAPI (analytical backend)
         ↓
-    React + Tailwind (interactive dashboard frontend)
+    ├── React + Tailwind (web dashboard — crickrida.rkjat.in)
+    └── Flutter (iOS & Android app — /mobile)
 ```
 
 **Key architectural decision:** The analysis layer is kept strictly separate from the content/social media layer. The DuckDB analytical database can power future applications without data contamination or reprocessing.
@@ -56,6 +57,7 @@ Cricsheet JSON (ball-by-ball)
 | Query engine | DuckDB |
 | Backend API | FastAPI (Python) |
 | Frontend | React + Tailwind CSS |
+| Mobile | Flutter (iOS & Android) — see [`mobile/`](./mobile) |
 | Data processing | Python (pandas, numpy) |
 
 ---
