@@ -107,92 +107,133 @@ class _SeasonsScreenState extends State<SeasonsScreen> {
             child: _loading
                 ? const LoadingView()
                 : _error != null
-                    ? ErrorView(message: _error!, onRetry: _loadSeason)
-                    : RefreshIndicator(
-                        color: CrickTheme.cyan,
-                        onRefresh: _loadSeason,
-                        child: ListView(
-                          children: [
-                            if (_summary != null) ...[
-                              const SectionHeader('Summary'),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: GridView.count(
-                                  crossAxisCount: 2,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  mainAxisSpacing: 10,
-                                  crossAxisSpacing: 10,
-                                  childAspectRatio: 1.5,
-                                  children: [
-                                    StatCard(label: 'Matches', value: formatNumber(_summary!['matches'] ?? _summary!['total_matches'])),
-                                    StatCard(label: 'Runs', value: formatNumber(_summary!['total_runs'] ?? _summary!['runs']), color: CrickTheme.lime),
-                                    StatCard(label: 'Sixes', value: formatNumber(_summary!['sixes'] ?? _summary!['total_sixes']), color: CrickTheme.amber),
-                                    StatCard(label: 'Winner', value: (_summary!['winner'] ?? _summary!['champion'] ?? '—').toString(), color: CrickTheme.magenta),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            if (_table.isNotEmpty) ...[
-                              const SectionHeader('Points table'),
-                              ..._table.asMap().entries.map((e) {
-                                final r = e.value;
-                                final team = (r['team'] ?? r['name'] ?? '').toString();
-                                return CrickCard(
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 28,
-                                        child: Text(
-                                          '${e.key + 1}',
-                                          style: GoogleFonts.jetBrainsMono(
-                                            color: e.key < 4 ? CrickTheme.lime : CrickTheme.textMuted,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      TeamLogo(team: team, size: 30),
-                                      const SizedBox(width: 10),
-                                      Expanded(child: Text(team, style: const TextStyle(fontWeight: FontWeight.w600))),
-                                      Text(
-                                        'P ${formatNumber(r['played'] ?? r['matches'])}  '
-                                        'W ${formatNumber(r['wins'] ?? r['won'])}  '
-                                        'Pts ${formatNumber(r['points'] ?? r['pts'])}',
-                                        style: GoogleFonts.jetBrainsMono(fontSize: 11, color: CrickTheme.textSecondary),
-                                      ),
-                                    ],
+                ? ErrorView(message: _error!, onRetry: _loadSeason)
+                : RefreshIndicator(
+                    color: CrickTheme.cyan,
+                    onRefresh: _loadSeason,
+                    child: ListView(
+                      children: [
+                        if (_summary != null) ...[
+                          const SectionHeader('Summary'),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childAspectRatio: 1.5,
+                              children: [
+                                StatCard(
+                                  label: 'Matches',
+                                  value: formatNumber(
+                                    _summary!['matches'] ??
+                                        _summary!['total_matches'],
                                   ),
-                                );
-                              }),
-                            ],
-                            if (orangeCap.isNotEmpty) ...[
-                              const SectionHeader('Orange cap'),
-                              ...orangeCap.take(5).map((p) {
-                                final name = (p['player'] ?? '').toString();
-                                return LeaderboardTile(
-                                  rank: orangeCap.indexOf(p) + 1,
-                                  name: name,
-                                  primary: formatNumber(p['runs']),
-                                  primaryLabel: 'runs',
-                                );
-                              }),
-                            ],
-                            if (purpleCap.isNotEmpty) ...[
-                              const SectionHeader('Purple cap'),
-                              ...purpleCap.take(5).map((p) {
-                                final name = (p['player'] ?? '').toString();
-                                return LeaderboardTile(
-                                  rank: purpleCap.indexOf(p) + 1,
-                                  name: name,
-                                  primary: formatNumber(p['wickets']),
-                                  primaryLabel: 'wkts',
-                                );
-                              }),
-                            ],
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
+                                ),
+                                StatCard(
+                                  label: 'Runs',
+                                  value: formatNumber(
+                                    _summary!['total_runs'] ??
+                                        _summary!['runs'],
+                                  ),
+                                  color: CrickTheme.lime,
+                                ),
+                                StatCard(
+                                  label: 'Sixes',
+                                  value: formatNumber(
+                                    _summary!['sixes'] ??
+                                        _summary!['total_sixes'],
+                                  ),
+                                  color: CrickTheme.amber,
+                                ),
+                                StatCard(
+                                  label: 'Winner',
+                                  value:
+                                      (_summary!['winner'] ??
+                                              _summary!['champion'] ??
+                                              '—')
+                                          .toString(),
+                                  color: CrickTheme.magenta,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (_table.isNotEmpty) ...[
+                          const SectionHeader('Points table'),
+                          ..._table.asMap().entries.map((e) {
+                            final r = e.value;
+                            final team = (r['team'] ?? r['name'] ?? '')
+                                .toString();
+                            return CrickCard(
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 28,
+                                    child: Text(
+                                      '${e.key + 1}',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        color: e.key < 4
+                                            ? CrickTheme.lime
+                                            : CrickTheme.textMuted,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  TeamLogo(team: team, size: 30),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      team,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'P ${formatNumber(r['played'] ?? r['matches'])}  '
+                                    'W ${formatNumber(r['wins'] ?? r['won'])}  '
+                                    'Pts ${formatNumber(r['points'] ?? r['pts'])}',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      color: CrickTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                        if (orangeCap.isNotEmpty) ...[
+                          const SectionHeader('Orange cap'),
+                          ...orangeCap.take(5).map((p) {
+                            final name = (p['player'] ?? '').toString();
+                            return LeaderboardTile(
+                              rank: orangeCap.indexOf(p) + 1,
+                              name: name,
+                              primary: formatNumber(p['runs']),
+                              primaryLabel: 'runs',
+                            );
+                          }),
+                        ],
+                        if (purpleCap.isNotEmpty) ...[
+                          const SectionHeader('Purple cap'),
+                          ...purpleCap.take(5).map((p) {
+                            final name = (p['player'] ?? '').toString();
+                            return LeaderboardTile(
+                              rank: purpleCap.indexOf(p) + 1,
+                              name: name,
+                              primary: formatNumber(p['wickets']),
+                              primaryLabel: 'wkts',
+                            );
+                          }),
+                        ],
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),

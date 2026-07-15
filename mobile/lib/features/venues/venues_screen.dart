@@ -60,7 +60,11 @@ class _VenuesScreenState extends State<VenuesScreen> {
   Widget build(BuildContext context) {
     final filtered = _query.isEmpty
         ? _venues
-        : _venues.where((v) => _name(v).toLowerCase().contains(_query.toLowerCase())).toList();
+        : _venues
+              .where(
+                (v) => _name(v).toLowerCase().contains(_query.toLowerCase()),
+              )
+              .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Venues')),
@@ -78,56 +82,79 @@ class _VenuesScreenState extends State<VenuesScreen> {
             child: _loading
                 ? const LoadingView()
                 : _error != null
-                    ? ErrorView(message: _error!, onRetry: _load)
-                    : RefreshIndicator(
-                        color: CrickTheme.cyan,
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) {
-                            final v = filtered[i];
-                            final name = _name(v);
-                            return CrickCard(
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => VenueProfileScreen(venueName: name)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 42,
-                                    height: 42,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: CrickTheme.bgElevated,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: CrickTheme.borderSubtle),
-                                    ),
-                                    child: const Icon(Icons.stadium_outlined, color: CrickTheme.cyan, size: 20),
+                ? ErrorView(message: _error!, onRetry: _load)
+                : RefreshIndicator(
+                    color: CrickTheme.cyan,
+                    onRefresh: _load,
+                    child: ListView.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final v = filtered[i];
+                        final name = _name(v);
+                        return CrickCard(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  VenueProfileScreen(venueName: name),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: CrickTheme.bgElevated,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: CrickTheme.borderSubtle,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                        if (v['city'] != null || v['matches'] != null)
-                                          Text(
-                                            [
-                                              if (v['city'] != null) v['city'].toString(),
-                                              if (v['matches'] != null) '${formatNumber(v['matches'])} matches',
-                                            ].join(' · '),
-                                            style: const TextStyle(color: CrickTheme.textMuted, fontSize: 12),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.chevron_right, color: CrickTheme.textMuted),
-                                ],
+                                ),
+                                child: const Icon(
+                                  Icons.stadium_outlined,
+                                  color: CrickTheme.cyan,
+                                  size: 20,
+                                ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (v['city'] != null ||
+                                        v['matches'] != null)
+                                      Text(
+                                        [
+                                          if (v['city'] != null)
+                                            v['city'].toString(),
+                                          if (v['matches'] != null)
+                                            '${formatNumber(v['matches'])} matches',
+                                        ].join(' · '),
+                                        style: const TextStyle(
+                                          color: CrickTheme.textMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: CrickTheme.textMuted,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

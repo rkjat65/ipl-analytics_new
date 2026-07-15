@@ -36,10 +36,17 @@ jobs:
 
     - name: Deploy to Oracle via SSH
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        SMTP_HOST: ${{ secrets.SMTP_HOST }}
+        SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        SMTP_FROM: ${{ secrets.SMTP_FROM }}
       with:
         host: ${{ secrets.ORACLE_IP }}
         username: ${{ secrets.REMOTE_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        envs: SMTP_HOST,SMTP_PORT,SMTP_USERNAME,SMTP_PASSWORD,SMTP_FROM
         script: |
           # Login to registry on the server
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -47,9 +54,18 @@ jobs:
           # Pull the latest image
           docker pull ghcr.io/${{ github.repository_owner }}/ipl-analytics:latest
           
+          # Preserve accounts from deployments that predate the data volume.
+          docker cp ipl-analytics:/app/backend/data/users.db /tmp/crickrida-users.db || true
+
           # Stop and remove old container
           docker stop ipl-analytics || true
           docker rm ipl-analytics || true
+
+          docker volume create crickrida-data
+          docker run --rm \
+            -v crickrida-data:/data \
+            -v /tmp:/backup \
+            alpine sh -c 'if [ -f /backup/crickrida-users.db ] && [ ! -f /data/users.db ]; then cp /backup/crickrida-users.db /data/users.db; fi'
           
           # Run the new container on port 8000 (Caddy will proxy to this)
           docker run -d \
@@ -57,4 +73,12 @@ jobs:
             --restart always \
             -p 8000:8000 \
             -e DUCKDB_PATH=/app/ipl.duckdb \
+            -e AUTH_DB_PATH=/data/users.db \
+            -e SMTP_HOST \
+            -e SMTP_PORT \
+            -e SMTP_USERNAME \
+            -e SMTP_PASSWORD \
+            -e SMTP_FROM \
+            -e PUBLIC_APP_URL=https://crickrida.rkjat.in \
+            -v crickrida-data:/data \
             ghcr.io/${{ github.repository_owner }}/ipl-analytics:latest

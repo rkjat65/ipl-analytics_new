@@ -33,7 +33,11 @@ class _AppShellState extends State<AppShell> {
           color: CrickTheme.bgElevated,
           border: const Border(top: BorderSide(color: CrickTheme.borderSubtle)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, -4)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
           ],
         ),
         child: NavigationBar(
@@ -48,27 +52,47 @@ class _AppShellState extends State<AppShell> {
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined, size: 22),
-              selectedIcon: Icon(Icons.home_rounded, color: CrickTheme.cyan, size: 22),
+              selectedIcon: Icon(
+                Icons.home_rounded,
+                color: CrickTheme.cyan,
+                size: 22,
+              ),
               label: 'Home',
             ),
             NavigationDestination(
               icon: Icon(Icons.sports_cricket_outlined, size: 22),
-              selectedIcon: Icon(Icons.sports_cricket, color: CrickTheme.cyan, size: 22),
+              selectedIcon: Icon(
+                Icons.sports_cricket,
+                color: CrickTheme.cyan,
+                size: 22,
+              ),
               label: 'Matches',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_search_outlined, size: 22),
-              selectedIcon: Icon(Icons.person_search, color: CrickTheme.cyan, size: 22),
+              selectedIcon: Icon(
+                Icons.person_search,
+                color: CrickTheme.cyan,
+                size: 22,
+              ),
               label: 'Players',
             ),
             NavigationDestination(
               icon: Icon(Icons.dashboard_customize_outlined, size: 22),
-              selectedIcon: Icon(Icons.dashboard_customize, color: CrickTheme.cyan, size: 22),
+              selectedIcon: Icon(
+                Icons.dashboard_customize,
+                color: CrickTheme.cyan,
+                size: 22,
+              ),
               label: 'Studio',
             ),
             NavigationDestination(
               icon: Icon(Icons.grid_view_outlined, size: 22),
-              selectedIcon: Icon(Icons.grid_view_rounded, color: CrickTheme.cyan, size: 22),
+              selectedIcon: Icon(
+                Icons.grid_view_rounded,
+                color: CrickTheme.cyan,
+                size: 22,
+              ),
               label: 'More',
             ),
           ],

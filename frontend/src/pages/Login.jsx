@@ -36,6 +36,14 @@ export default function LoginPage({ inline = false }) {
     }
   }, [isAuthenticated, inline, navigate])
 
+  useEffect(() => {
+    if (inline) return
+    const resetToken = new URLSearchParams(window.location.search).get('reset_token')
+    if (!resetToken) return
+    setFormData(prev => ({ ...prev, resetToken }))
+    setMode('reset')
+  }, [inline])
+
   const handleGoogleResponse = useCallback(async (response) => {
     setSubmitting(true)
     setSubmitError('')
@@ -385,7 +393,7 @@ export default function LoginPage({ inline = false }) {
                   hover:brightness-110 active:brightness-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed
                   flex items-center justify-center gap-2">
                 {submitting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
-                {mode === 'forgot' ? 'Send Reset Token' :
+                {mode === 'forgot' ? 'Send Reset Link' :
                  mode === 'reset' ? 'Reset Password' :
                  mode === 'register' ? 'Create Account' : 'Sign In'}
               </button>

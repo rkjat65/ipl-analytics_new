@@ -9,12 +9,14 @@ import 'services/api_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: CrickTheme.bgElevated,
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: CrickTheme.bgElevated,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const CrickridaApp());
 }
 
@@ -28,7 +30,9 @@ class CrickridaApp extends StatelessWidget {
       providers: [
         Provider<ApiClient>.value(value: apiClient),
         Provider<ApiService>(create: (_) => ApiService(apiClient)),
-        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider(apiClient)),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(apiClient),
+        ),
       ],
       child: MaterialApp(
         title: 'Crickrida',
@@ -52,6 +56,12 @@ class _Root extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Image(
+                image: AssetImage('assets/branding/splash-logo.png'),
+                width: 104,
+                height: 104,
+              ),
+              SizedBox(height: 12),
               Text(
                 'Crickrida',
                 style: TextStyle(
@@ -65,7 +75,10 @@ class _Root extends StatelessWidget {
               SizedBox(
                 width: 28,
                 height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: CrickTheme.cyan),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: CrickTheme.cyan,
+                ),
               ),
             ],
           ),

@@ -7,24 +7,9 @@ import '../../widgets/widgets.dart';
 
 /// Canvas sizes by orientation — not social platform names.
 enum CardFormat {
-  landscape(
-    Size(1200, 675),
-    'Landscape',
-    '16:9',
-    Icons.crop_landscape_rounded,
-  ),
-  square(
-    Size(1080, 1080),
-    'Square',
-    '1:1',
-    Icons.crop_square_rounded,
-  ),
-  portrait(
-    Size(1080, 1920),
-    'Portrait',
-    '9:16',
-    Icons.crop_portrait_rounded,
-  );
+  landscape(Size(1200, 675), 'Landscape', '16:9', Icons.crop_landscape_rounded),
+  square(Size(1080, 1080), 'Square', '1:1', Icons.crop_square_rounded),
+  portrait(Size(1080, 1920), 'Portrait', '9:16', Icons.crop_portrait_rounded);
 
   const CardFormat(this.dims, this.label, this.ratio, this.icon);
   final Size dims;
@@ -67,7 +52,9 @@ class _StudioScaffold extends StatelessWidget {
             child: Container(
               height: 6,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [accent, accent.withValues(alpha: 0.12)]),
+                gradient: LinearGradient(
+                  colors: [accent, accent.withValues(alpha: 0.12)],
+                ),
               ),
             ),
           ),
@@ -155,7 +142,10 @@ class StudioMetricTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: color.withValues(alpha: 0.32), width: 1.5),
+            border: Border.all(
+              color: color.withValues(alpha: 0.32),
+              width: 1.5,
+            ),
           ),
           padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
           child: Column(
@@ -298,7 +288,9 @@ class StudioPlayerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = type == 'batting' ? CrickTheme.cyan : CrickTheme.magenta;
-    final hero = type == 'batting' ? formatNumber(stats['runs']) : formatNumber(stats['wickets']);
+    final hero = type == 'batting'
+        ? formatNumber(stats['runs'])
+        : formatNumber(stats['wickets']);
     final heroLabel = type == 'batting' ? 'RUNS' : 'WICKETS';
     final metrics = _metrics;
 
@@ -320,18 +312,32 @@ class StudioPlayerCard extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             // Photo ~22%
-            PlayerAvatar(name: playerName, size: 300, radius: 34, borderColor: accent),
+            PlayerAvatar(
+              name: playerName,
+              size: 300,
+              radius: 34,
+              borderColor: accent,
+            ),
             const SizedBox(height: 18),
             // Name + hero ~16%
             Text(
               playerName,
               textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(fontSize: 52, fontWeight: FontWeight.w800, height: 1.05),
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 52,
+                fontWeight: FontWeight.w800,
+                height: 1.05,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               hero,
-              style: GoogleFonts.jetBrainsMono(fontSize: 96, fontWeight: FontWeight.w800, color: accent, height: 1),
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 96,
+                fontWeight: FontWeight.w800,
+                color: accent,
+                height: 1,
+              ),
             ),
             Text(
               heroLabel,
@@ -375,7 +381,12 @@ class StudioPlayerCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                PlayerAvatar(name: playerName, size: avatarSize, radius: 24, borderColor: accent),
+                PlayerAvatar(
+                  name: playerName,
+                  size: avatarSize,
+                  radius: 24,
+                  borderColor: accent,
+                ),
                 SizedBox(width: format.isSquare ? 28 : 24),
                 Expanded(
                   child: Column(
@@ -472,10 +483,16 @@ class StudioComparisonCard extends StatelessWidget {
       ('Runs', formatNumber(p1Stats['runs']), formatNumber(p2Stats['runs'])),
       ('Avg', formatDecimal(p1Stats['avg']), formatDecimal(p2Stats['avg'])),
       ('SR', formatDecimal(p1Stats['sr']), formatDecimal(p2Stats['sr'])),
-      ('50s', formatNumber(p1Stats['fifties']), formatNumber(p2Stats['fifties'])),
+      (
+        '50s',
+        formatNumber(p1Stats['fifties']),
+        formatNumber(p2Stats['fifties']),
+      ),
       ('6s', formatNumber(p1Stats['sixes']), formatNumber(p2Stats['sixes'])),
     ];
-    final avatar = format.isPortrait ? 190.0 : (format.isSquare ? 140.0 : 112.0);
+    final avatar = format.isPortrait
+        ? 190.0
+        : (format.isSquare ? 140.0 : 112.0);
 
     return _StudioScaffold(
       format: format,
@@ -578,7 +595,12 @@ class StudioComparisonCard extends StatelessWidget {
   Widget _head(String name, Color color, double size) {
     return Column(
       children: [
-        PlayerAvatar(name: name, size: size, radius: size * 0.16, borderColor: color),
+        PlayerAvatar(
+          name: name,
+          size: size,
+          radius: size * 0.16,
+          borderColor: color,
+        ),
         const SizedBox(height: 10),
         Text(
           name,
@@ -605,7 +627,9 @@ class StudioMatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final info = match['info'] is Map ? Map<String, dynamic>.from(match['info'] as Map) : match;
+    final info = match['info'] is Map
+        ? Map<String, dynamic>.from(match['info'] as Map)
+        : match;
     final t1 = (info['team1'] ?? match['team1'] ?? 'Team 1').toString();
     final t2 = (info['team2'] ?? match['team2'] ?? 'Team 2').toString();
     final logo = format.isPortrait ? 140.0 : (format.isSquare ? 110.0 : 92.0);
@@ -627,7 +651,10 @@ class StudioMatchCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             formatDate(info['date'] ?? match['date']),
-            style: GoogleFonts.jetBrainsMono(color: CrickTheme.textMuted, fontSize: 18),
+            style: GoogleFonts.jetBrainsMono(
+              color: CrickTheme.textMuted,
+              fontSize: 18,
+            ),
           ),
           const Spacer(flex: 2),
           Row(
@@ -657,9 +684,13 @@ class StudioMatchCard extends StatelessWidget {
           Text(
             (info['venue'] ?? match['venue'] ?? '').toString(),
             textAlign: TextAlign.center,
-            style: TextStyle(color: CrickTheme.textSecondary, fontSize: format.isPortrait ? 18 : 15),
+            style: TextStyle(
+              color: CrickTheme.textSecondary,
+              fontSize: format.isPortrait ? 18 : 15,
+            ),
           ),
-          if ((info['player_of_match'] ?? match['player_of_match']) != null) ...[
+          if ((info['player_of_match'] ?? match['player_of_match']) !=
+              null) ...[
             const SizedBox(height: 14),
             Text(
               'PoM · ${info['player_of_match'] ?? match['player_of_match']}',
@@ -789,7 +820,12 @@ class StudioSeasonCard extends StatelessWidget {
       ('SIXES', formatNumber(data['sixes'] ?? data['total_sixes'])),
       ('CHAMPION', winner),
     ];
-    final colors = [CrickTheme.cyan, CrickTheme.lime, CrickTheme.amber, CrickTheme.magenta];
+    final colors = [
+      CrickTheme.cyan,
+      CrickTheme.lime,
+      CrickTheme.amber,
+      CrickTheme.magenta,
+    ];
 
     return _StudioScaffold(
       format: format,

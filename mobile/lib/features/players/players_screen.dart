@@ -14,7 +14,8 @@ class PlayersScreen extends StatefulWidget {
   State<PlayersScreen> createState() => _PlayersScreenState();
 }
 
-class _PlayersScreenState extends State<PlayersScreen> with SingleTickerProviderStateMixin {
+class _PlayersScreenState extends State<PlayersScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _search = TextEditingController();
   List<String> _seasons = [];
@@ -100,7 +101,10 @@ class _PlayersScreenState extends State<PlayersScreen> with SingleTickerProvider
           indicatorColor: CrickTheme.cyan,
           labelColor: CrickTheme.cyan,
           unselectedLabelColor: CrickTheme.textMuted,
-          tabs: const [Tab(text: 'Batting'), Tab(text: 'Bowling')],
+          tabs: const [
+            Tab(text: 'Batting'),
+            Tab(text: 'Bowling'),
+          ],
         ),
       ),
       body: Column(
@@ -120,7 +124,7 @@ class _PlayersScreenState extends State<PlayersScreen> with SingleTickerProvider
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _searchResults.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (_, i) {
                   final name = _searchResults[i];
                   return ActionChip(
@@ -143,24 +147,26 @@ class _PlayersScreenState extends State<PlayersScreen> with SingleTickerProvider
             child: _loading
                 ? const LoadingView()
                 : _error != null
-                    ? ErrorView(message: _error!, onRetry: _load)
-                    : TabBarView(
-                        controller: _tabs,
-                        children: [
-                          _list(
-                            _batters,
-                            primary: (p) => formatNumber(p['runs']),
-                            label: 'runs',
-                            secondary: (p) => 'Avg ${formatDecimal(p['avg'])} · SR ${formatDecimal(p['sr'])}',
-                          ),
-                          _list(
-                            _bowlers,
-                            primary: (p) => formatNumber(p['wickets']),
-                            label: 'wkts',
-                            secondary: (p) => 'Econ ${formatDecimal(p['economy'])} · Avg ${formatDecimal(p['avg'])}',
-                          ),
-                        ],
+                ? ErrorView(message: _error!, onRetry: _load)
+                : TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _list(
+                        _batters,
+                        primary: (p) => formatNumber(p['runs']),
+                        label: 'runs',
+                        secondary: (p) =>
+                            'Avg ${formatDecimal(p['avg'])} · SR ${formatDecimal(p['sr'])}',
                       ),
+                      _list(
+                        _bowlers,
+                        primary: (p) => formatNumber(p['wickets']),
+                        label: 'wkts',
+                        secondary: (p) =>
+                            'Econ ${formatDecimal(p['economy'])} · Avg ${formatDecimal(p['avg'])}',
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),

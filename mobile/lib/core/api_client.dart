@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'config.dart';
@@ -12,14 +13,18 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({http.Client? client}) : _client = client ?? http.Client();
+  ApiClient({http.Client? client, this.timeout = const Duration(seconds: 20)})
+    : _client = client ?? http.Client();
 
   final http.Client _client;
+  final Duration timeout;
   String? _token;
 
   String? get token => _token;
 
   void setToken(String? token) => _token = token;
+
+  void close() => _client.close();
 
   Uri _uri(String path, [Map<String, dynamic>? params]) {
     final p = path.startsWith('/') ? path : '/$path';
@@ -33,9 +38,7 @@ class ApiClient {
   }
 
   Map<String, String> _headers({bool jsonBody = false, bool auth = true}) {
-    final h = <String, String>{
-      'Accept': 'application/json',
-    };
+    final h = <String, String>{'Accept': 'application/json'};
     if (jsonBody) h['Content-Type'] = 'application/json';
     if (auth && _token != null && _token!.isNotEmpty) {
       h['Authorization'] = 'Bearer $_token';
@@ -43,23 +46,51 @@ class ApiClient {
     return h;
   }
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? params, bool auth = true}) async {
-    final res = await _client.get(_uri(path, params), headers: _headers(auth: auth));
-    return _decode(res);
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? params,
+    bool auth = true,
+  }) async {
+    return _request(
+      () => _client.get(_uri(path, params), headers: _headers(auth: auth)),
+    );
   }
 
-  Future<dynamic> post(String path, {Map<String, dynamic>? body, bool auth = true}) async {
-    final res = await _client.post(
-      _uri(path),
-      headers: _headers(jsonBody: true, auth: auth),
-      body: body == null ? null : jsonEncode(body),
+  Future<dynamic> post(
+    String path, {
+    Map<String, dynamic>? body,
+    bool auth = true,
+  }) async {
+    return _request(
+      () => _client.post(
+        _uri(path),
+        headers: _headers(jsonBody: true, auth: auth),
+        body: body == null ? null : jsonEncode(body),
+      ),
     );
-    return _decode(res);
   }
 
   Future<dynamic> delete(String path, {bool auth = true}) async {
-    final res = await _client.delete(_uri(path), headers: _headers(auth: auth));
-    return _decode(res);
+    return _request(
+      () => _client.delete(_uri(path), headers: _headers(auth: auth)),
+    );
+  }
+
+  Future<dynamic> _request(Future<http.Response> Function() send) async {
+    try {
+      final response = await send().timeout(timeout);
+      return _decode(response);
+    } on TimeoutException {
+      throw ApiException(
+        408,
+        'The request timed out. Check your connection and try again.',
+      );
+    } on http.ClientException {
+      throw ApiException(
+        0,
+        'Unable to reach Crickrida. Check your internet connection.',
+      );
+    }
   }
 
   dynamic _decode(http.Response res) {

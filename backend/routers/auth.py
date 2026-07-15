@@ -4,9 +4,11 @@ import hashlib
 import json
 import os
 import secrets
+import smtplib
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from typing import Optional
 from uuid import uuid4
 
@@ -28,6 +30,15 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "rkdevanda65@gmail.com").lower()
 SESSION_EXPIRY_DAYS = 7
 RESET_TOKEN_EXPIRY_HOURS = 1
+SMTP_HOST = os.environ.get("SMTP_HOST") or ""
+SMTP_PORT = int(os.environ.get("SMTP_PORT") or "587")
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM = os.environ.get("SMTP_FROM") or "Crickrida <no-reply@crickrida.rkjat.in>"
+PUBLIC_APP_URL = (os.environ.get("PUBLIC_APP_URL") or "https://crickrida.rkjat.in").rstrip("/")
+EXPOSE_RESET_TOKEN = os.environ.get("EXPOSE_RESET_TOKEN", "").lower() in {
+    "1", "true", "yes"
+}
 
 
 # ── Pydantic models ─────────────────────────────────────────────────
@@ -331,12 +342,60 @@ def change_password(body: ChangePasswordRequest, authorization: Optional[str] = 
     return {"detail": "Password changed successfully"}
 
 
+# ── Account deletion ────────────────────────────────────────────────
+
+@router.delete("/account")
+def delete_account(authorization: Optional[str] = Header(None)):
+    """Permanently delete the signed-in user and their account-linked data."""
+    user = get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    db = get_auth_db()
+    with db:
+        db.execute("DELETE FROM usage WHERE user_id = ?", (user["id"],))
+        db.execute("DELETE FROM sessions WHERE user_id = ?", (user["id"],))
+        deleted = db.execute("DELETE FROM users WHERE id = ?", (user["id"],))
+
+    if deleted.rowcount != 1:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"detail": "Account and associated data deleted permanently"}
+
+
 # ── Forgot password (generates reset token) ──────────────────────────
+
+def _send_reset_email(recipient: str, reset_token: str) -> bool:
+    """Send a one-hour reset link when SMTP is configured."""
+    if not SMTP_HOST:
+        return False
+
+    reset_url = f"{PUBLIC_APP_URL}/login?reset_token={reset_token}"
+    message = EmailMessage()
+    message["Subject"] = "Reset your Crickrida password"
+    message["From"] = SMTP_FROM
+    message["To"] = recipient
+    message.set_content(
+        "A password reset was requested for your Crickrida account.\n\n"
+        f"Open this link within {RESET_TOKEN_EXPIRY_HOURS} hour: {reset_url}\n\n"
+        "If you did not request this, you can safely ignore this email."
+    )
+
+    if SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            if SMTP_USERNAME:
+                smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+    else:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            smtp.starttls()
+            if SMTP_USERNAME:
+                smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+    return True
 
 @router.post("/forgot-password")
 def forgot_password(body: ForgotPasswordRequest):
-    """Generate a password reset token. Returns the token directly
-    (in production, this would be emailed)."""
+    """Email a password reset link without exposing account existence."""
     db = get_auth_db()
     row = db.execute(
         "SELECT id, auth_provider FROM users WHERE email = ?",
@@ -360,10 +419,21 @@ def forgot_password(body: ForgotPasswordRequest):
     )
     db.commit()
 
-    return {
-        "detail": "If an account with that email exists, a reset link has been generated.",
-        "reset_token": reset_token,  # In production, email this instead
+    try:
+        delivered = _send_reset_email(body.email.lower(), reset_token)
+    except (OSError, smtplib.SMTPException):
+        delivered = False
+
+    if not delivered and not EXPOSE_RESET_TOKEN:
+        db.execute("DELETE FROM sessions WHERE token = ?", (f"reset:{reset_token}",))
+        db.commit()
+
+    response = {
+        "detail": "If an account with that email exists, a reset link has been sent."
     }
+    if EXPOSE_RESET_TOKEN:
+        response["reset_token"] = reset_token
+    return response
 
 
 @router.post("/reset-password")

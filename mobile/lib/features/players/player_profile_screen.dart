@@ -14,7 +14,8 @@ class PlayerProfileScreen extends StatefulWidget {
   State<PlayerProfileScreen> createState() => _PlayerProfileScreenState();
 }
 
-class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTickerProviderStateMixin {
+class _PlayerProfileScreenState extends State<PlayerProfileScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   Map<String, dynamic>? _batting;
   Map<String, dynamic>? _bowling;
@@ -56,11 +57,15 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
       } catch (_) {}
       try {
         final raw = await api.getPlayerBattingMatchups(name);
-        batM = asMapList(raw).isNotEmpty ? asMapList(raw) : asMapList(raw, 'matchups');
+        batM = asMapList(raw).isNotEmpty
+            ? asMapList(raw)
+            : asMapList(raw, 'matchups');
       } catch (_) {}
       try {
         final raw = await api.getPlayerBowlingMatchups(name);
-        bowlM = asMapList(raw).isNotEmpty ? asMapList(raw) : asMapList(raw, 'matchups');
+        bowlM = asMapList(raw).isNotEmpty
+            ? asMapList(raw)
+            : asMapList(raw, 'matchups');
       } catch (_) {}
       if (!mounted) return;
       setState(() {
@@ -105,7 +110,10 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
           indicatorColor: CrickTheme.cyan,
           labelColor: CrickTheme.cyan,
           unselectedLabelColor: CrickTheme.textMuted,
-          labelStyle: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w700, fontSize: 13),
+          labelStyle: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
           tabs: const [
             Tab(text: 'Batting'),
             Tab(text: 'Bowling'),
@@ -116,22 +124,30 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
       body: _loading
           ? const LoadingView()
           : _error != null
-              ? ErrorView(message: _error!, onRetry: _load)
-              : Column(
-                  children: [
-                    _heroHeader(),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabs,
-                        children: [
-                          _statsPane(_careerBat, isBatting: true, seasons: asMapList(_batting, 'seasons')),
-                          _statsPane(_careerBowl, isBatting: false, seasons: asMapList(_bowling, 'seasons')),
-                          _matchupsPane(),
-                        ],
+          ? ErrorView(message: _error!, onRetry: _load)
+          : Column(
+              children: [
+                _heroHeader(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _statsPane(
+                        _careerBat,
+                        isBatting: true,
+                        seasons: asMapList(_batting, 'seasons'),
                       ),
-                    ),
-                  ],
+                      _statsPane(
+                        _careerBowl,
+                        isBatting: false,
+                        seasons: asMapList(_bowling, 'seasons'),
+                      ),
+                      _matchupsPane(),
+                    ],
+                  ),
                 ),
+              ],
+            ),
     );
   }
 
@@ -169,21 +185,33 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
               children: [
                 Text(
                   widget.playerName,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 20, fontWeight: FontWeight.w800),
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 const Text(
                   'IPL career',
-                  style: TextStyle(color: CrickTheme.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: CrickTheme.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    if (runs != null) _pill('${formatNumber(runs)} runs', CrickTheme.cyan),
-                    if (_careerBat['sr'] != null) _pill('SR ${formatDecimal(_careerBat['sr'])}', CrickTheme.lime),
-                    if (wkts != null) _pill('${formatNumber(wkts)} wkts', CrickTheme.magenta),
+                    if (runs != null)
+                      _pill('${formatNumber(runs)} runs', CrickTheme.cyan),
+                    if (_careerBat['sr'] != null)
+                      _pill(
+                        'SR ${formatDecimal(_careerBat['sr'])}',
+                        CrickTheme.lime,
+                      ),
+                    if (wkts != null)
+                      _pill('${formatNumber(wkts)} wkts', CrickTheme.magenta),
                   ],
                 ),
               ],
@@ -204,16 +232,46 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
       ),
       child: Text(
         text,
-        style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
 
-  Widget _statsPane(Map<String, dynamic> stats, {required bool isBatting, required List<Map<String, dynamic>> seasons}) {
+  Widget _statsPane(
+    Map<String, dynamic> stats, {
+    required bool isBatting,
+    required List<Map<String, dynamic>> seasons,
+  }) {
     // Same accent cycle as Home StatCards
     final palette = isBatting
-        ? [CrickTheme.cyan, CrickTheme.lime, CrickTheme.amber, CrickTheme.purple, CrickTheme.magenta, CrickTheme.cyan, CrickTheme.lime, CrickTheme.amber, CrickTheme.purple, CrickTheme.magenta]
-        : [CrickTheme.magenta, CrickTheme.cyan, CrickTheme.amber, CrickTheme.lime, CrickTheme.purple, CrickTheme.magenta, CrickTheme.cyan, CrickTheme.amber, CrickTheme.lime, CrickTheme.purple];
+        ? [
+            CrickTheme.cyan,
+            CrickTheme.lime,
+            CrickTheme.amber,
+            CrickTheme.purple,
+            CrickTheme.magenta,
+            CrickTheme.cyan,
+            CrickTheme.lime,
+            CrickTheme.amber,
+            CrickTheme.purple,
+            CrickTheme.magenta,
+          ]
+        : [
+            CrickTheme.magenta,
+            CrickTheme.cyan,
+            CrickTheme.amber,
+            CrickTheme.lime,
+            CrickTheme.purple,
+            CrickTheme.magenta,
+            CrickTheme.cyan,
+            CrickTheme.amber,
+            CrickTheme.lime,
+            CrickTheme.purple,
+          ];
 
     final items = isBatting
         ? <(String, String)>[
@@ -235,10 +293,16 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
             ('Average', formatDecimal(stats['avg'])),
             ('Economy', formatDecimal(stats['economy'])),
             ('Strike rate', formatDecimal(stats['sr'])),
-            ('Best', (stats['best_figures'] ?? stats['best'] ?? '—').toString()),
+            (
+              'Best',
+              (stats['best_figures'] ?? stats['best'] ?? '—').toString(),
+            ),
             ('4W', formatNumber(stats['four_wickets'] ?? stats['four_w'])),
             ('5W', formatNumber(stats['five_wickets'] ?? stats['five_w'])),
-            ('Dot %', formatDecimal(stats['dot_pct'] ?? stats['dot_percentage'])),
+            (
+              'Dot %',
+              formatDecimal(stats['dot_pct'] ?? stats['dot_percentage']),
+            ),
           ];
 
     return ListView(
@@ -295,7 +359,13 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
                           ),
                         ),
                         if (team.isNotEmpty)
-                          Text(team, style: const TextStyle(fontSize: 11, color: CrickTheme.textMuted)),
+                          Text(
+                            team,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: CrickTheme.textMuted,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -325,7 +395,8 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
         if (_batMatchups.isNotEmpty) ...[
           const SectionHeader('As batter vs bowlers'),
           ..._batMatchups.take(25).map((m) {
-            final name = (m['bowler'] ?? m['player'] ?? m['opponent'] ?? '').toString();
+            final name = (m['bowler'] ?? m['player'] ?? m['opponent'] ?? '')
+                .toString();
             return CrickCard(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
@@ -333,18 +404,31 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
                   PlayerAvatar(name: name, size: 40),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         formatNumber(m['runs']),
-                        style: GoogleFonts.jetBrainsMono(color: CrickTheme.cyan, fontWeight: FontWeight.w800, fontSize: 14),
+                        style: GoogleFonts.jetBrainsMono(
+                          color: CrickTheme.cyan,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                       Text(
                         '${formatNumber(m['balls'] ?? m['dismissals'])} balls',
-                        style: const TextStyle(fontSize: 10, color: CrickTheme.textMuted),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: CrickTheme.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -356,7 +440,8 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
         if (_bowlMatchups.isNotEmpty) ...[
           const SectionHeader('As bowler vs batters'),
           ..._bowlMatchups.take(25).map((m) {
-            final name = (m['batter'] ?? m['player'] ?? m['opponent'] ?? '').toString();
+            final name = (m['batter'] ?? m['player'] ?? m['opponent'] ?? '')
+                .toString();
             return CrickCard(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
@@ -364,18 +449,31 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> with SingleTi
                   PlayerAvatar(name: name, size: 40),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         '${formatNumber(m['wickets'])}w',
-                        style: GoogleFonts.jetBrainsMono(color: CrickTheme.magenta, fontWeight: FontWeight.w800, fontSize: 14),
+                        style: GoogleFonts.jetBrainsMono(
+                          color: CrickTheme.magenta,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                       Text(
                         '${formatNumber(m['runs'])} runs',
-                        style: const TextStyle(fontSize: 10, color: CrickTheme.textMuted),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: CrickTheme.textMuted,
+                        ),
                       ),
                     ],
                   ),

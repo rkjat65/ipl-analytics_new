@@ -149,7 +149,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
               alignment: Alignment.centerLeft,
               child: Text(
                 _loading ? 'Loading…' : '$_total matches',
-                style: const TextStyle(color: CrickTheme.textMuted, fontSize: 12),
+                style: const TextStyle(
+                  color: CrickTheme.textMuted,
+                  fontSize: 12,
+                ),
               ),
             ),
           ),
@@ -157,41 +160,45 @@ class _MatchesScreenState extends State<MatchesScreen> {
             child: _loading && _matches.isEmpty
                 ? const LoadingView()
                 : _error != null && _matches.isEmpty
-                    ? ErrorView(message: _error!, onRetry: () => _load(reset: true))
-                    : RefreshIndicator(
-                        color: CrickTheme.cyan,
-                        onRefresh: () => _load(reset: true),
-                        child: ListView.builder(
-                          itemCount: _matches.length + 1,
-                          itemBuilder: (context, i) {
-                            if (i == _matches.length) {
-                              if (_matches.length >= _total) {
-                                return const SizedBox(height: 40);
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Center(
-                                  child: _loadingMore
-                                      ? const CircularProgressIndicator(color: CrickTheme.cyan)
-                                      : OutlinedButton(
-                                          onPressed: () => _load(),
-                                          child: const Text('Load more'),
-                                        ),
-                                ),
-                              );
-                            }
-                            final m = _matches[i];
-                            return MatchTile(
-                              match: m,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => MatchDetailScreen(matchId: m['match_id'].toString()),
-                                ),
+                ? ErrorView(message: _error!, onRetry: () => _load(reset: true))
+                : RefreshIndicator(
+                    color: CrickTheme.cyan,
+                    onRefresh: () => _load(reset: true),
+                    child: ListView.builder(
+                      itemCount: _matches.length + 1,
+                      itemBuilder: (context, i) {
+                        if (i == _matches.length) {
+                          if (_matches.length >= _total) {
+                            return const SizedBox(height: 40);
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Center(
+                              child: _loadingMore
+                                  ? const CircularProgressIndicator(
+                                      color: CrickTheme.cyan,
+                                    )
+                                  : OutlinedButton(
+                                      onPressed: () => _load(),
+                                      child: const Text('Load more'),
+                                    ),
+                            ),
+                          );
+                        }
+                        final m = _matches[i];
+                        return MatchTile(
+                          match: m,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MatchDetailScreen(
+                                matchId: m['match_id'].toString(),
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -202,6 +209,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
 String teamAbbrSafe(String t) {
   if (t.length <= 12) return t;
   final parts = t.split(' ');
-  if (parts.length >= 2) return parts.map((e) => e.isNotEmpty ? e[0] : '').join();
+  if (parts.length >= 2) {
+    return parts.map((e) => e.isNotEmpty ? e[0] : '').join();
+  }
   return t.substring(0, 10);
 }

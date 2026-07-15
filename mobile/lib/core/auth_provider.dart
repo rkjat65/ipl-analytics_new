@@ -43,11 +43,13 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final data = asStringKeyedMap(await _api.post(
-        '/auth/login',
-        body: {'email': email, 'password': password},
-        auth: false,
-      ));
+      final data = asStringKeyedMap(
+        await _api.post(
+          '/auth/login',
+          body: {'email': email, 'password': password},
+          auth: false,
+        ),
+      );
       await _applyAuth(data);
     } catch (e) {
       _error = e.toString();
@@ -60,11 +62,13 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final data = asStringKeyedMap(await _api.post(
-        '/auth/register',
-        body: {'name': name, 'email': email, 'password': password},
-        auth: false,
-      ));
+      final data = asStringKeyedMap(
+        await _api.post(
+          '/auth/register',
+          body: {'name': name, 'email': email, 'password': password},
+          auth: false,
+        ),
+      );
       await _applyAuth(data);
     } catch (e) {
       _error = e.toString();
@@ -77,6 +81,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       if (_api.token != null) await _api.post('/auth/logout');
     } catch (_) {}
+    await _clearSession();
+    notifyListeners();
+  }
+
+  Future<void> deleteAccount() async {
+    if (_api.token == null) {
+      throw StateError('You must be signed in to delete your account.');
+    }
+    await _api.delete('/auth/account');
     await _clearSession();
     notifyListeners();
   }

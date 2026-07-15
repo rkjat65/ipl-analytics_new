@@ -35,8 +35,14 @@ class _H2HScreenState extends State<H2HScreen> {
       setState(() {
         _teams = teams;
         if (teams.length >= 2) {
-          _t1 = teams.firstWhere((t) => t.contains('Mumbai'), orElse: () => teams[0]);
-          _t2 = teams.firstWhere((t) => t.contains('Chennai'), orElse: () => teams[1]);
+          _t1 = teams.firstWhere(
+            (t) => t.contains('Mumbai'),
+            orElse: () => teams[0],
+          );
+          _t2 = teams.firstWhere(
+            (t) => t.contains('Chennai'),
+            orElse: () => teams[1],
+          );
         }
       });
       if (_t1 != null && _t2 != null) _compare();
@@ -79,34 +85,58 @@ class _H2HScreenState extends State<H2HScreen> {
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
-                  value: _t1,
+                  initialValue: _t1,
                   decoration: const InputDecoration(labelText: 'Team 1'),
-                  items: _teams.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
+                  items: _teams
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) => setState(() => _t1 = v),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _t2,
+                  initialValue: _t2,
                   decoration: const InputDecoration(labelText: 'Team 2'),
-                  items: _teams.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
+                  items: _teams
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) => setState(() => _t2 = v),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(onPressed: _loading ? null : _compare, child: const Text('Compare')),
+                  child: FilledButton(
+                    onPressed: _loading ? null : _compare,
+                    child: const Text('Compare'),
+                  ),
                 ),
               ],
             ),
           ),
-          if (_loading) const Padding(padding: EdgeInsets.all(32), child: LoadingView()),
+          if (_loading)
+            const Padding(padding: EdgeInsets.all(32), child: LoadingView()),
           if (_error != null) ErrorView(message: _error!, onRetry: _compare),
           if (!_loading && _data != null) ...[
             CrickCard(
               child: Row(
                 children: [
                   Expanded(child: _teamCol(_t1!)),
-                  Text('VS', style: GoogleFonts.spaceGrotesk(color: CrickTheme.cyan, fontWeight: FontWeight.w700)),
+                  Text(
+                    'VS',
+                    style: GoogleFonts.spaceGrotesk(
+                      color: CrickTheme.cyan,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   Expanded(child: _teamCol(_t2!, end: true)),
                 ],
               ),
@@ -114,10 +144,27 @@ class _H2HScreenState extends State<H2HScreen> {
             CrickCard(
               child: Column(
                 children: [
-                  KeyValueRow('Meetings', formatNumber(_data!['matches'] ?? _data!['total_matches'] ?? _data!['played']), accent: true),
-                  KeyValueRow('${teamAbbr(_t1)} wins', formatNumber(_pickWins(_t1!))),
-                  KeyValueRow('${teamAbbr(_t2)} wins', formatNumber(_pickWins(_t2!))),
-                  KeyValueRow('No result', formatNumber(_data!['no_result'] ?? _data!['nr'] ?? 0)),
+                  KeyValueRow(
+                    'Meetings',
+                    formatNumber(
+                      _data!['matches'] ??
+                          _data!['total_matches'] ??
+                          _data!['played'],
+                    ),
+                    accent: true,
+                  ),
+                  KeyValueRow(
+                    '${teamAbbr(_t1)} wins',
+                    formatNumber(_pickWins(_t1!)),
+                  ),
+                  KeyValueRow(
+                    '${teamAbbr(_t2)} wins',
+                    formatNumber(_pickWins(_t2!)),
+                  ),
+                  KeyValueRow(
+                    'No result',
+                    formatNumber(_data!['no_result'] ?? _data!['nr'] ?? 0),
+                  ),
                 ],
               ),
             ),
@@ -149,11 +196,16 @@ class _H2HScreenState extends State<H2HScreen> {
 
   Widget _teamCol(String team, {bool end = false}) {
     return Column(
-      crossAxisAlignment: end ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: end
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         TeamLogo(team: team, size: 48),
         const SizedBox(height: 8),
-        Text(teamAbbr(team), style: TextStyle(fontWeight: FontWeight.w700, color: teamColor(team))),
+        Text(
+          teamAbbr(team),
+          style: TextStyle(fontWeight: FontWeight.w700, color: teamColor(team)),
+        ),
       ],
     );
   }

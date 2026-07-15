@@ -124,7 +124,9 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
       final data = _playerType == 'bowling'
           ? await api.getPlayerBowling(name)
           : await api.getPlayerBatting(name);
-      final stats = asStringKeyedMap(data['career'] ?? data['overall'] ?? data['stats'] ?? data);
+      final stats = asStringKeyedMap(
+        data['career'] ?? data['overall'] ?? data['stats'] ?? data,
+      );
       if (!mounted) return;
       setState(() {
         _playerName = name;
@@ -144,7 +146,9 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
   Future<void> _loadComparePlayer(String name, bool isP1) async {
     try {
       final bat = await context.read<ApiService>().getPlayerBatting(name);
-      final stats = asStringKeyedMap(bat['career'] ?? bat['overall'] ?? bat['stats'] ?? bat);
+      final stats = asStringKeyedMap(
+        bat['career'] ?? bat['overall'] ?? bat['stats'] ?? bat,
+      );
       if (!mounted) return;
       setState(() {
         if (isP1) {
@@ -200,28 +204,44 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
   }
 
   Future<void> _export({required bool share, GlobalKey? key}) async {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final shareOrigin = renderBox == null
+        ? null
+        : renderBox.localToGlobal(Offset.zero) & renderBox.size;
     setState(() {
       _exporting = true;
       _status = null;
     });
     try {
-      final useKey = key ?? (_format.isPortrait ? _fullscreenCardKey : _cardKey);
+      final useKey =
+          key ?? (_format.isPortrait ? _fullscreenCardKey : _cardKey);
       // Prefer available boundary
       RenderRepaintBoundary? boundary =
           useKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      boundary ??= _cardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      boundary ??= _fullscreenCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) throw Exception('Preview not ready — open preview first');
+      boundary ??=
+          _cardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      boundary ??=
+          _fullscreenCardKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception('Preview not ready — open preview first');
+      }
       final image = await boundary.toImage(pixelRatio: 2.5);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       if (bytes == null) throw Exception('Capture failed');
       final dir = await getTemporaryDirectory();
       final file = File(
-        '${dir.path}/crickrida-${_template}-${_format.name}-${DateTime.now().millisecondsSinceEpoch}.png',
+        '${dir.path}/crickrida-$_template-${_format.name}-${DateTime.now().millisecondsSinceEpoch}.png',
       );
       await file.writeAsBytes(bytes.buffer.asUint8List());
       if (share) {
-        await Share.shareXFiles([XFile(file.path)], text: 'Made with Crickrida');
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            text: 'Made with Crickrida',
+            sharePositionOrigin: shareOrigin,
+          ),
+        );
         setState(() => _status = 'Shared');
       } else {
         await Gal.putImage(file.path, album: 'Crickrida');
@@ -262,7 +282,9 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
         );
       case 'match':
         return StudioMatchCard(
-          match: _matchData.isEmpty && _matches.isNotEmpty ? _matches.first : _matchData,
+          match: _matchData.isEmpty && _matches.isNotEmpty
+              ? _matches.first
+              : _matchData,
           format: _format,
         );
       case 'record':
@@ -308,11 +330,14 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: Text(
                     _template == 'comparison'
-                        ? 'Search player ${_compareFocus}'
+                        ? 'Search player $_compareFocus'
                         : _template == 'player'
-                            ? 'Search player'
-                            : 'Content',
-                    style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700),
+                        ? 'Search player'
+                        : 'Content',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -331,17 +356,36 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                   ),
                   if (_loadingPlayer)
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      child: LinearProgressIndicator(color: CrickTheme.cyan, minHeight: 2),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      child: LinearProgressIndicator(
+                        color: CrickTheme.cyan,
+                        minHeight: 2,
+                      ),
                     ),
                   if (_searchResults.isNotEmpty)
-                    ..._searchResults.take(6).map(
+                    ..._searchResults
+                        .take(6)
+                        .map(
                           (p) => ListTile(
                             dense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
                             leading: PlayerAvatar(name: p, size: 40),
-                            title: Text(p, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            trailing: const Icon(Icons.add_circle_outline, color: CrickTheme.cyan, size: 20),
+                            title: Text(
+                              p,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.add_circle_outline,
+                              color: CrickTheme.cyan,
+                              size: 20,
+                            ),
                             onTap: () {
                               if (_template == 'comparison') {
                                 _loadComparePlayer(p, _compareFocus == 1);
@@ -351,20 +395,34 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                             },
                           ),
                         ),
-                  if (_template == 'player' && _playerName != null && _searchResults.isEmpty)
+                  if (_template == 'player' &&
+                      _playerName != null &&
+                      _searchResults.isEmpty)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                       child: Row(
                         children: [
-                          PlayerAvatar(name: _playerName!, size: 44, borderColor: CrickTheme.cyan),
+                          PlayerAvatar(
+                            name: _playerName!,
+                            size: 44,
+                            borderColor: CrickTheme.cyan,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               _playerName!,
-                              style: const TextStyle(fontWeight: FontWeight.w700, color: CrickTheme.cyan, fontSize: 15),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: CrickTheme.cyan,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
-                          const Icon(Icons.check_circle, color: CrickTheme.lime, size: 18),
+                          const Icon(
+                            Icons.check_circle,
+                            color: CrickTheme.lime,
+                            size: 18,
+                          ),
                         ],
                       ),
                     ),
@@ -374,15 +432,29 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          _segChip('Batting', _playerType == 'batting', CrickTheme.cyan, () {
-                            setState(() => _playerType = 'batting');
-                            if (_playerName != null) _loadPlayer(_playerName!);
-                          }),
+                          _segChip(
+                            'Batting',
+                            _playerType == 'batting',
+                            CrickTheme.cyan,
+                            () {
+                              setState(() => _playerType = 'batting');
+                              if (_playerName != null) {
+                                _loadPlayer(_playerName!);
+                              }
+                            },
+                          ),
                           const SizedBox(width: 8),
-                          _segChip('Bowling', _playerType == 'bowling', CrickTheme.magenta, () {
-                            setState(() => _playerType = 'bowling');
-                            if (_playerName != null) _loadPlayer(_playerName!);
-                          }),
+                          _segChip(
+                            'Bowling',
+                            _playerType == 'bowling',
+                            CrickTheme.magenta,
+                            () {
+                              setState(() => _playerType = 'bowling');
+                              if (_playerName != null) {
+                                _loadPlayer(_playerName!);
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -393,12 +465,26 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          Expanded(child: _playerPickSlot(1, _p1Name, CrickTheme.cyan)),
+                          Expanded(
+                            child: _playerPickSlot(1, _p1Name, CrickTheme.cyan),
+                          ),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text('VS', style: TextStyle(fontWeight: FontWeight.w800, color: CrickTheme.textMuted)),
+                            child: Text(
+                              'VS',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: CrickTheme.textMuted,
+                              ),
+                            ),
                           ),
-                          Expanded(child: _playerPickSlot(2, _p2Name, CrickTheme.magenta)),
+                          Expanded(
+                            child: _playerPickSlot(
+                              2,
+                              _p2Name,
+                              CrickTheme.magenta,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -412,7 +498,13 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                 // ── 2. ORIENTATION ─────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-                  child: Text('Orientation', style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Orientation',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -421,37 +513,58 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                       final selected = _format == f;
                       return Expanded(
                         child: Padding(
-                          padding: EdgeInsets.only(right: f != CardFormat.portrait ? 8 : 0),
+                          padding: EdgeInsets.only(
+                            right: f != CardFormat.portrait ? 8 : 0,
+                          ),
                           child: Material(
-                            color: selected ? CrickTheme.cyan.withValues(alpha: 0.12) : CrickTheme.bgCard,
+                            color: selected
+                                ? CrickTheme.cyan.withValues(alpha: 0.12)
+                                : CrickTheme.bgCard,
                             borderRadius: BorderRadius.circular(12),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: () => _onFormatSelected(f),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: selected ? CrickTheme.cyan.withValues(alpha: 0.55) : CrickTheme.borderSubtle,
+                                    color: selected
+                                        ? CrickTheme.cyan.withValues(
+                                            alpha: 0.55,
+                                          )
+                                        : CrickTheme.borderSubtle,
                                   ),
                                 ),
                                 child: Column(
                                   children: [
-                                    Icon(f.icon, size: 22, color: selected ? CrickTheme.cyan : CrickTheme.textMuted),
+                                    Icon(
+                                      f.icon,
+                                      size: 22,
+                                      color: selected
+                                          ? CrickTheme.cyan
+                                          : CrickTheme.textMuted,
+                                    ),
                                     const SizedBox(height: 6),
                                     Text(
                                       f.label,
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
-                                        color: selected ? CrickTheme.cyan : CrickTheme.textPrimary,
+                                        color: selected
+                                            ? CrickTheme.cyan
+                                            : CrickTheme.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       f.ratio,
-                                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: CrickTheme.textMuted),
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10,
+                                        color: CrickTheme.textMuted,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -467,7 +580,13 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                 // ── 3. TEMPLATE ────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text('Template', style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Template',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 SizedBox(
                   height: 84,
@@ -475,12 +594,14 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _templates.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (_, i) {
                       final t = _templates[i];
                       final selected = _template == t.$1;
                       return Material(
-                        color: selected ? t.$4.withValues(alpha: 0.14) : CrickTheme.bgCard,
+                        color: selected
+                            ? t.$4.withValues(alpha: 0.14)
+                            : CrickTheme.bgCard,
                         borderRadius: BorderRadius.circular(12),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
@@ -491,20 +612,28 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: selected ? t.$4.withValues(alpha: 0.55) : CrickTheme.borderSubtle,
+                                color: selected
+                                    ? t.$4.withValues(alpha: 0.55)
+                                    : CrickTheme.borderSubtle,
                               ),
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(t.$3, color: selected ? t.$4 : CrickTheme.textMuted, size: 22),
+                                Icon(
+                                  t.$3,
+                                  color: selected ? t.$4 : CrickTheme.textMuted,
+                                  size: 22,
+                                ),
                                 const SizedBox(height: 8),
                                 Text(
                                   t.$2,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: selected ? t.$4 : CrickTheme.textPrimary,
+                                    color: selected
+                                        ? t.$4
+                                        : CrickTheme.textPrimary,
                                   ),
                                 ),
                               ],
@@ -521,17 +650,36 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Row(
                     children: [
-                      Text('Preview', style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700)),
+                      Text(
+                        'Preview',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const Spacer(),
                       if (_format.isPortrait)
                         TextButton.icon(
                           onPressed: _openFullscreenPreview,
-                          icon: const Icon(Icons.fullscreen_rounded, size: 18, color: CrickTheme.cyan),
-                          label: const Text('Full screen', style: TextStyle(color: CrickTheme.cyan, fontSize: 12)),
+                          icon: const Icon(
+                            Icons.fullscreen_rounded,
+                            size: 18,
+                            color: CrickTheme.cyan,
+                          ),
+                          label: const Text(
+                            'Full screen',
+                            style: TextStyle(
+                              color: CrickTheme.cyan,
+                              fontSize: 12,
+                            ),
+                          ),
                         )
                       else
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: CrickTheme.bgElevated,
                             borderRadius: BorderRadius.circular(20),
@@ -539,7 +687,11 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                           ),
                           child: Text(
                             '${_format.label} · ${_format.ratio}',
-                            style: GoogleFonts.jetBrainsMono(fontSize: 11, color: CrickTheme.cyan, fontWeight: FontWeight.w700),
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              color: CrickTheme.cyan,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                     ],
@@ -554,10 +706,15 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                       child: AspectRatio(
                         aspectRatio: 9 / 16,
                         child: Container(
-                          constraints: BoxConstraints(maxHeight: screenH * 0.55),
+                          constraints: BoxConstraints(
+                            maxHeight: screenH * 0.55,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: CrickTheme.cyan.withValues(alpha: 0.45), width: 2),
+                            border: Border.all(
+                              color: CrickTheme.cyan.withValues(alpha: 0.45),
+                              width: 2,
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: CrickTheme.cyan.withValues(alpha: 0.12),
@@ -591,14 +748,23 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                                   right: 0,
                                   child: Center(
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.65),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.65,
+                                        ),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: const Text(
                                         'Tap for full-screen preview',
-                                        style: TextStyle(color: CrickTheme.cyan, fontSize: 12, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                          color: CrickTheme.cyan,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -659,7 +825,9 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                     child: Text(
                       _status!,
                       style: TextStyle(
-                        color: _status!.toLowerCase().contains('error') || _status!.contains('Exception')
+                        color:
+                            _status!.toLowerCase().contains('error') ||
+                                _status!.contains('Exception')
                             ? CrickTheme.danger
                             : CrickTheme.lime,
                         fontSize: 13,
@@ -678,9 +846,15 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               decoration: BoxDecoration(
                 color: CrickTheme.bgElevated,
-                border: const Border(top: BorderSide(color: CrickTheme.borderSubtle)),
+                border: const Border(
+                  top: BorderSide(color: CrickTheme.borderSubtle),
+                ),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, -4)),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
                 ],
               ),
               child: Row(
@@ -696,13 +870,20 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                                 _export(share: true);
                               }
                             },
-                      icon: Icon(_format.isPortrait ? Icons.fullscreen_rounded : Icons.ios_share_rounded, size: 18),
+                      icon: Icon(
+                        _format.isPortrait
+                            ? Icons.fullscreen_rounded
+                            : Icons.ios_share_rounded,
+                        size: 18,
+                      ),
                       label: Text(_format.isPortrait ? 'Preview' : 'Share'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: CrickTheme.textPrimary,
                         side: const BorderSide(color: CrickTheme.borderActive),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -723,15 +904,31 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: CrickTheme.bgPrimary),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: CrickTheme.bgPrimary,
+                              ),
                             )
-                          : Icon(_format.isPortrait ? Icons.phone_android_rounded : Icons.download_rounded, size: 18),
-                      label: Text(_exporting ? 'Saving…' : (_format.isPortrait ? 'Open full screen' : 'Save PNG')),
+                          : Icon(
+                              _format.isPortrait
+                                  ? Icons.phone_android_rounded
+                                  : Icons.download_rounded,
+                              size: 18,
+                            ),
+                      label: Text(
+                        _exporting
+                            ? 'Saving…'
+                            : (_format.isPortrait
+                                  ? 'Open full screen'
+                                  : 'Save PNG'),
+                      ),
                       style: FilledButton.styleFrom(
                         backgroundColor: CrickTheme.cyan,
                         foregroundColor: CrickTheme.bgPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -750,7 +947,10 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
         return DropdownButtonFormField<String>(
           initialValue: _matchId,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Select match', isDense: true),
+          decoration: const InputDecoration(
+            labelText: 'Select match',
+            isDense: true,
+          ),
           items: _matches.map((m) {
             final id = m['match_id'].toString();
             return DropdownMenuItem(
@@ -771,19 +971,28 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
           children: [
             TextField(
               controller: _recordTitle,
-              decoration: const InputDecoration(labelText: 'Title', isDense: true),
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                isDense: true,
+              ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _recordValue,
-              decoration: const InputDecoration(labelText: 'Value', isDense: true),
+              decoration: const InputDecoration(
+                labelText: 'Value',
+                isDense: true,
+              ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _recordSubtitle,
-              decoration: const InputDecoration(labelText: 'Subtitle', isDense: true),
+              decoration: const InputDecoration(
+                labelText: 'Subtitle',
+                isDense: true,
+              ),
               onChanged: (_) => setState(() {}),
             ),
           ],
@@ -792,7 +1001,9 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
         return DropdownButtonFormField<String>(
           initialValue: _selectedSeason,
           decoration: const InputDecoration(labelText: 'Season', isDense: true),
-          items: _seasons.reversed.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+          items: _seasons.reversed
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+              .toList(),
           onChanged: (s) {
             if (s != null) _loadSeason(s);
           },
@@ -814,7 +1025,11 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: selected ? color.withValues(alpha: 0.5) : CrickTheme.borderSubtle),
+            border: Border.all(
+              color: selected
+                  ? color.withValues(alpha: 0.5)
+                  : CrickTheme.borderSubtle,
+            ),
           ),
           child: Column(
             children: [
@@ -827,7 +1042,11 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
                 name ?? 'Player $slot',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -836,7 +1055,12 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
     );
   }
 
-  Widget _segChip(String label, bool selected, Color color, VoidCallback onTap) {
+  Widget _segChip(
+    String label,
+    bool selected,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Material(
       color: selected ? color.withValues(alpha: 0.14) : CrickTheme.bgElevated,
       borderRadius: BorderRadius.circular(20),
@@ -847,7 +1071,11 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: selected ? color.withValues(alpha: 0.5) : CrickTheme.borderSubtle),
+            border: Border.all(
+              color: selected
+                  ? color.withValues(alpha: 0.5)
+                  : CrickTheme.borderSubtle,
+            ),
           ),
           child: Text(
             label,
@@ -866,7 +1094,9 @@ class _ContentStudioScreenState extends State<ContentStudioScreen> {
     final s = t?.toString() ?? '';
     if (s.length <= 18) return s;
     final parts = s.split(' ');
-    if (parts.length >= 2) return parts.map((e) => e.isNotEmpty ? e[0] : '').join();
+    if (parts.length >= 2) {
+      return parts.map((e) => e.isNotEmpty ? e[0] : '').join();
+    }
     return s.substring(0, 16);
   }
 }
@@ -925,7 +1155,10 @@ class _FullscreenPreviewPage extends StatelessWidget {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: CrickTheme.cyan),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: CrickTheme.cyan,
+                    ),
                   )
                 : const Icon(Icons.download_rounded, color: CrickTheme.cyan),
             tooltip: 'Save',

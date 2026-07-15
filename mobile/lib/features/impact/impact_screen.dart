@@ -62,7 +62,10 @@ class _ImpactScreenState extends State<ImpactScreen> {
       _search.text = player;
     });
     try {
-      final data = await context.read<ApiService>().getPlayerImpact(player: player, season: _season);
+      final data = await context.read<ApiService>().getPlayerImpact(
+        player: player,
+        season: _season,
+      );
       if (!mounted) return;
       setState(() {
         _impact = data;
@@ -92,7 +95,9 @@ class _ImpactScreenState extends State<ImpactScreen> {
             ),
           ),
           if (_results.isNotEmpty)
-            ..._results.take(8).map(
+            ..._results
+                .take(8)
+                .map(
                   (p) => ListTile(
                     leading: PlayerAvatar(name: p, size: 32),
                     title: Text(p),
@@ -107,7 +112,8 @@ class _ImpactScreenState extends State<ImpactScreen> {
               if (_player != null) _loadImpact(_player!);
             },
           ),
-          if (_loading) const Padding(padding: EdgeInsets.all(32), child: LoadingView()),
+          if (_loading)
+            const Padding(padding: EdgeInsets.all(32), child: LoadingView()),
           if (_error != null)
             ErrorView(
               message: _error!,
@@ -125,15 +131,24 @@ class _ImpactScreenState extends State<ImpactScreen> {
                       Expanded(
                         child: Text(
                           _player ?? '',
-                          style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   ..._impact!.entries.take(20).map((e) {
-                    if (e.value is Map || e.value is List) return const SizedBox.shrink();
-                    return KeyValueRow(e.key, e.value?.toString() ?? '—', accent: true);
+                    if (e.value is Map || e.value is List) {
+                      return const SizedBox.shrink();
+                    }
+                    return KeyValueRow(
+                      e.key,
+                      e.value?.toString() ?? '—',
+                      accent: true,
+                    );
                   }),
                 ],
               ),
@@ -142,14 +157,19 @@ class _ImpactScreenState extends State<ImpactScreen> {
             CrickCard(
               child: Text(
                 'Raw metrics loaded from /advanced/player-impact',
-                style: TextStyle(color: CrickTheme.textMuted.withValues(alpha: 0.9), fontSize: 11),
+                style: TextStyle(
+                  color: CrickTheme.textMuted.withValues(alpha: 0.9),
+                  fontSize: 11,
+                ),
               ),
             ),
           ],
           if (!_loading && _impact == null && _player == null)
             const Padding(
               padding: EdgeInsets.all(32),
-              child: EmptyView(message: 'Search a player to view impact metrics'),
+              child: EmptyView(
+                message: 'Search a player to view impact metrics',
+              ),
             ),
           const SizedBox(height: 24),
         ],
@@ -167,7 +187,10 @@ class _ImpactScreenState extends State<ImpactScreen> {
         (p) => CrickCard(
           child: Text(
             p.entries.take(5).map((e) => '${e.key}: ${e.value}').join(' · '),
-            style: GoogleFonts.jetBrainsMono(fontSize: 12, color: CrickTheme.textSecondary),
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 12,
+              color: CrickTheme.textSecondary,
+            ),
           ),
         ),
       ),

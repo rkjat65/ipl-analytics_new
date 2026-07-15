@@ -20,10 +20,19 @@ class LoadingView extends StatelessWidget {
           const SizedBox(
             width: 32,
             height: 32,
-            child: CircularProgressIndicator(strokeWidth: 2.5, color: CrickTheme.cyan),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: CrickTheme.cyan,
+            ),
           ),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(color: CrickTheme.textSecondary, fontSize: 13)),
+          Text(
+            message,
+            style: const TextStyle(
+              color: CrickTheme.textSecondary,
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );
@@ -43,9 +52,17 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, color: CrickTheme.magenta, size: 40),
+            const Icon(
+              Icons.cloud_off_rounded,
+              color: CrickTheme.magenta,
+              size: 40,
+            ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: CrickTheme.textSecondary)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: CrickTheme.textSecondary),
+            ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),
@@ -63,7 +80,9 @@ class EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text(message, style: const TextStyle(color: CrickTheme.textMuted)));
+    return Center(
+      child: Text(message, style: const TextStyle(color: CrickTheme.textMuted)),
+    );
   }
 }
 
@@ -136,7 +155,10 @@ class StatCard extends StatelessWidget {
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, color: CrickTheme.textMuted),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: CrickTheme.textMuted,
+                  ),
                 ),
               ],
             ],
@@ -171,10 +193,13 @@ class SectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700),
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
           if (onSeeAll != null)
             TextButton(
               onPressed: onSeeAll,
@@ -183,7 +208,10 @@ class SectionHeader extends StatelessWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('See all', style: TextStyle(color: CrickTheme.cyan, fontSize: 12)),
+              child: const Text(
+                'See all',
+                style: TextStyle(color: CrickTheme.cyan, fontSize: 12),
+              ),
             ),
         ],
       ),
@@ -206,21 +234,26 @@ class CrickCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Material(
-        color: CrickTheme.bgCard,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
+    return Semantics(
+      button: onTap != null,
+      container: true,
+      child: Container(
+        margin:
+            margin ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Material(
+          color: CrickTheme.bgCard,
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: CrickTheme.borderSubtle),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: CrickTheme.borderSubtle),
+              ),
+              child: child,
             ),
-            child: child,
           ),
         ),
       ),
@@ -251,7 +284,7 @@ class SeasonChipBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, i) {
           final s = items[i];
           final label = s ?? 'All';
@@ -268,7 +301,11 @@ class SeasonChipBar extends StatelessWidget {
               fontSize: 11,
               fontWeight: selectedNow ? FontWeight.w700 : FontWeight.w500,
             ),
-            side: BorderSide(color: selectedNow ? CrickTheme.cyan.withValues(alpha: 0.5) : CrickTheme.borderSubtle),
+            side: BorderSide(
+              color: selectedNow
+                  ? CrickTheme.cyan.withValues(alpha: 0.5)
+                  : CrickTheme.borderSubtle,
+            ),
             backgroundColor: CrickTheme.bgCard,
             padding: const EdgeInsets.symmetric(horizontal: 4),
           );
@@ -298,22 +335,21 @@ class PlayerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = radius ?? (size > 80 ? 16.0 : size / 2);
     final border = borderColor ?? CrickTheme.cyan.withValues(alpha: 0.35);
-    final url = AppConfig.playerImage(name);
-    final cache = (size * 3).round().clamp(120, 900);
-
     final image = ClipRRect(
       borderRadius: BorderRadius.circular(r),
-      child: CachedNetworkImage(
-        imageUrl: url,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        memCacheWidth: cache,
-        memCacheHeight: cache,
-        fadeInDuration: const Duration(milliseconds: 180),
-        placeholder: (context, url) => _fallback(),
-        errorWidget: (context, url, error) => _fallback(),
-      ),
+      child: AppConfig.useRemoteMedia
+          ? CachedNetworkImage(
+              imageUrl: AppConfig.playerImage(name),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              memCacheWidth: (size * 3).round().clamp(120, 900),
+              memCacheHeight: (size * 3).round().clamp(120, 900),
+              fadeInDuration: const Duration(milliseconds: 180),
+              placeholder: (context, url) => _fallback(),
+              errorWidget: (context, url, error) => _fallback(),
+            )
+          : _fallback(),
     );
 
     if (!showBorder) {
@@ -371,7 +407,7 @@ class TeamLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = teamLogoUrl(team);
     final color = teamColor(team);
-    if (url == null) return _badge(color);
+    if (!AppConfig.useRemoteMedia || url == null) return _badge(color);
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: CachedNetworkImage(
@@ -380,8 +416,8 @@ class TeamLogo extends StatelessWidget {
         height: size,
         fit: BoxFit.cover,
         memCacheWidth: (size * 3).round(),
-        placeholder: (_, __) => _badge(color),
-        errorWidget: (_, __, ___) => _badge(color),
+        placeholder: (_, _) => _badge(color),
+        errorWidget: (_, _, _) => _badge(color),
       ),
     );
   }
@@ -398,7 +434,11 @@ class TeamLogo extends StatelessWidget {
       ),
       child: Text(
         teamAbbr(team),
-        style: GoogleFonts.jetBrainsMono(fontSize: size * 0.28, fontWeight: FontWeight.w700, color: color),
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: size * 0.28,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
@@ -423,12 +463,26 @@ class MatchTile extends StatelessWidget {
             children: [
               Text(
                 match['season']?.toString() ?? '',
-                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: CrickTheme.cyan, fontWeight: FontWeight.w700),
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10,
+                  color: CrickTheme.cyan,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const Spacer(),
-              Text(formatDate(match['date']), style: const TextStyle(fontSize: 10, color: CrickTheme.textMuted)),
+              Text(
+                formatDate(match['date']),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: CrickTheme.textMuted,
+                ),
+              ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 16, color: CrickTheme.textMuted),
+              const Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: CrickTheme.textMuted,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -437,7 +491,13 @@ class MatchTile extends StatelessWidget {
               TeamLogo(team: t1, size: 30),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(teamAbbr(t1), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                child: Text(
+                  teamAbbr(t1),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -445,10 +505,24 @@ class MatchTile extends StatelessWidget {
                   color: CrickTheme.bgElevated,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text('VS', style: TextStyle(color: CrickTheme.textMuted, fontSize: 10, fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'VS',
+                  style: TextStyle(
+                    color: CrickTheme.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               Expanded(
-                child: Text(teamAbbr(t2), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                child: Text(
+                  teamAbbr(t2),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               TeamLogo(team: t2, size: 30),
@@ -457,7 +531,10 @@ class MatchTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             matchResult(match),
-            style: const TextStyle(fontSize: 12, color: CrickTheme.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: CrickTheme.textSecondary,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -509,9 +586,21 @@ class LeaderboardTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
                 if (secondary != null)
-                  Text(secondary!, style: const TextStyle(fontSize: 11, color: CrickTheme.textMuted)),
+                  Text(
+                    secondary!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: CrickTheme.textMuted,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -520,9 +609,19 @@ class LeaderboardTile extends StatelessWidget {
             children: [
               Text(
                 primary,
-                style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w700, color: CrickTheme.cyan, fontSize: 15),
+                style: GoogleFonts.jetBrainsMono(
+                  fontWeight: FontWeight.w700,
+                  color: CrickTheme.cyan,
+                  fontSize: 15,
+                ),
               ),
-              Text(primaryLabel, style: const TextStyle(fontSize: 10, color: CrickTheme.textMuted)),
+              Text(
+                primaryLabel,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: CrickTheme.textMuted,
+                ),
+              ),
             ],
           ),
         ],
@@ -544,10 +643,13 @@ class ShimmerList extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         shrinkWrap: true,
         itemCount: count,
-        itemBuilder: (_, __) => Container(
+        itemBuilder: (_, _) => Container(
           height: 60,
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(color: CrickTheme.bgCard, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: CrickTheme.bgCard,
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );
@@ -578,11 +680,20 @@ class SearchField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         isDense: true,
-        prefixIcon: const Icon(Icons.search, color: CrickTheme.textMuted, size: 20),
+        prefixIcon: const Icon(
+          Icons.search,
+          color: CrickTheme.textMuted,
+          size: 20,
+        ),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                icon: const Icon(Icons.clear, color: CrickTheme.textMuted, size: 18),
+                tooltip: 'Clear search',
+                icon: const Icon(
+                  Icons.clear,
+                  color: CrickTheme.textMuted,
+                  size: 18,
+                ),
                 onPressed: () {
                   controller.clear();
                   onChanged?.call('');
@@ -605,7 +716,15 @@ class KeyValueRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(color: CrickTheme.textSecondary, fontSize: 13))),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: CrickTheme.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
           Text(
             value,
             style: GoogleFonts.jetBrainsMono(

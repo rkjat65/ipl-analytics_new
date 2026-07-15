@@ -52,38 +52,54 @@ class _TeamsScreenState extends State<TeamsScreen> {
       body: _loading
           ? const LoadingView()
           : _error != null
-              ? ErrorView(message: _error!, onRetry: _load)
-              : RefreshIndicator(
-                  color: CrickTheme.cyan,
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    itemCount: _teams.length,
-                    itemBuilder: (_, i) {
-                      final team = _teams[i];
-                      return CrickCard(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => TeamProfileScreen(teamName: team)),
-                        ),
-                        child: Row(
-                          children: [
-                            TeamLogo(team: team, size: 44),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(team, style: const TextStyle(fontWeight: FontWeight.w700)),
-                                  Text(teamAbbr(team), style: TextStyle(color: teamColor(team), fontSize: 12)),
-                                ],
+          ? ErrorView(message: _error!, onRetry: _load)
+          : RefreshIndicator(
+              color: CrickTheme.cyan,
+              onRefresh: _load,
+              child: ListView.builder(
+                itemCount: _teams.length,
+                itemBuilder: (_, i) {
+                  final team = _teams[i];
+                  return CrickCard(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TeamProfileScreen(teamName: team),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        TeamLogo(team: team, size: 44),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                team,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            const Icon(Icons.chevron_right, color: CrickTheme.textMuted),
-                          ],
+                              Text(
+                                teamAbbr(team),
+                                style: TextStyle(
+                                  color: teamColor(team),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: CrickTheme.textMuted,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

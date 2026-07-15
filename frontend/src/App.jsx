@@ -24,6 +24,7 @@ import PlayerImpact from './pages/PlayerImpact'
 import Charts from './pages/Charts'
 import FAQ from './pages/FAQ'
 import Admin from './pages/Admin'
+import { AccountDeletion, PrivacyPolicy, TermsOfUse } from './pages/Legal'
 
 export default function App() {
   return (
@@ -31,6 +32,9 @@ export default function App() {
       {/* Default: land straight on the dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfUse />} />
+      <Route path="/account-deletion" element={<AccountDeletion />} />
 
       {/* App routes (with sidebar/header layout) */}
       <Route element={<Layout />}>

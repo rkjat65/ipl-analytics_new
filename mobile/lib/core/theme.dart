@@ -71,7 +71,10 @@ class CrickTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: cyan, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: bgCard,
@@ -97,17 +100,16 @@ class CrickTheme {
     );
 
     return base.copyWith(
-      textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(
-        bodyColor: textPrimary,
-        displayColor: textPrimary,
+      textTheme: GoogleFonts.interTextTheme(
+        base.textTheme,
+      ).apply(bodyColor: textPrimary, displayColor: textPrimary),
+      primaryTextTheme: GoogleFonts.spaceGroteskTextTheme(
+        base.primaryTextTheme,
       ),
-      primaryTextTheme: GoogleFonts.spaceGroteskTextTheme(base.primaryTextTheme),
     );
   }
 
   static TextStyle get mono => GoogleFonts.jetBrainsMono(color: textPrimary);
-  static TextStyle get heading => GoogleFonts.spaceGrotesk(
-        color: textPrimary,
-        fontWeight: FontWeight.w700,
-      );
+  static TextStyle get heading =>
+      GoogleFonts.spaceGrotesk(color: textPrimary, fontWeight: FontWeight.w700);
 }

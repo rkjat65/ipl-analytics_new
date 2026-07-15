@@ -110,24 +110,31 @@ class _SocialScreenState extends State<SocialScreen> {
   }
 
   Future<void> _post() async {
+    final api = context.read<ApiService>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Post to Twitter/X?'),
-        content: const Text('This uses the server-side social credentials configured for Crickrida.'),
+        content: const Text(
+          'This uses the server-side social credentials configured for Crickrida.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Post')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Post'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
+    if (!context.mounted) return;
     setState(() => _busy = true);
     try {
-      await context.read<ApiService>().postTwitter({
-        'text': _text.text,
-        'hashtags': _selectedTags,
-      });
+      await api.postTwitter({'text': _text.text, 'hashtags': _selectedTags});
       if (!mounted) return;
       setState(() {
         _message = 'Posted';
@@ -155,7 +162,10 @@ class _SocialScreenState extends State<SocialScreen> {
                   CrickCard(
                     child: Text(
                       'Social status: ${_status.toString()}',
-                      style: const TextStyle(color: CrickTheme.textSecondary, fontSize: 12),
+                      style: const TextStyle(
+                        color: CrickTheme.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 CrickCard(
@@ -173,7 +183,12 @@ class _SocialScreenState extends State<SocialScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text('Hashtags', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w700)),
+                      Text(
+                        'Hashtags',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 6,
@@ -188,7 +203,9 @@ class _SocialScreenState extends State<SocialScreen> {
                                 if (v) {
                                   _selectedTags = [..._selectedTags, t];
                                 } else {
-                                  _selectedTags = _selectedTags.where((x) => x != t).toList();
+                                  _selectedTags = _selectedTags
+                                      .where((x) => x != t)
+                                      .toList();
                                 }
                               });
                             },
@@ -199,15 +216,24 @@ class _SocialScreenState extends State<SocialScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton(onPressed: _busy ? null : _runPreview, child: const Text('Preview')),
+                            child: OutlinedButton(
+                              onPressed: _busy ? null : _runPreview,
+                              child: const Text('Preview'),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: OutlinedButton(onPressed: _busy ? null : _saveDraft, child: const Text('Save draft')),
+                            child: OutlinedButton(
+                              onPressed: _busy ? null : _saveDraft,
+                              child: const Text('Save draft'),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: FilledButton(onPressed: _busy ? null : _post, child: const Text('Post')),
+                            child: FilledButton(
+                              onPressed: _busy ? null : _post,
+                              child: const Text('Post'),
+                            ),
                           ),
                         ],
                       ),
@@ -217,13 +243,22 @@ class _SocialScreenState extends State<SocialScreen> {
                 if (_message != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(_message!, style: const TextStyle(color: CrickTheme.cyan, fontSize: 12)),
+                    child: Text(
+                      _message!,
+                      style: const TextStyle(
+                        color: CrickTheme.cyan,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 if (_previewData != null) ...[
                   const SectionHeader('Preview'),
                   CrickCard(
                     child: Text(
-                      (_previewData!['text'] ?? _previewData!['preview'] ?? _previewData.toString()).toString(),
+                      (_previewData!['text'] ??
+                              _previewData!['preview'] ??
+                              _previewData.toString())
+                          .toString(),
                       style: const TextStyle(height: 1.4),
                     ),
                   ),
@@ -233,7 +268,10 @@ class _SocialScreenState extends State<SocialScreen> {
                   CrickCard(
                     child: Text(
                       _times.take(8).map((e) => e.toString()).join('\n'),
-                      style: GoogleFonts.jetBrainsMono(fontSize: 12, color: CrickTheme.textSecondary),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 12,
+                        color: CrickTheme.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -246,7 +284,9 @@ class _SocialScreenState extends State<SocialScreen> {
                           _text.text = (d['text'] ?? '').toString();
                           final tags = d['hashtags'];
                           if (tags is List) {
-                            _selectedTags = tags.map((e) => e.toString()).toList();
+                            _selectedTags = tags
+                                .map((e) => e.toString())
+                                .toList();
                           }
                         });
                       },

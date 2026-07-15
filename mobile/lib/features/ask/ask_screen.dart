@@ -60,15 +60,25 @@ class _AskScreenState extends State<AskScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Sign in required'),
-          content: const Text('Ask Cricket uses AI quotas tied to your account. Sign in to continue.'),
+          content: const Text(
+            'Ask Cricket uses AI quotas tied to your account. Sign in to continue.',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign in')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sign in'),
+            ),
           ],
         ),
       );
       if (go == true && mounted) {
-        await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+        await Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
       }
       if (!mounted || !context.read<AuthProvider>().isAuthenticated) return;
     }
@@ -82,12 +92,14 @@ class _AskScreenState extends State<AskScreen> {
     try {
       final api = context.read<ApiService>();
       final res = await api.askCricket(question, season: _season);
-      final answer = (res['answer'] ?? res['response'] ?? res['text'] ?? res.toString()).toString();
+      final answer =
+          (res['answer'] ?? res['response'] ?? res['text'] ?? res.toString())
+              .toString();
       final rows = asMapList(res, 'data').isNotEmpty
           ? asMapList(res, 'data')
           : asMapList(res, 'rows').isNotEmpty
-              ? asMapList(res, 'rows')
-              : asMapList(res, 'results');
+          ? asMapList(res, 'rows')
+          : asMapList(res, 'results');
       if (!mounted) return;
       setState(() {
         _messages.add(_ChatMsg(role: 'ai', text: answer, rows: rows, raw: res));
@@ -112,7 +124,7 @@ class _AskScreenState extends State<AskScreen> {
             tooltip: 'Season filter',
             onPressed: () async {
               final seasons = await context.read<ApiService>().getSeasons();
-              if (!mounted) return;
+              if (!context.mounted) return;
               final picked = await showModalBottomSheet<String?>(
                 context: context,
                 backgroundColor: CrickTheme.bgElevated,
@@ -124,13 +136,18 @@ class _AskScreenState extends State<AskScreen> {
                         onTap: () => Navigator.pop(ctx, ''),
                       ),
                       ...seasons.reversed.map(
-                        (s) => ListTile(title: Text(s), onTap: () => Navigator.pop(ctx, s)),
+                        (s) => ListTile(
+                          title: Text(s),
+                          onTap: () => Navigator.pop(ctx, s),
+                        ),
                       ),
                     ],
                   ),
                 ),
               );
-              if (picked != null) setState(() => _season = picked.isEmpty ? null : picked);
+              if (picked != null && context.mounted) {
+                setState(() => _season = picked.isEmpty ? null : picked);
+              }
             },
             icon: const Icon(Icons.filter_list_rounded),
           ),
@@ -143,7 +160,10 @@ class _AskScreenState extends State<AskScreen> {
               width: double.infinity,
               color: CrickTheme.cyan.withValues(alpha: 0.08),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text('Season filter: $_season', style: const TextStyle(color: CrickTheme.cyan, fontSize: 12)),
+              child: Text(
+                'Season filter: $_season',
+                style: const TextStyle(color: CrickTheme.cyan, fontSize: 12),
+              ),
             ),
           Expanded(
             child: _messages.isEmpty
@@ -152,7 +172,10 @@ class _AskScreenState extends State<AskScreen> {
                     children: [
                       Text(
                         'Ask anything about IPL ball-by-ball data',
-                        style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -165,7 +188,11 @@ class _AskScreenState extends State<AskScreen> {
                           onTap: () => _ask(s),
                           child: Row(
                             children: [
-                              const Icon(Icons.auto_awesome, color: CrickTheme.cyan, size: 18),
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: CrickTheme.cyan,
+                                size: 18,
+                              ),
                               const SizedBox(width: 10),
                               Expanded(child: Text(s)),
                             ],
@@ -187,20 +214,26 @@ class _AskScreenState extends State<AskScreen> {
                       final m = _messages[i];
                       final isUser = m.role == 'user';
                       return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 6),
                           padding: const EdgeInsets.all(12),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.88),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.88,
+                          ),
                           decoration: BoxDecoration(
-                            color: isUser ? CrickTheme.cyan.withValues(alpha: 0.15) : CrickTheme.bgCard,
+                            color: isUser
+                                ? CrickTheme.cyan.withValues(alpha: 0.15)
+                                : CrickTheme.bgCard,
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: m.isError
                                   ? CrickTheme.danger.withValues(alpha: 0.5)
                                   : isUser
-                                      ? CrickTheme.cyan.withValues(alpha: 0.35)
-                                      : CrickTheme.borderSubtle,
+                                  ? CrickTheme.cyan.withValues(alpha: 0.35)
+                                  : CrickTheme.borderSubtle,
                             ),
                           ),
                           child: Column(
@@ -208,7 +241,12 @@ class _AskScreenState extends State<AskScreen> {
                             children: [
                               Text(
                                 m.text,
-                                style: TextStyle(color: m.isError ? CrickTheme.danger : CrickTheme.textPrimary, height: 1.35),
+                                style: TextStyle(
+                                  color: m.isError
+                                      ? CrickTheme.danger
+                                      : CrickTheme.textPrimary,
+                                  height: 1.35,
+                                ),
                               ),
                               if (m.rows != null && m.rows!.isNotEmpty) ...[
                                 const SizedBox(height: 10),
@@ -216,8 +254,14 @@ class _AskScreenState extends State<AskScreen> {
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 4),
                                     child: Text(
-                                      r.entries.take(4).map((e) => '${e.key}: ${e.value}').join(' · '),
-                                      style: GoogleFonts.jetBrainsMono(fontSize: 11, color: CrickTheme.textSecondary),
+                                      r.entries
+                                          .take(4)
+                                          .map((e) => '${e.key}: ${e.value}')
+                                          .join(' · '),
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 11,
+                                        color: CrickTheme.textSecondary,
+                                      ),
                                     ),
                                   );
                                 }),
@@ -240,7 +284,9 @@ class _AskScreenState extends State<AskScreen> {
                       controller: _controller,
                       minLines: 1,
                       maxLines: 4,
-                      decoration: const InputDecoration(hintText: 'Ask a cricket question…'),
+                      decoration: const InputDecoration(
+                        hintText: 'Ask a cricket question…',
+                      ),
                       onSubmitted: (_) => _ask(),
                     ),
                   ),
@@ -260,7 +306,13 @@ class _AskScreenState extends State<AskScreen> {
 }
 
 class _ChatMsg {
-  _ChatMsg({required this.role, required this.text, this.rows, this.raw, this.isError = false});
+  _ChatMsg({
+    required this.role,
+    required this.text,
+    this.rows,
+    this.raw,
+    this.isError = false,
+  });
   final String role;
   final String text;
   final List<Map<String, dynamic>>? rows;

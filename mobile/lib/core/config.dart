@@ -5,6 +5,13 @@ class AppConfig {
     defaultValue: 'https://crickrida.rkjat.in',
   );
 
+  /// Store builds use neutral initials and team badges by default. Enable
+  /// third-party photos/logos only after confirming the required media rights.
+  static const bool useRemoteMedia = bool.fromEnvironment(
+    'USE_REMOTE_MEDIA',
+    defaultValue: false,
+  );
+
   static String get apiPrefix => '$apiBase/api';
 
   static String playerImage(String name) =>

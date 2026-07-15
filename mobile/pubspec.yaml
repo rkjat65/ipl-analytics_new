@@ -9,17 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   http: ^1.2.2
   provider: ^6.1.2
-  flutter_secure_storage: ^9.2.4
-  shared_preferences: ^2.3.3
-  go_router: ^14.6.2
-  fl_chart: ^0.69.2
+  flutter_secure_storage: ^10.3.1
+  fl_chart: ^1.2.0
   cached_network_image: ^3.4.1
-  google_fonts: ^6.2.1
-  intl: ^0.19.0
-  share_plus: ^10.1.3
+  google_fonts: ^8.1.0
+  intl: ^0.20.3
+  share_plus: ^13.2.1
   path_provider: ^2.1.5
   gal: ^2.3.0
   url_launcher: ^6.3.1
@@ -29,6 +26,34 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/splash-logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/icon-master.png
+  adaptive_icon_background: "#0A0A0F"
+  adaptive_icon_foreground: assets/branding/adaptive-foreground.png
+  min_sdk_android: 24
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#0A0A0F"
+  image: assets/branding/splash-logo.png
+  color_dark: "#0A0A0F"
+  image_dark: assets/branding/splash-logo.png
+  android: true
+  ios: true
+  web: false
+  fullscreen: true
+  android_12:
+    color: "#0A0A0F"
+    image: assets/branding/splash-logo.png
+    color_dark: "#0A0A0F"
+    image_dark: assets/branding/splash-logo.png

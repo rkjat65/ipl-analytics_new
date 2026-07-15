@@ -72,7 +72,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Crickrida'),
         actions: [
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+          IconButton(
+            tooltip: 'Refresh dashboard',
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
       ),
       body: _error != null && _kpis == null
@@ -93,7 +97,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                   ),
                   if (_loading && _kpis == null)
-                    const Padding(padding: EdgeInsets.all(40), child: LoadingView())
+                    const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: LoadingView(),
+                    )
                   else ...[
                     const SectionHeader('Season pulse'),
                     Padding(
@@ -138,11 +145,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           StatCard(
                             label: 'Highest',
                             value: _kpis?['highest_total'] is Map
-                                ? formatNumber((_kpis!['highest_total'] as Map)['total_runs'])
+                                ? formatNumber(
+                                    (_kpis!['highest_total']
+                                        as Map)['total_runs'],
+                                  )
                                 : '—',
                             color: CrickTheme.cyan,
                             subtitle: _kpis?['highest_total'] is Map
-                                ? teamAbbr((_kpis!['highest_total'] as Map)['batting_team']?.toString())
+                                ? teamAbbr(
+                                    (_kpis!['highest_total']
+                                            as Map)['batting_team']
+                                        ?.toString(),
+                                  )
                                 : null,
                           ),
                         ],
@@ -157,9 +171,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         name: name,
                         primary: formatNumber(p['runs']),
                         primaryLabel: 'runs',
-                        secondary: 'Avg ${formatDecimal(p['avg'])} · SR ${formatDecimal(p['sr'])}',
+                        secondary:
+                            'Avg ${formatDecimal(p['avg'])} · SR ${formatDecimal(p['sr'])}',
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => PlayerProfileScreen(playerName: name)),
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PlayerProfileScreen(playerName: name),
+                          ),
                         ),
                       );
                     }),
@@ -172,25 +190,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         name: name,
                         primary: formatNumber(p['wickets']),
                         primaryLabel: 'wkts',
-                        secondary: 'Econ ${formatDecimal(p['economy'])} · Avg ${formatDecimal(p['avg'])}',
+                        secondary:
+                            'Econ ${formatDecimal(p['economy'])} · Avg ${formatDecimal(p['avg'])}',
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => PlayerProfileScreen(playerName: name)),
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PlayerProfileScreen(playerName: name),
+                          ),
                         ),
                       );
                     }),
                     if (_mostWins.isNotEmpty) ...[
                       const SectionHeader('Most wins'),
                       ..._mostWins.take(6).map((t) {
-                        final team = t['team']?.toString() ?? t['winner']?.toString() ?? '';
+                        final team =
+                            t['team']?.toString() ??
+                            t['winner']?.toString() ??
+                            '';
                         return CrickCard(
                           child: Row(
                             children: [
                               TeamLogo(team: team),
                               const SizedBox(width: 12),
-                              Expanded(child: Text(team, style: const TextStyle(fontWeight: FontWeight.w600))),
+                              Expanded(
+                                child: Text(
+                                  team,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                               Text(
                                 formatNumber(t['wins'] ?? t['count']),
-                                style: CrickTheme.mono.copyWith(color: CrickTheme.lime, fontWeight: FontWeight.w700),
+                                style: CrickTheme.mono.copyWith(
+                                  color: CrickTheme.lime,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -203,7 +238,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         match: m,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => MatchDetailScreen(matchId: m['match_id'].toString()),
+                            builder: (_) => MatchDetailScreen(
+                              matchId: m['match_id'].toString(),
+                            ),
                           ),
                         ),
                       ),
